@@ -706,11 +706,61 @@
   .hidden { display: none !important; }
 
   /* QuadSquad Bracket */
+  .quad-stage-toolbar {
+    display: flex;
+    gap: 8px;
+    margin-top: 16px;
+    border-bottom: 2px solid var(--line);
+  }
+  .quad-stage-btn {
+    background: transparent;
+    border: none;
+    padding: 12px 24px;
+    font-weight: 800;
+    font-size: 15px;
+    color: var(--muted);
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    margin-bottom: -2px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .quad-stage-btn.active {
+    color: var(--ink);
+    border-bottom-color: var(--orange);
+  }
+  .quad-stage-btn.disabled, .quad-stage-btn:disabled {
+    color: #bbb;
+    cursor: not-allowed;
+  }
   .quad-bracket-container {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 24px;
     margin-top: 20px;
+  }
+  .drag-grip {
+    display: inline-block;
+    color: var(--muted);
+    font-weight: 900;
+    letter-spacing: -2px;
+    margin-right: 4px;
+    cursor: grab;
+  }
+  .quad-round-label.draggable, .quad-game .pair-players.draggable {
+    cursor: grab;
+  }
+  .quad-round-label.draggable:hover, .quad-game .pair-players.draggable:hover {
+    background: rgba(244, 121, 32, 0.08);
+    border-radius: 4px;
+  }
+  .dragging {
+    opacity: 0.4;
+  }
+  .drag-over {
+    outline: 2px dashed var(--orange);
+    outline-offset: 2px;
+    border-radius: 4px;
   }
   .quad-match {
     background: #fff;
@@ -1166,6 +1216,7 @@ const KEY = 'ddp-tournament-v3';
 
 const defaultState = () => ({
   tournamentType: 'dilldinkers', // 'dilldinkers' or 'quadsquad'
+  quadStage: 'semis', // 'semis' or 'finals' — which QuadSquad stage to display
   leagueName: 'Dill Dinkers',
   phase: 'setup',
   players: Array(16).fill(null).map((_, i) => ({ seed: i + 1, name: '' })),
@@ -2287,6 +2338,52 @@ if (document.getElementById('btn-back-quad-seeding')) {
   });
 }
 
+// Valid 4-player round splits: each player appears in exactly one pair per round.
+// These are the only three ways to split {0,1,2,3} into two disjoint pairs.
+const QUAD_ROUND_SPLITS = [
+  [[0, 1], [2, 3]],
+  [[0, 2], [1, 3]],
+  [[0, 3], [1, 2]]
+];
+
+function quadRoundsAreValid(games) {
+  // Each non-dreambreaker round must cover all 4 players on each team with no repeats.
+  const byRound = {};
+  games.forEach(g => {
+    if (g.round >= 4) return; // dreambreaker
+    if (!byRound[g.round]) byRound[g.round] = [];
+    byRound[g.round].push(g);
+  });
+  for (const r of Object.keys(byRound)) {
+    const rgs = byRound[r];
+    if (rgs.length !== 2) return false;
+    const p1Players = [...rgs[0].pair1.players, ...rgs[1].pair1.players].sort();
+    const p2Players = [...rgs[0].pair2.players, ...rgs[1].pair2.players].sort();
+    if (p1Players.join(',') !== '0,1,2,3') return false;
+    if (p2Players.join(',') !== '0,1,2,3') return false;
+  }
+  return true;
+}
+
+function buildQuadGames(team1Id, team2Id) {
+  const games = [];
+  let gameNum = 1;
+  QUAD_ROUND_SPLITS.forEach((split, roundIdx) => {
+    split.forEach(pair => {
+      games.push({
+        gameNum: gameNum++,
+        round: roundIdx + 1,
+        pair1: { teamId: team1Id, players: pair.slice() },
+        pair2: { teamId: team2Id, players: pair.slice() },
+        score1: null,
+        score2: null,
+        winner: null
+      });
+    });
+  });
+  return games;
+}
+
 function initQuadMatches() {
   const matches = {};
   const seed1 = state.teams.find(t => t.seed === 1);
@@ -2306,24 +2403,9 @@ function initQuadMatches() {
   matches.finals = { id: 'finals', round: 'Finals', team1Id: null, team2Id: null, games: [], gameWins: {}, winner: null };
   matches.bronze = { id: 'bronze', round: 'Bronze Medal', team1Id: null, team2Id: null, games: [], gameWins: {}, winner: null };
 
-  const generateGamePairings = (team1, team2) => {
-    const pairings = [];
-    for (let i = 0; i < 4; i++) {
-      for (let j = i + 1; j < 4; j++) {
-        pairings.push({ pair1: {teamId: team1.id, players: [i, j]}, pair2: {teamId: team2.id, players: [i, j]} });
-      }
-    }
-    return pairings.slice(0, 6);
-  };
-
   ['sf1', 'sf2'].forEach(matchId => {
     const match = matches[matchId];
-    const team1 = state.teams.find(t => t.id === match.team1Id);
-    const team2 = state.teams.find(t => t.id === match.team2Id);
-    const pairings = generateGamePairings(team1, team2);
-    match.games = pairings.map((p, idx) => ({
-      gameNum: idx + 1, round: Math.floor(idx / 2) + 1, pair1: p.pair1, pair2: p.pair2, score1: null, score2: null, winner: null
-    }));
+    match.games = buildQuadGames(match.team1Id, match.team2Id);
     match.gameWins[match.team1Id] = 0;
     match.gameWins[match.team2Id] = 0;
   });
@@ -2343,19 +2425,60 @@ function renderQuadBracket() {
     saveState();
   }
 
+  // Migration: earlier pairings generated invalid rounds (a player appeared in both games
+  // of a round). Rebuild any match whose round layout doesn't match a valid split AND whose
+  // games haven't been scored yet (to avoid wiping results).
+  ['sf1', 'sf2', 'finals', 'bronze'].forEach(id => {
+    const m = state.matches && state.matches[id];
+    if (!m || !m.games || m.games.length === 0) return;
+    if (!quadRoundsAreValid(m.games)) {
+      const hasScores = m.games.some(g => g.score1 != null || g.score2 != null || g.winner);
+      if (!hasScores && m.team1Id && m.team2Id) {
+        m.games = buildQuadGames(m.team1Id, m.team2Id);
+        saveState();
+      }
+    }
+  });
+
   propagateQuadMatches();
 
-  container.innerHTML = '<div class="quad-bracket-container" id="quad-bracket-grid"></div>';
-  const grid = document.getElementById('quad-bracket-grid');
+  // Auto-advance stage when both semis are complete (unless the user has explicitly
+  // navigated back — track that via a user override flag on state).
+  const sf1 = state.matches.sf1, sf2 = state.matches.sf2;
+  const semisDone = sf1 && sf2 && sf1.winner && sf2.winner;
+  if (semisDone && !state.quadStage) state.quadStage = 'finals';
+  if (!state.quadStage) state.quadStage = 'semis';
+  if (!semisDone && state.quadStage === 'finals') state.quadStage = 'semis';
 
-  ['sf1', 'sf2', 'finals', 'bronze'].forEach(matchId => {
+  const stage = state.quadStage;
+
+  container.innerHTML = `
+    <div class="quad-stage-toolbar">
+      <button class="quad-stage-btn ${stage === 'semis' ? 'active' : ''}" data-stage="semis">Semifinals</button>
+      <button class="quad-stage-btn ${stage === 'finals' ? 'active' : ''} ${!semisDone ? 'disabled' : ''}" data-stage="finals" ${!semisDone ? 'disabled' : ''}>Finals & Bronze</button>
+    </div>
+    <div class="quad-bracket-container" id="quad-bracket-grid"></div>
+  `;
+
+  container.querySelectorAll('.quad-stage-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (btn.disabled) return;
+      state.quadStage = btn.dataset.stage;
+      saveState();
+      renderQuadBracket();
+    });
+  });
+
+  const grid = document.getElementById('quad-bracket-grid');
+  const matchIds = stage === 'finals' ? ['finals', 'bronze'] : ['sf1', 'sf2'];
+  matchIds.forEach(matchId => {
     const match = state.matches[matchId];
     if (!match) return;
     grid.appendChild(renderQuadMatch(match, isAdmin));
   });
 
   const finals = state.matches.finals;
-  if (finals && finals.winner) {
+  if (stage === 'finals' && finals && finals.winner) {
     const champTeam = state.teams.find(t => t.id === finals.winner);
     const banner = document.createElement('div');
     banner.className = 'quad-champion-banner';
@@ -2414,18 +2537,32 @@ function renderQuadMatch(match, isAdmin) {
 
   Object.keys(rounds).sort((a, b) => a - b).forEach(roundNum => {
     const isDreambreaker = parseInt(roundNum) === 4;
-    html += `<div class="quad-round"><div class="quad-round-label">${isDreambreaker ? 'Dreambreaker' : 'Round ' + roundNum}</div>`;
+    const roundDraggable = isAdmin && !isDreambreaker;
+    html += `<div class="quad-round" data-round="${roundNum}">
+      <div class="quad-round-label ${roundDraggable ? 'draggable' : ''}" ${roundDraggable ? `draggable="true" data-drag-type="round" data-round="${roundNum}" data-match-id="${match.id}"` : ''}>
+        ${roundDraggable ? '<span class="drag-grip">⋮⋮</span>' : ''}${isDreambreaker ? 'Dreambreaker' : 'Round ' + roundNum}
+      </div>`;
     rounds[roundNum].forEach(game => {
-      const p1Names = game.pair1.players.map(i => team1.players[i].name).join(' & ');
-      const p2Names = game.pair2.players.map(i => team2.players[i].name).join(' & ');
       const wonClass = game.winner === team1.id ? 'won-by-1' : (game.winner === team2.id ? 'won-by-2' : '');
+      let p1Names, p2Names;
+      if (isDreambreaker) {
+        // Dreambreaker: show all four players on each team
+        p1Names = team1.players.map(p => p.name).join(' / ');
+        p2Names = team2.players.map(p => p.name).join(' / ');
+      } else {
+        p1Names = game.pair1.players.map(i => team1.players[i].name).join(' & ');
+        p2Names = game.pair2.players.map(i => team2.players[i].name).join(' & ');
+      }
+      const pair2Draggable = isAdmin && !isDreambreaker;
       html += `
         <div class="quad-game ${wonClass}" data-game-num="${game.gameNum}">
           <div class="pair-players">${escapeHtml(p1Names)}</div>
           ${isAdmin ? `<input type="number" min="0" class="game-score" data-match="${match.id}" data-game="${game.gameNum}" data-slot="1" value="${game.score1 ?? ''}" placeholder="-">` : `<div style="font-weight:800; min-width:40px; text-align:center;">${game.score1 ?? '-'}</div>`}
           <div class="vs-separator">-</div>
           ${isAdmin ? `<input type="number" min="0" class="game-score" data-match="${match.id}" data-game="${game.gameNum}" data-slot="2" value="${game.score2 ?? ''}" placeholder="-">` : `<div style="font-weight:800; min-width:40px; text-align:center;">${game.score2 ?? '-'}</div>`}
-          <div class="pair-players right">${escapeHtml(p2Names)}</div>
+          <div class="pair-players right ${pair2Draggable ? 'draggable' : ''}" ${pair2Draggable ? `draggable="true" data-drag-type="pair2" data-match-id="${match.id}" data-game-num="${game.gameNum}" data-round="${roundNum}"` : ''}>
+            ${escapeHtml(p2Names)}${pair2Draggable ? ' <span class="drag-grip">⋮⋮</span>' : ''}
+          </div>
         </div>
       `;
     });
@@ -2460,9 +2597,96 @@ function renderQuadMatch(match, isAdmin) {
         addQuadDreambreaker(match.id);
       });
     }
+
+    attachQuadDragAndDrop(matchDiv, match);
   }
 
   return matchDiv;
+}
+
+function attachQuadDragAndDrop(matchDiv, match) {
+  const draggables = matchDiv.querySelectorAll('[draggable="true"]');
+  draggables.forEach(el => {
+    el.addEventListener('dragstart', (e) => {
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', JSON.stringify({
+        type: el.dataset.dragType,
+        matchId: el.dataset.matchId,
+        round: el.dataset.round,
+        gameNum: el.dataset.gameNum
+      }));
+      el.classList.add('dragging');
+    });
+    el.addEventListener('dragend', () => el.classList.remove('dragging'));
+
+    el.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      el.classList.add('drag-over');
+    });
+    el.addEventListener('dragleave', () => el.classList.remove('drag-over'));
+    el.addEventListener('drop', (e) => {
+      e.preventDefault();
+      el.classList.remove('drag-over');
+      let payload;
+      try { payload = JSON.parse(e.dataTransfer.getData('text/plain')); } catch (_) { return; }
+      if (!payload || payload.matchId !== el.dataset.matchId) return;
+      if (payload.type !== el.dataset.dragType) return;
+
+      if (payload.type === 'round') {
+        swapQuadRounds(match.id, parseInt(payload.round, 10), parseInt(el.dataset.round, 10));
+      } else if (payload.type === 'pair2') {
+        // Only allow swap within the same round
+        if (payload.round !== el.dataset.round) return;
+        swapQuadPair2(match.id, parseInt(payload.gameNum, 10), parseInt(el.dataset.gameNum, 10));
+      }
+    });
+  });
+}
+
+function swapQuadRounds(matchId, roundA, roundB) {
+  if (roundA === roundB) return;
+  const match = state.matches[matchId];
+  if (!match) return;
+  // Swap the round number on every game belonging to each round. Then reorder
+  // the games array so round 1 comes first, etc., and renumber gameNum sequentially.
+  match.games.forEach(g => {
+    if (g.round === roundA) g.round = -roundB; // temp sentinel
+    else if (g.round === roundB) g.round = -roundA;
+  });
+  match.games.forEach(g => { if (g.round < 0) g.round = -g.round; });
+  match.games.sort((a, b) => a.round - b.round);
+  match.games.forEach((g, i) => { g.gameNum = i + 1; });
+  saveState();
+  renderQuadBracket();
+}
+
+function swapQuadPair2(matchId, gameNumA, gameNumB) {
+  if (gameNumA === gameNumB) return;
+  const match = state.matches[matchId];
+  if (!match) return;
+  const gA = match.games.find(g => g.gameNum === gameNumA);
+  const gB = match.games.find(g => g.gameNum === gameNumB);
+  if (!gA || !gB) return;
+  const tmp = gA.pair2;
+  gA.pair2 = gB.pair2;
+  gB.pair2 = tmp;
+  // A swap of opponents invalidates prior game winners — retally.
+  [gA, gB].forEach(g => {
+    if (g.score1 != null && g.score2 != null && g.score1 !== g.score2) {
+      g.winner = g.score1 > g.score2 ? match.team1Id : match.team2Id;
+    } else {
+      g.winner = null;
+    }
+  });
+  match.gameWins = {};
+  match.gameWins[match.team1Id] = 0;
+  match.gameWins[match.team2Id] = 0;
+  match.games.forEach(g => { if (g.winner) match.gameWins[g.winner]++; });
+  const w1 = match.gameWins[match.team1Id], w2 = match.gameWins[match.team2Id];
+  match.winner = w1 >= 4 ? match.team1Id : (w2 >= 4 ? match.team2Id : null);
+  saveState();
+  renderQuadBracket();
 }
 
 let quadScoreTimeout;
@@ -2520,6 +2744,13 @@ function setQuadGameScore(matchId, gameNum, slot, value) {
     const hitDreambreaker = (wins1 === 3 && wins2 === 3 && !match.dreambreaker);
     const wasDreambreaker = (prevGameWins[match.team1Id] === 3 && prevGameWins[match.team2Id] === 3);
     if (winnerChanged || hitDreambreaker !== wasDreambreaker) {
+      // Auto-advance to Finals stage the moment both semis are decided
+      const sf1w = state.matches.sf1 && state.matches.sf1.winner;
+      const sf2w = state.matches.sf2 && state.matches.sf2.winner;
+      if (sf1w && sf2w && state.quadStage === 'semis') {
+        state.quadStage = 'finals';
+        saveState();
+      }
       renderQuadBracket();
     }
   }, 400);
@@ -2556,19 +2787,7 @@ function propagateQuadMatches() {
   const ensureGames = (match) => {
     if (!match.team1Id || !match.team2Id) return;
     if (match.games && match.games.length > 0) return;
-    const team1 = state.teams.find(t => t.id === match.team1Id);
-    const team2 = state.teams.find(t => t.id === match.team2Id);
-    if (!team1 || !team2) return;
-
-    const pairings = [];
-    for (let i = 0; i < 4; i++) {
-      for (let j = i + 1; j < 4; j++) {
-        pairings.push({ pair1: {teamId: team1.id, players: [i, j]}, pair2: {teamId: team2.id, players: [i, j]} });
-      }
-    }
-    match.games = pairings.slice(0, 6).map((p, idx) => ({
-      gameNum: idx + 1, round: Math.floor(idx / 2) + 1, pair1: p.pair1, pair2: p.pair2, score1: null, score2: null, winner: null
-    }));
+    match.games = buildQuadGames(match.team1Id, match.team2Id);
     match.gameWins = {};
     match.gameWins[match.team1Id] = 0;
     match.gameWins[match.team2Id] = 0;
