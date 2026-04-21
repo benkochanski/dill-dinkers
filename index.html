@@ -1103,8 +1103,7 @@
 
 <!-- QUADSQUAD BRACKET -->
 <section id="view-quad-bracket" class="view">
-  <div style="padding: 22px;">
-    <h2>QuadSquad Bracket</h2>
+  <div class="bracket-wrap">
     <div id="quad-bracket-content"></div>
   </div>
 </section>
@@ -2453,8 +2452,8 @@ function renderQuadBracket() {
 
   // Auto-advance stage when both semis are complete (unless the user has explicitly
   // navigated back — track that via a user override flag on state).
-  const sf1 = state.matches.sf1, sf2 = state.matches.sf2;
-  const semisDone = sf1 && sf2 && sf1.winner && sf2.winner;
+  const sf1m = state.matches.sf1, sf2m = state.matches.sf2;
+  const semisDone = sf1m && sf2m && sf1m.winner && sf2m.winner;
   if (semisDone && !state.quadStage) state.quadStage = 'finals';
   if (!state.quadStage) state.quadStage = 'semis';
   if (!semisDone && state.quadStage === 'finals') state.quadStage = 'semis';
@@ -2485,6 +2484,26 @@ function renderQuadBracket() {
     if (!match) return;
     grid.appendChild(renderQuadMatch(match, isAdmin));
   });
+
+  // Match the Dill Dinkers bracket display: logo in the upper-right, league
+  // title and date centered when viewing as a display screen.
+  if (document.body.classList.contains('bracket-display')) {
+    const leagueName = (state.leagueName || 'Dill Dinkers').trim() || 'Dill Dinkers';
+    const today = new Date().toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+    const logoBlock = document.createElement('div');
+    logoBlock.className = 'gf-logo-block';
+    logoBlock.innerHTML = `<img class="logo-big" src="logo.jpg" alt="Dill Dinkers Pickleball">`;
+    container.appendChild(logoBlock);
+
+    const titleBlock = document.createElement('div');
+    titleBlock.className = 'gf-title-block';
+    titleBlock.innerHTML = `
+      <div class="brand-title">${escapeHtml(leagueName)} <span class="champ">Championship</span></div>
+      <div class="brand-date">${today}</div>
+    `;
+    container.appendChild(titleBlock);
+  }
 
   const finals = state.matches.finals;
   if (stage === 'finals' && finals && finals.winner) {
