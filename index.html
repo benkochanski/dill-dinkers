@@ -946,10 +946,12 @@
 <header class="top">
   <img class="logo" src="logo.jpg" alt="Dill Dinkers Pickleball">
   <div class="title-block">
-    <h1 id="page-title">Dill Dinkers <span class="champ">Championship</span></h1>
+    <h1 id="page-title">Dill Dinkers</h1>
+    <div class="champ-line" id="page-champ">Championship</div>
     <div class="date" id="page-date"></div>
   </div>
   <nav id="nav">
+    <a href="#/tournament-type" data-route="tournament-type">Format</a>
     <a href="#/setup" data-route="setup">Setup</a>
     <a href="#/spin" data-route="spin">Pair Up</a>
     <a href="#/admin" data-route="admin">Admin</a>
@@ -2157,7 +2159,7 @@ function escapeHtml(s) {
    BOOT
    ========================================================================= */
 updateHeaderTitle();
-if (!location.hash) location.hash = '#/setup';
+if (!location.hash) location.hash = '#/tournament-type';
 
 // If the URL carries ?room=XXX (e.g. a Display link from another computer),
 // adopt it BEFORE pushing — the remote state will overwrite our empty default.
