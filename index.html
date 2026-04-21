@@ -96,6 +96,41 @@
   .sync-status.off { color: #a33; }
   .sync-url { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; color: var(--muted); word-break: break-all; margin-top: 6px; }
 
+  /* Pair announcement popup */
+  .pair-popup {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1000;
+    background: rgba(0, 0, 0, 0.8);
+    padding: 60px 80px;
+    border-radius: 20px;
+    text-align: center;
+  }
+  .pair-popup .popup-content {
+    font-size: 72px;
+    font-weight: 900;
+    color: #fff;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+  .pair-popup.show {
+    animation: fade-out 5s ease-out forwards;
+  }
+  @keyframes fade-out {
+    0% { opacity: 1; }
+    100% { opacity: 0; }
+  }
+  @media (min-width: 3840px) {
+    .pair-popup {
+      padding: 100px 150px;
+    }
+    .pair-popup .popup-content {
+      font-size: 120px;
+    }
+  }
+
   /* Spin — wheel + side, pairs list in horizontal strip below */
   #view-spin { display: none; }
   #view-spin.active { display: flex; flex-direction: column; }
@@ -167,29 +202,153 @@
   .roster .p-row.used { opacity: .35; text-decoration: line-through; }
   .roster .p-row.drawing { outline: 3px solid var(--orange); box-shadow: 0 0 0 3px rgba(244,121,32,.3); }
 
-  /* Display mode — explicit grid so nothing wraps or clips */
+  /* Display mode — 3-column layout: wheel+pairs LEFT, name CENTER, roster RIGHT */
   body.display-mode #view-spin .spin-stage {
     display: grid;
-    grid-template-areas: "name name" "roster wheel";
-    grid-template-columns: auto auto;
-    justify-content: center; align-items: center;
-    gap: 8px 40px;
-    padding: 4px 20px 0;
-    flex: 0 0 auto;
+    grid-template-columns: 1200px 1fr 800px;
+    grid-template-areas: "left center right";
+    gap: 40px;
+    padding: 20px;
+    flex: 1 1 auto;
+    align-items: start;
+    justify-items: center;
   }
-  body.display-mode #view-spin .spin-side { grid-area: name; width: 100%; text-align: center; }
-  body.display-mode #view-spin .roster { grid-area: roster; width: 440px; padding: 14px 16px; }
-  body.display-mode #view-spin .wheel-box { grid-area: wheel; width: 460px; height: 460px; }
-  body.display-mode #view-spin .roster h3 { font-size: 14px; margin-bottom: 8px; }
-  body.display-mode #view-spin .roster .p-row { font-size: 17px; padding: 6px 10px; }
-  body.display-mode #view-spin .roster .p-row .sd { width: 26px; height: 26px; font-size: 12px; }
-  body.display-mode #view-spin .spin-side h2 { font-size: 18px; }
-  body.display-mode #view-spin .spin-side .current-name { font-size: 64px; margin: 4px 0 0; }
-  body.display-mode #view-spin .pair-chip { font-size: 16px; padding: 10px 14px; }
-  body.display-mode #view-spin .pair-chip .badge { width: 32px; height: 32px; font-size: 14px; }
-  body.display-mode #view-spin .pair-chip .names { font-size: 16px; }
-  body.display-mode #view-spin .pairs-strip { max-width: 100%; padding: 12px 30px; gap: 10px 14px; }
-  body.display-mode #view-spin .wheel-box .hub { width: 100px; height: 100px; font-size: 14px; }
+  body.display-mode #view-spin .wheel-box {
+    grid-area: left;
+    width: 1000px;
+    height: 1000px;
+    padding: 0;
+  }
+  body.display-mode #view-spin .wheel-box .hub {
+    width: 180px;
+    height: 180px;
+    font-size: 28px;
+    border-width: 6px;
+  }
+  body.display-mode #view-spin .pairs-strip {
+    grid-column: 1;
+    width: 100%;
+    max-width: 1000px;
+    margin-top: 20px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  body.display-mode #view-spin .pair-chip {
+    font-size: 24px;
+    padding: 16px 20px;
+  }
+  body.display-mode #view-spin .pair-chip .badge {
+    width: 48px;
+    height: 48px;
+    font-size: 20px;
+  }
+  body.display-mode #view-spin .pair-chip .names {
+    font-size: 24px;
+  }
+  body.display-mode #view-spin .spin-side {
+    grid-area: center;
+    width: 100%;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  body.display-mode #view-spin .spin-side h2 {
+    font-size: 32px;
+    margin: 0 0 20px;
+  }
+  body.display-mode #view-spin .spin-side .current-name {
+    font-size: 120px;
+    margin: 20px 0;
+    font-weight: 900;
+  }
+  body.display-mode #view-spin .roster {
+    grid-area: right;
+    width: 100%;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+  body.display-mode #view-spin .roster h3 {
+    font-size: 24px;
+    margin: 0 0 16px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+  }
+  body.display-mode #view-spin .roster .group {
+    margin-bottom: 20px;
+  }
+  body.display-mode #view-spin .roster .p-row {
+    font-size: 24px;
+    padding: 12px 16px;
+    gap: 12px;
+  }
+  body.display-mode #view-spin .roster .p-row .sd {
+    width: 40px;
+    height: 40px;
+    font-size: 18px;
+  }
+  body.display-mode #view-spin .controls { display: none; }
+
+  /* 4K specific scaling */
+  @media (min-width: 3840px) {
+    body.display-mode #view-spin .spin-stage {
+      grid-template-columns: 1400px 1fr 1000px;
+      gap: 60px;
+      padding: 40px;
+    }
+    body.display-mode #view-spin .wheel-box {
+      width: 1200px;
+      height: 1200px;
+    }
+    body.display-mode #view-spin .wheel-box .hub {
+      width: 220px;
+      height: 220px;
+      font-size: 36px;
+      border-width: 8px;
+    }
+    body.display-mode #view-spin .pairs-strip {
+      max-width: 1200px;
+      padding: 30px;
+    }
+    body.display-mode #view-spin .pair-chip {
+      font-size: 32px;
+      padding: 24px 28px;
+    }
+    body.display-mode #view-spin .pair-chip .badge {
+      width: 64px;
+      height: 64px;
+      font-size: 28px;
+    }
+    body.display-mode #view-spin .pair-chip .names {
+      font-size: 32px;
+    }
+    body.display-mode #view-spin .spin-side h2 {
+      font-size: 48px;
+      margin-bottom: 30px;
+    }
+    body.display-mode #view-spin .spin-side .current-name {
+      font-size: 160px;
+      margin: 30px 0;
+    }
+    body.display-mode #view-spin .roster h3 {
+      font-size: 32px;
+      margin-bottom: 24px;
+    }
+    body.display-mode #view-spin .roster .p-row {
+      font-size: 32px;
+      padding: 16px 20px;
+    }
+    body.display-mode #view-spin .roster .p-row .sd {
+      width: 56px;
+      height: 56px;
+      font-size: 24px;
+    }
+  }
 
   /* Bracket */
   .bracket-wrap { padding: 10px 14px 14px; position: relative; }
@@ -494,6 +653,9 @@
     </div>
   </div>
   <div class="pairs-strip" id="pairs-list"></div>
+  <div class="pair-popup" id="pair-popup" style="display:none;">
+    <div class="popup-content" id="popup-content">Team 1 ↔ Team 2</div>
+  </div>
 </section>
 
 <!-- BRACKET (admin + display) -->
@@ -839,11 +1001,26 @@ let wheelRotation = 0;
 let spinning = false;
 let lastSpinIdSeen = null;
 let displayAnimLock = false;   // display tab: animation in progress, defer storage updates
+let lastPairResult = null;     // track the most recent pair for persistent display
 
 function remainingBotSeeds() {
   const r = [];
   for (let s = 9; s <= 16; s++) if (!state.usedBotSeeds.includes(s)) r.push(s);
   return r;
+}
+
+function showPairPopup(topName, botName) {
+  const popup = document.getElementById('pair-popup');
+  const content = document.getElementById('popup-content');
+  content.textContent = topName + ' ↔ ' + botName;
+  popup.style.display = 'block';
+  popup.classList.remove('show');
+  void popup.offsetWidth; // Trigger reflow to restart animation
+  popup.classList.add('show');
+  setTimeout(() => {
+    popup.style.display = 'none';
+    popup.classList.remove('show');
+  }, 5100);
 }
 
 function renderSpin() {
@@ -857,12 +1034,20 @@ function renderSpin() {
   const finishBtn = document.getElementById('btn-finish-pairing');
   const label = document.getElementById('spin-label');
   const nameEl = document.getElementById('current-name');
+  const hubEl = document.getElementById('wheel-hub');
 
   if (state.pairings.length >= 8) {
     label.textContent = 'All pairs drawn';
     nameEl.textContent = 'Ready for bracket';
     spinBtn.style.display = 'none';
     finishBtn.style.display = isDisplay ? 'none' : 'inline-block';
+  } else if (lastPairResult && !spinning) {
+    // Show persistent paired names until next spin starts
+    label.textContent = 'Team ' + lastPairResult.teamNum + ' paired with…';
+    nameEl.textContent = lastPairResult.botName;
+    hubEl.textContent = lastPairResult.topName + ' & ' + lastPairResult.botName;
+    spinBtn.style.display = isDisplay ? 'none' : 'inline-block';
+    finishBtn.style.display = 'none';
   } else {
     label.textContent = 'Drawing partner for…';
     nameEl.textContent = state.players[nextSeed-1]?.name || '—';
@@ -873,6 +1058,7 @@ function renderSpin() {
   // If a new spin has been broadcast (we're on display, or we missed it), animate
   if (state.currentSpin && state.currentSpin.id !== lastSpinIdSeen) {
     lastSpinIdSeen = state.currentSpin.id;
+    lastPairResult = null; // Clear when new spin starts
     animateWheelToTarget(state.currentSpin.targetRotation, state.currentSpin.remaining, state.currentSpin.forSeed);
   }
 }
@@ -1001,12 +1187,19 @@ function commitPair(topSeed, botSeed, auto = false) {
   state.pairings.push({ topSeed, botSeed, teamSeed: topSeed, auto });
   state.usedBotSeeds.push(botSeed);
   state.nextSeedToSpin = topSeed + 1;
+
+  // Store pair for persistent display and show popup
+  const topName = state.players[topSeed-1]?.name || 'Player ' + topSeed;
+  const botName = state.players[botSeed-1]?.name || 'Player ' + botSeed;
+  lastPairResult = { topName, botName, teamNum: topSeed };
+  showPairPopup(topName, botName);
 }
 
 document.getElementById('btn-spin').addEventListener('click', () => {
   if (spinning) return;
   const remaining = remainingBotSeeds();
   if (remaining.length === 0) return;
+  lastPairResult = null; // Clear persistent pair display when new spin starts
 
   spinning = true;
   const chosenIdx = Math.floor(Math.random() * remaining.length);
