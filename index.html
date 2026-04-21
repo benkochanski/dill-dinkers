@@ -67,8 +67,103 @@
   .view { display: none; padding: 22px; }
   .view.active { display: block; }
 
+  /* Tournament Type Selector */
+  .tournament-type-wrap {
+    max-width: 600px;
+    margin: 60px auto;
+    text-align: center;
+  }
+  .tournament-type-wrap h2 {
+    margin-bottom: 32px;
+    font-size: 32px;
+  }
+  .tournament-type-buttons {
+    display: flex;
+    gap: 24px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .tournament-type-button {
+    flex: 1;
+    min-width: 200px;
+    padding: 32px 24px;
+    border: 2px solid var(--line);
+    border-radius: 12px;
+    background: #fff;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+  }
+  .tournament-type-button:hover {
+    border-color: var(--orange);
+    box-shadow: 0 4px 12px rgba(244, 121, 32, 0.15);
+  }
+  .tournament-type-button h3 {
+    margin: 0 0 12px;
+    font-size: 20px;
+    color: var(--ink);
+  }
+  .tournament-type-button p {
+    margin: 0;
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
   /* Setup */
   .setup-wrap { max-width: 920px; margin: 0 auto; }
+
+  /* QuadSquad Setup */
+  .quad-setup-wrap {
+    max-width: 1000px;
+    margin: 0 auto;
+  }
+  .team-panel {
+    margin-bottom: 32px;
+    padding: 20px;
+    background: var(--soft);
+    border-radius: 10px;
+    border-left: 6px solid var(--orange);
+  }
+  .team-panel h3 {
+    margin: 0 0 16px;
+    font-size: 16px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: var(--ink);
+  }
+  .team-name-input {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 16px;
+    align-items: center;
+  }
+  .team-name-input label {
+    font-weight: 700;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: var(--muted);
+    min-width: 80px;
+  }
+  .team-name-input input {
+    flex: 1;
+    font-size: 16px;
+  }
+  .quad-players-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .quad-players-grid .player-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+  }
+  .quad-players-grid .player-row input {
+    font-size: 14px;
+  }
   .setup-wrap h2 { margin: 0 0 4px; }
   .league-row { display: flex; gap: 16px; align-items: center; margin: 18px 0 8px; }
   .league-row label { font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted); }
@@ -589,6 +684,23 @@
   </nav>
 </header>
 
+<!-- TOURNAMENT TYPE SELECTOR -->
+<section id="view-tournament-type" class="view">
+  <div class="tournament-type-wrap">
+    <h2>Select Tournament Format</h2>
+    <div class="tournament-type-buttons">
+      <button class="tournament-type-button" id="btn-dilldinkers">
+        <h3>Dill Dinkers</h3>
+        <p>16 players in 8 doubles teams. Double-elimination bracket with spin pairing.</p>
+      </button>
+      <button class="tournament-type-button" id="btn-quadsquad">
+        <h3>QuadSquad</h3>
+        <p>4 teams with 4 players each. 6-game matches with dynamic opponent selection.</p>
+      </button>
+    </div>
+  </div>
+</section>
+
 <!-- SETUP -->
 <section id="view-setup" class="view">
   <div class="setup-wrap">
@@ -630,6 +742,27 @@
       <div class="note">Anyone on any device can open the Display URL below to watch live — make sure they use the same room code.</div>
       <div class="sync-url" id="sync-url"></div>
       <button class="btn ghost" id="btn-copy-url" type="button" style="margin-top:8px;">Copy Display URL</button>
+    </div>
+  </div>
+</section>
+
+<!-- QUADSQUAD SETUP -->
+<section id="view-quad-setup" class="view">
+  <div class="quad-setup-wrap">
+    <h2>QuadSquad Tournament Setup</h2>
+
+    <div class="league-row">
+      <label for="league-name-input">League Name</label>
+      <input type="text" id="league-name-input" placeholder="e.g. Dill Dinkers">
+    </div>
+    <div class="note">The page title becomes "<span id="league-preview">Dill Dinkers</span> Championship".</div>
+
+    <div id="quad-teams-container"></div>
+
+    <div class="toolbar" style="margin-top:24px;">
+      <button class="btn" id="btn-quad-fill-demo" type="button">Fill Demo Data</button>
+      <button class="btn green" id="btn-quad-seeding" type="button">Proceed to Seeding →</button>
+      <button class="btn ghost" id="btn-back-tournament-type" type="button">Back</button>
     </div>
   </div>
 </section>
@@ -719,6 +852,7 @@
 const KEY = 'ddp-tournament-v3';
 
 const defaultState = () => ({
+  tournamentType: 'dilldinkers', // 'dilldinkers' or 'quadsquad'
   leagueName: 'Dill Dinkers',
   phase: 'setup',
   players: Array(16).fill(null).map((_, i) => ({ seed: i + 1, name: '' })),
@@ -727,7 +861,9 @@ const defaultState = () => ({
   nextSeedToSpin: 1,
   usedBotSeeds: [],
   currentSpin: null,       // { id, targetRotation, chosenSeed, remaining, forSeed }
-  room: ''                  // cloud sync room code
+  teams: [],               // for quadsquad: [{id, name, seed, players: [{id, name}]}]
+  opponents: {},           // for quadsquad: {team1vs: 2|3|4}
+  room: ''                 // cloud sync room code
 });
 
 let state = loadState();
@@ -820,23 +956,53 @@ function route() {
   document.body.classList.toggle('display-mode', hash === 'display');
   document.body.classList.toggle('bracket-display', hash === 'display' && state.phase === 'bracket');
 
-  if (hash === 'setup') {
-    document.getElementById('view-setup').classList.add('active');
-    renderSetup();
-  } else if (hash === 'spin') {
-    document.getElementById('view-spin').classList.add('active');
-    renderSpin();
-  } else if (hash === 'admin') {
-    document.getElementById('view-bracket').classList.add('active');
-    renderBracket();
-  } else if (hash === 'display') {
-    // Display mode switches automatically based on phase
-    if (state.phase === 'bracket') {
-      document.getElementById('view-bracket').classList.add('active');
-      renderBracket();
-    } else {
+  // Route based on tournament type and phase
+  if (hash === 'tournament-type') {
+    document.getElementById('view-tournament-type').classList.add('active');
+    renderTournamentType();
+  } else if (state.tournamentType === 'quadsquad') {
+    // QuadSquad routes
+    if (hash === 'quad-setup') {
+      document.getElementById('view-quad-setup').classList.add('active');
+      renderQuadSetup();
+    } else if (hash === 'quad-seeding') {
+      document.getElementById('view-quad-seeding').classList.add('active');
+      renderQuadSeeding();
+    } else if (hash === 'quad-opponent-select') {
+      document.getElementById('view-quad-opponent-select').classList.add('active');
+      renderQuadOpponentSelect();
+    } else if (hash === 'quad-bracket') {
+      document.getElementById('view-quad-bracket').classList.add('active');
+      renderQuadBracket();
+    } else if (hash === 'display') {
+      if (state.phase === 'bracket') {
+        document.getElementById('view-quad-bracket').classList.add('active');
+        renderQuadBracket();
+      } else {
+        document.getElementById('view-quad-opponent-select').classList.add('active');
+        renderQuadOpponentSelect();
+      }
+    }
+  } else {
+    // Original Dill Dinkers routes
+    if (hash === 'setup') {
+      document.getElementById('view-setup').classList.add('active');
+      renderSetup();
+    } else if (hash === 'spin') {
       document.getElementById('view-spin').classList.add('active');
       renderSpin();
+    } else if (hash === 'admin') {
+      document.getElementById('view-bracket').classList.add('active');
+      renderBracket();
+    } else if (hash === 'display') {
+      // Display mode switches automatically based on phase
+      if (state.phase === 'bracket') {
+        document.getElementById('view-bracket').classList.add('active');
+        renderBracket();
+      } else {
+        document.getElementById('view-spin').classList.add('active');
+        renderSpin();
+      }
     }
   }
 }
@@ -856,6 +1022,122 @@ function updateHeaderTitle() {
 /* =========================================================================
    SETUP VIEW
    ========================================================================= */
+/* =========================================================================
+   TOURNAMENT TYPE SELECTOR
+   ========================================================================= */
+function renderTournamentType() {
+  // Just show the buttons (static in HTML)
+}
+
+document.getElementById('btn-dilldinkers').addEventListener('click', () => {
+  state.tournamentType = 'dilldinkers';
+  state.phase = 'setup';
+  state.players = Array(16).fill(null).map((_, i) => ({ seed: i + 1, name: '' }));
+  state.leagueName = 'Dill Dinkers';
+  saveState();
+  location.hash = '#/setup';
+});
+
+document.getElementById('btn-quadsquad').addEventListener('click', () => {
+  state.tournamentType = 'quadsquad';
+  state.phase = 'setup';
+  state.leagueName = 'Dill Dinkers';
+  state.teams = [
+    { id: 1, name: '', seed: null, players: [{id: 1, name: ''}, {id: 2, name: ''}, {id: 3, name: ''}, {id: 4, name: ''}] },
+    { id: 2, name: '', seed: null, players: [{id: 1, name: ''}, {id: 2, name: ''}, {id: 3, name: ''}, {id: 4, name: ''}] },
+    { id: 3, name: '', seed: null, players: [{id: 1, name: ''}, {id: 2, name: ''}, {id: 3, name: ''}, {id: 4, name: ''}] },
+    { id: 4, name: '', seed: null, players: [{id: 1, name: ''}, {id: 2, name: ''}, {id: 3, name: ''}, {id: 4, name: ''}] }
+  ];
+  saveState();
+  location.hash = '#/quad-setup';
+});
+
+/* =========================================================================
+   QUADSQUAD SETUP
+   ========================================================================= */
+function renderQuadSetup() {
+  const leagueInput = document.getElementById('league-name-input');
+  leagueInput.value = state.leagueName || 'Dill Dinkers';
+  document.getElementById('league-preview').textContent = (state.leagueName || 'Dill Dinkers');
+
+  const container = document.getElementById('quad-teams-container');
+  container.innerHTML = '';
+
+  state.teams.forEach((team, idx) => {
+    const panel = document.createElement('div');
+    panel.className = 'team-panel';
+    panel.innerHTML = `
+      <h3>Team ${idx + 1}</h3>
+      <div class="team-name-input">
+        <label for="team-${idx}-name">Team Name</label>
+        <input type="text" id="team-${idx}-name" value="${escapeHtml(team.name)}" placeholder="e.g. Team A">
+      </div>
+      <div class="quad-players-grid">
+        ${[0, 1, 2, 3].map(i => `
+          <div class="player-row">
+            <input type="text" value="${escapeHtml(team.players[i].name)}" placeholder="Player ${i + 1}" data-team="${idx}" data-player="${i}">
+          </div>
+        `).join('')}
+      </div>
+    `;
+    container.appendChild(panel);
+
+    // Attach listeners for team name
+    document.getElementById(`team-${idx}-name`).addEventListener('input', (e) => {
+      state.teams[idx].name = e.target.value;
+      clearTimeout(leagueInputTimeout);
+      leagueInputTimeout = setTimeout(saveState, 300);
+    });
+
+    // Attach listeners for player names
+    panel.querySelectorAll('input[data-team]').forEach(inp => {
+      inp.addEventListener('input', (e) => {
+        const teamIdx = parseInt(e.target.dataset.team, 10);
+        const playerIdx = parseInt(e.target.dataset.player, 10);
+        state.teams[teamIdx].players[playerIdx].name = e.target.value;
+        clearTimeout(leagueInputTimeout);
+        leagueInputTimeout = setTimeout(saveState, 300);
+      });
+    });
+  });
+
+  updateSyncPanel();
+}
+
+document.getElementById('btn-quad-fill-demo').addEventListener('click', () => {
+  const demoTeams = [
+    { name: 'Orange', players: ['Alex', 'Blake', 'Casey', 'Drew'] },
+    { name: 'Green', players: ['Eva', 'Fox', 'Grace', 'Harper'] },
+    { name: 'Blue', players: ['Ivy', 'Jack', 'Kelly', 'Lee'] },
+    { name: 'Purple', players: ['Morgan', 'Nathan', 'Olivia', 'Parker'] }
+  ];
+
+  state.teams.forEach((team, idx) => {
+    team.name = demoTeams[idx].name;
+    team.players.forEach((p, pidx) => {
+      p.name = demoTeams[idx].players[pidx];
+    });
+  });
+
+  if (!state.leagueName.trim()) state.leagueName = 'Dill Dinkers';
+  saveState();
+  renderQuadSetup();
+});
+
+document.getElementById('btn-quad-seeding').addEventListener('click', () => {
+  const missing = state.teams.filter(t => !t.name.trim() || t.players.some(p => !p.name.trim()));
+  if (missing.length) { alert('Please fill in all team names and player names.'); return; }
+  if (!state.leagueName.trim()) { alert('Please enter a league name.'); return; }
+
+  state.phase = 'seeding';
+  saveState();
+  location.hash = '#/quad-seeding';
+});
+
+document.getElementById('btn-back-tournament-type').addEventListener('click', () => {
+  location.hash = '#/tournament-type';
+});
+
 function renderSetup() {
   const leagueInput = document.getElementById('league-name-input');
   leagueInput.value = state.leagueName || '';
