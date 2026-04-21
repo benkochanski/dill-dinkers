@@ -632,18 +632,22 @@ function renderSetup() {
   bot.querySelectorAll('input').forEach(attachNameInput);
   updateSyncPanel();
 }
+let nameInputTimeout;
 function attachNameInput(inp) {
   inp.addEventListener('input', () => {
     const seed = parseInt(inp.dataset.seed, 10);
     state.players[seed-1].name = inp.value;
-    saveState();
+    clearTimeout(nameInputTimeout);
+    nameInputTimeout = setTimeout(saveState, 300);
   });
 }
 
+let leagueInputTimeout;
 document.getElementById('league-name-input').addEventListener('input', e => {
   state.leagueName = e.target.value;
   document.getElementById('league-preview').textContent = (state.leagueName || 'Dill Dinkers');
-  saveState();
+  clearTimeout(leagueInputTimeout);
+  leagueInputTimeout = setTimeout(saveState, 300);
 });
 
 document.getElementById('btn-fill-demo').addEventListener('click', () => {
