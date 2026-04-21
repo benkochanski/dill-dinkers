@@ -1664,6 +1664,7 @@ let lastSpinIdSeen = null;
 let displayAnimLock = false;   // display tab: animation in progress, defer storage updates
 let lastPairResult = null;     // track the most recent pair for persistent display
 let lastPopupIdSeen = null;    // deduplicate popup triggers from state sync
+let wheelLocked = false;       // when true, renderSpin skips redrawing the wheel so it stays on landed name
 
 function remainingBotSeeds() {
   const r = [];
@@ -1695,18 +1696,19 @@ function renderSpin(opts) {
   renderRoster();
   renderPairsList();
 
-  // If a new pair popup is pending, show it and keep the wheel on its landed name.
-  // After the popup fades, wheel still stays put — it only moves on the next spin click.
+  // If a new pair popup is pending, show it and lock the wheel on its landed name.
+  // The wheel stays locked after the popup fades — it only moves again on the next spin click.
   if (state.lastPopup && state.lastPopup.id !== lastPopupIdSeen) {
     lastPopupIdSeen = state.lastPopup.id;
+    wheelLocked = true;
     showPairPopup(state.lastPopup.pairs, () => {
       lastPairResult = null;
-      renderSpin({ skipWheel: true });
+      renderSpin();
     });
     return;
   }
 
-  if (!opts.skipWheel) renderWheel();
+  if (!opts.skipWheel && !wheelLocked) renderWheel();
 
   const nextSeed = state.nextSeedToSpin;
   const spinBtn = document.getElementById('btn-spin');
@@ -1738,6 +1740,7 @@ function renderSpin(opts) {
   if (state.currentSpin && state.currentSpin.id !== lastSpinIdSeen) {
     lastSpinIdSeen = state.currentSpin.id;
     lastPairResult = null; // Clear when new spin starts
+    wheelLocked = false;   // New spin — unlock so animateWheelToTarget can redraw
     animateWheelToTarget(state.currentSpin.targetRotation, state.currentSpin.remaining, state.currentSpin.forSeed);
   }
 }
@@ -1878,6 +1881,7 @@ document.getElementById('btn-spin').addEventListener('click', () => {
   lastPairResult = null; // Clear persistent pair display when new spin starts
 
   // Reset and redraw the wheel from its previous landed position before animating
+  wheelLocked = false;
   renderWheel(remaining);
 
   spinning = true;
