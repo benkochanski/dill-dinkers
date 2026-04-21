@@ -567,50 +567,65 @@
   body.display-mode .slot .score { font-size: 18px; font-weight: 900; }
   body.display-mode .match-header { padding: 4px 10px; font-size: 11px; font-weight: 900; }
 
-  /* 4K display scaling */
+  /* 4K display scaling — bigger and bolder */
   @media (min-width: 3840px) {
     body.display-mode .match {
-      font-size: 24px;
-      border-radius: 12px;
+      font-size: 42px;
+      border-radius: 16px;
+      border-width: 3px;
+      font-weight: 800;
     }
     body.display-mode .slot {
-      min-height: 56px;
-      padding: 12px 16px;
-      gap: 12px;
+      min-height: 90px;
+      padding: 18px 24px;
+      gap: 18px;
     }
     body.display-mode .slot .names {
-      font-size: 24px;
+      font-size: 42px;
+      font-weight: 800;
     }
     body.display-mode .slot .score {
-      font-size: 32px;
-      min-width: 50px;
+      font-size: 56px;
+      font-weight: 900;
+      min-width: 80px;
     }
     body.display-mode .slot .seed-badge {
-      width: 32px;
-      height: 32px;
-      font-size: 14px;
+      width: 52px;
+      height: 52px;
+      font-size: 24px;
+      font-weight: 900;
     }
     body.display-mode .match-header {
-      padding: 8px 16px;
-      font-size: 14px;
-      gap: 12px;
+      padding: 14px 24px;
+      font-size: 24px;
+      font-weight: 900;
+      letter-spacing: 2px;
+      gap: 16px;
     }
     body.display-mode .match-header .tag {
-      padding: 3px 12px;
-      font-size: 12px;
+      padding: 6px 18px;
+      font-size: 20px;
+      font-weight: 900;
     }
     body.display-mode .col-label {
-      font-size: 14px;
-      margin-bottom: 12px;
+      font-size: 28px;
+      font-weight: 900;
+      letter-spacing: 3px;
+      margin-bottom: 20px;
     }
     body.display-mode .zone-label {
-      font-size: 12px;
-      padding: 6px 12px;
+      font-size: 24px;
+      font-weight: 900;
+      letter-spacing: 3px;
+      padding: 12px 24px;
     }
     body.display-mode .gf-col .match {
-      border-width: 4px;
+      border-width: 6px;
     }
-    body.display-mode .gf-col { gap: 20px; }
+    body.display-mode .gf-col .match-header {
+      font-size: 26px;
+    }
+    body.display-mode .gf-col { gap: 30px; }
   }
 
   /* 2nd Chance — same style as winners bracket (no separate overrides) */
@@ -2007,6 +2022,123 @@ if (!location.hash) location.hash = '#/setup';
 if (window.ddpFirebase && state.room) connectToRoom(state.room);
 
 route();
+/* QuadSquad Seeding */
+function renderQuadSeeding() {
+  const container = document.getElementById('quad-seeding-container');
+  container.innerHTML = '';
+  const seedOrder = [1, 2, 3, 4];
+  seedOrder.forEach(seed => {
+    const seeded = state.teams.find(t => t.seed === seed);
+    const item = document.createElement('div');
+    item.className = 'quad-seeding-item';
+    item.innerHTML = `
+      <div class="seed-number">${seed}</div>
+      <select class="team-select" data-seed="${seed}">
+        <option value="">Select team...</option>
+        ${state.teams.map(t => `<option value="${t.id}" ${t.seed === seed ? 'selected' : ''}>${t.name}</option>`).join('')}
+      </select>
+    `;
+    container.appendChild(item);
+    item.querySelector('select').addEventListener('change', (e) => {
+      const teamId = parseInt(e.target.value, 10);
+      if (!teamId) {
+        const t = state.teams.find(t => t.seed === seed);
+        if (t) t.seed = null;
+      } else {
+        state.teams.forEach(t => { if (t.id === teamId) t.seed = seed; });
+      }
+      saveState();
+      renderQuadSeeding();
+    });
+  });
+}
+
+if (document.getElementById('btn-quad-opponent-select')) {
+  document.getElementById('btn-quad-opponent-select').addEventListener('click', () => {
+    const allSeeded = state.teams.every(t => t.seed);
+    if (!allSeeded) { alert('Please assign seeds 1-4 to all teams.'); return; }
+    state.phase = 'opponent-select';
+    saveState();
+    location.hash = '#/quad-opponent-select';
+  });
+}
+
+if (document.getElementById('btn-back-quad-setup')) {
+  document.getElementById('btn-back-quad-setup').addEventListener('click', () => {
+    location.hash = '#/quad-setup';
+  });
+}
+
+/* QuadSquad Opponent Selection */
+function renderQuadOpponentSelect() {
+  const seed1 = state.teams.find(t => t.seed === 1);
+  document.getElementById('seed1-team-name').textContent = seed1.name || 'Team';
+  const container = document.getElementById('quad-opponent-buttons');
+  container.innerHTML = '';
+  const otherTeams = state.teams.filter(t => t.seed !== 1);
+  otherTeams.forEach(team => {
+    const btn = document.createElement('button');
+    btn.className = 'opponent-button';
+    btn.textContent = `Face ${team.name} (Seed ${team.seed})`;
+    btn.addEventListener('click', () => {
+      state.opponents = { team1vs: team.id };
+      state.phase = 'bracket';
+      state.matches = initQuadMatches();
+      saveState();
+      location.hash = '#/quad-bracket';
+    });
+    container.appendChild(btn);
+  });
+}
+
+if (document.getElementById('btn-back-quad-seeding')) {
+  document.getElementById('btn-back-quad-seeding').addEventListener('click', () => {
+    location.hash = '#/quad-seeding';
+  });
+}
+
+function initQuadMatches() {
+  const matches = {};
+  const seed1 = state.teams.find(t => t.seed === 1);
+  const opponents = state.teams.filter(t => t.id !== seed1.id).map(t => t.id);
+  const opponent1Id = state.opponents.team1vs;
+  const opponent2Id = opponents.find(id => id !== opponent1Id);
+  const thirdTeamId = opponents.find(id => ![opponent1Id, seed1.id].includes(id));
+
+  matches.sf1 = { id: 'sf1', round: 'Semifinal 1', team1Id: seed1.id, team2Id: opponent1Id, games: [], gameWins: {}, winner: null };
+  matches.sf2 = { id: 'sf2', round: 'Semifinal 2', team1Id: thirdTeamId, team2Id: opponent2Id, games: [], gameWins: {}, winner: null };
+  matches.finals = { id: 'finals', round: 'Finals', team1Id: null, team2Id: null, games: [], gameWins: {}, winner: null };
+  matches.bronze = { id: 'bronze', round: 'Bronze Medal', team1Id: null, team2Id: null, games: [], gameWins: {}, winner: null };
+
+  const generateGamePairings = (team1, team2) => {
+    const pairings = [];
+    for (let i = 0; i < 4; i++) {
+      for (let j = i + 1; j < 4; j++) {
+        pairings.push({ pair1: {teamId: team1.id, players: [i, j]}, pair2: {teamId: team2.id, players: [i, j]} });
+      }
+    }
+    return pairings.slice(0, 6);
+  };
+
+  ['sf1', 'sf2'].forEach(matchId => {
+    const match = matches[matchId];
+    const team1 = state.teams.find(t => t.id === match.team1Id);
+    const team2 = state.teams.find(t => t.id === match.team2Id);
+    const pairings = generateGamePairings(team1, team2);
+    match.games = pairings.map((p, idx) => ({
+      gameNum: idx + 1, round: Math.floor(idx / 2) + 1, pair1: p.pair1, pair2: p.pair2, score1: null, score2: null, winner: null
+    }));
+    match.gameWins[match.team1Id] = 0;
+    match.gameWins[match.team2Id] = 0;
+  });
+
+  return matches;
+}
+
+function renderQuadBracket() {
+  const container = document.getElementById('quad-bracket-content');
+  container.innerHTML = '<div style="padding: 20px;"><p style="font-size: 16px;">Bracket rendering coming next. Matches initialized: ' + Object.keys(state.matches).length + '</p></div>';
+}
 </script>
 </body>
 </html>
