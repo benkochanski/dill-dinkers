@@ -164,6 +164,60 @@
   .quad-players-grid .player-row input {
     font-size: 14px;
   }
+
+  /* QuadSquad Seeding */
+  .quad-seeding-item {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    margin-bottom: 16px;
+    padding: 16px;
+    background: #fff;
+    border: 1.5px solid var(--line);
+    border-radius: 8px;
+  }
+  .quad-seeding-item .seed-number {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: var(--orange);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 900;
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+  .quad-seeding-item .team-select {
+    flex: 1;
+    font-size: 16px;
+    padding: 8px 12px;
+    border: 1.5px solid var(--line);
+    border-radius: 6px;
+  }
+
+  /* Opponent Selection Buttons */
+  .opponent-button {
+    flex: 1;
+    min-width: 200px;
+    padding: 24px;
+    border: 2px solid var(--line);
+    border-radius: 10px;
+    background: #fff;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 16px;
+    font-weight: 700;
+  }
+  .opponent-button:hover {
+    border-color: var(--orange);
+    box-shadow: 0 4px 12px rgba(244, 121, 32, 0.15);
+  }
+  .opponent-button.selected {
+    border-color: var(--orange);
+    background: var(--soft);
+  }
   .setup-wrap h2 { margin: 0 0 4px; }
   .league-row { display: flex; gap: 16px; align-items: center; margin: 18px 0 8px; }
   .league-row label { font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted); }
@@ -456,7 +510,10 @@
     gap: 8px 18px;
     min-height: calc(100vh - 180px);
   }
-  body.display-mode .bracket-grid { flex: 1; min-height: 0; height: 100%; gap: 6px 16px; }
+  body.display-mode .bracket-grid { flex: 1; min-height: 0; height: 100%; gap: 6px 16px; padding: 20px; }
+  @media (min-width: 3840px) {
+    body.display-mode .bracket-grid { gap: 20px 40px; padding: 40px; }
+  }
 
   .zone-label {
     font-size: 10px; font-weight: 900; letter-spacing: 2px; text-transform: uppercase;
@@ -509,6 +566,52 @@
   body.display-mode .slot .names { font-size: 16px; }
   body.display-mode .slot .score { font-size: 18px; font-weight: 900; }
   body.display-mode .match-header { padding: 4px 10px; font-size: 11px; font-weight: 900; }
+
+  /* 4K display scaling */
+  @media (min-width: 3840px) {
+    body.display-mode .match {
+      font-size: 24px;
+      border-radius: 12px;
+    }
+    body.display-mode .slot {
+      min-height: 56px;
+      padding: 12px 16px;
+      gap: 12px;
+    }
+    body.display-mode .slot .names {
+      font-size: 24px;
+    }
+    body.display-mode .slot .score {
+      font-size: 32px;
+      min-width: 50px;
+    }
+    body.display-mode .slot .seed-badge {
+      width: 32px;
+      height: 32px;
+      font-size: 14px;
+    }
+    body.display-mode .match-header {
+      padding: 8px 16px;
+      font-size: 14px;
+      gap: 12px;
+    }
+    body.display-mode .match-header .tag {
+      padding: 3px 12px;
+      font-size: 12px;
+    }
+    body.display-mode .col-label {
+      font-size: 14px;
+      margin-bottom: 12px;
+    }
+    body.display-mode .zone-label {
+      font-size: 12px;
+      padding: 6px 12px;
+    }
+    body.display-mode .gf-col .match {
+      border-width: 4px;
+    }
+    body.display-mode .gf-col { gap: 20px; }
+  }
 
   /* 2nd Chance — same style as winners bracket (no separate overrides) */
 
@@ -746,6 +849,39 @@
   </div>
 </section>
 
+<!-- QUADSQUAD SEEDING -->
+<section id="view-quad-seeding" class="view">
+  <div class="quad-setup-wrap">
+    <h2>QuadSquad Seeding</h2>
+    <p class="note">Assign seeds 1-4 to determine playoff positions. Seed 1 will select their opponent in the next step.</p>
+    <div id="quad-seeding-container"></div>
+    <div class="toolbar" style="margin-top:24px;">
+      <button class="btn green" id="btn-quad-opponent-select" type="button">Proceed to Opponent Selection →</button>
+      <button class="btn ghost" id="btn-back-quad-setup" type="button">Back</button>
+    </div>
+  </div>
+</section>
+
+<!-- QUADSQUAD OPPONENT SELECTION -->
+<section id="view-quad-opponent-select" class="view">
+  <div class="quad-setup-wrap">
+    <h2>Select Opponent for Seed 1</h2>
+    <p class="note" style="margin-bottom:28px;">Team <strong id="seed1-team-name">—</strong> (Seed 1) will select their opponent from the remaining teams.</p>
+    <div id="quad-opponent-buttons" style="display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; margin-bottom: 32px;"></div>
+    <div class="toolbar" style="margin-top:24px;">
+      <button class="btn ghost" id="btn-back-quad-seeding" type="button">Back</button>
+    </div>
+  </div>
+</section>
+
+<!-- QUADSQUAD BRACKET -->
+<section id="view-quad-bracket" class="view">
+  <div style="padding: 22px;">
+    <h2>QuadSquad Bracket</h2>
+    <div id="quad-bracket-content"></div>
+  </div>
+</section>
+
 <!-- QUADSQUAD SETUP -->
 <section id="view-quad-setup" class="view">
   <div class="quad-setup-wrap">
@@ -944,7 +1080,10 @@ function initMatches() {
    ROUTING
    ========================================================================= */
 function parseRoute() {
-  const raw = (location.hash || '#/setup').replace(/^#\//, '');
+  const defaultHash = (state.tournamentType === 'quadsquad') ? '#/quad-setup' :
+                      (state.phase === 'setup' ? (state.tournamentType === 'quadsquad' ? '#/quad-setup' : '#/setup') :
+                       state.tournamentType === 'quadsquad' ? '#/quad-bracket' : '#/admin');
+  const raw = (location.hash || defaultHash).replace(/^#\//, '');
   const [name, qs] = raw.split('?');
   return { name, params: new URLSearchParams(qs || '') };
 }
