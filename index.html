@@ -1677,15 +1677,6 @@ function renderSpin() {
     lastPairResult = null; // Clear when new spin starts
     animateWheelToTarget(state.currentSpin.targetRotation, state.currentSpin.remaining, state.currentSpin.forSeed);
   }
-
-  // If a new pair popup was broadcast, show it (display tab)
-  if (state.lastPopup && state.lastPopup.id !== lastPopupIdSeen && !spinning) {
-    lastPopupIdSeen = state.lastPopup.id;
-    showPairPopup(state.lastPopup.pairs, () => {
-      lastPairResult = null;
-      renderSpin();
-    });
-  }
 }
 
 function renderWheel(remainingOverride) {
