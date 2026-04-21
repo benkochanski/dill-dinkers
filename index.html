@@ -40,8 +40,9 @@
     flex-shrink: 0;
   }
   header.top .logo { height: 110px; width: auto; }
-  header.top .title-block h1 { font-size: 38px; margin: 0; letter-spacing: 1px; font-weight: 900; line-height: 1; text-transform: uppercase; }
+  header.top .title-block h1 { font-size: 38px; margin: 0; letter-spacing: 1px; font-weight: 900; line-height: 1; text-transform: uppercase; color: var(--ink); }
   header.top .title-block h1 .champ { color: var(--orange); }
+  header.top .title-block .champ-line { font-size: 30px; font-weight: 900; color: var(--orange); letter-spacing: 1px; line-height: 1; text-transform: uppercase; margin-top: 4px; }
   header.top .title-block .date { font-size: 15px; color: var(--muted); margin-top: 6px; font-weight: 600; letter-spacing: .5px; }
   header.top nav { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
   header.top nav a { text-decoration: none; color: var(--ink); padding: 8px 14px; border-radius: 6px; font-weight: 700; font-size: 13px; border: 1.5px solid transparent; }
@@ -53,6 +54,7 @@
   body.display-mode header.top { padding: 8px 20px; }
   body.display-mode header.top .logo { height: 64px; }
   body.display-mode header.top .title-block h1 { font-size: 26px; }
+  body.display-mode header.top .title-block .champ-line { font-size: 22px; margin-top: 2px; }
   body.display-mode header.top .title-block .date { font-size: 12px; margin-top: 2px; }
   body.display-mode header.top nav { display: none; }
 
@@ -258,12 +260,14 @@
     text-align: center;
   }
   .pair-popup .popup-content {
-    font-size: 72px;
+    font-size: 56px;
     font-weight: 900;
     color: #fff;
-    letter-spacing: 2px;
+    letter-spacing: 1.5px;
     text-transform: uppercase;
+    line-height: 1.2;
   }
+  .pair-popup .popup-pair { margin: 12px 0; }
   .pair-popup.show {
     animation: fade-out 5s ease-out forwards;
   }
@@ -276,15 +280,23 @@
       padding: 100px 150px;
     }
     .pair-popup .popup-content {
-      font-size: 120px;
+      font-size: 100px;
     }
+    .pair-popup .popup-pair { margin: 24px 0; }
   }
 
-  /* Spin — wheel + side, pairs list in horizontal strip below */
+  /* Spin — 3-column: roster LEFT, label/name/wheel MIDDLE, teams-stack RIGHT */
   #view-spin { display: none; }
   #view-spin.active { display: flex; flex-direction: column; }
-  .spin-stage { display: flex; gap: 36px; align-items: center; justify-content: center; flex-wrap: wrap; padding: 8px 20px 0; }
-  .wheel-box { position: relative; width: 460px; height: 460px; flex-shrink: 0; }
+  .spin-stage {
+    display: grid;
+    grid-template-columns: 1fr 1.2fr 1fr;
+    gap: 36px;
+    align-items: start;
+    justify-content: center;
+    padding: 8px 20px 0;
+  }
+  .wheel-box { position: relative; width: 460px; height: 460px; flex-shrink: 0; margin: 14px auto 0; }
   body.display-mode #view-spin .wheel-box { width: 560px; height: 560px; }
   .wheel-box svg.wheel { width: 100%; height: 100%; display: block; }
   .wheel-box .pointer {
@@ -297,19 +309,19 @@
     width: 90px; height: 90px; border-radius: 50%; background: #fff; border: 4px solid var(--ink);
     display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 13px; text-align: center; z-index: 2;
   }
-  .spin-side { width: 420px; }
+  .spin-side { width: 100%; display: flex; flex-direction: column; align-items: center; text-align: center; }
   .spin-side h2 { margin: 0; font-size: 18px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); font-weight: 800; }
-  .spin-side .current-name { font-size: 44px; font-weight: 900; color: var(--ink); line-height: 1.05; margin: 10px 0 22px; }
+  .spin-side .current-name { font-size: 44px; font-weight: 900; color: var(--ink); line-height: 1.05; margin: 10px 0 6px; }
+  .spin-side .controls { margin-top: 14px; }
   body.display-mode .spin-side { text-align: center; }
   body.display-mode .spin-side .controls { display: none; }
 
   .pairs-strip {
-    margin: 18px auto 10px;
     padding: 12px 16px;
-    max-width: 1400px;
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
   }
   .pair-chip {
     display: flex; align-items: center; gap: 10px; padding: 8px 12px;
@@ -322,7 +334,7 @@
 
   /* Player roster panel (left of wheel) */
   .roster {
-    width: 460px; flex-shrink: 0;
+    width: 100%;
     background: var(--soft); border-radius: 12px; padding: 16px 18px;
     border: 2px solid var(--line);
   }
@@ -351,76 +363,23 @@
   .roster .p-row.used { opacity: .35; text-decoration: line-through; }
   .roster .p-row.drawing { outline: 3px solid var(--orange); box-shadow: 0 0 0 3px rgba(244,121,32,.3); }
 
-  /* Display mode — 3-column layout: wheel+pairs LEFT, name CENTER, roster RIGHT */
+  /* Display mode — 3-column: roster LEFT, label+name+wheel MIDDLE, teams-stack RIGHT */
   body.display-mode #view-spin .spin-stage {
     display: grid;
-    grid-template-columns: 1200px 1fr 800px;
-    grid-template-areas: "left center right";
+    grid-template-columns: 1fr 1.3fr 1fr;
     gap: 40px;
     padding: 20px;
     flex: 1 1 auto;
     align-items: start;
-    justify-items: center;
-  }
-  body.display-mode #view-spin .wheel-box {
-    grid-area: left;
-    width: 1000px;
-    height: 1000px;
-    padding: 0;
-  }
-  body.display-mode #view-spin .wheel-box .hub {
-    width: 180px;
-    height: 180px;
-    font-size: 28px;
-    border-width: 6px;
-  }
-  body.display-mode #view-spin .pairs-strip {
-    grid-column: 1;
-    width: 100%;
-    max-width: 1000px;
-    margin-top: 20px;
-    padding: 20px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-  }
-  body.display-mode #view-spin .pair-chip {
-    font-size: 24px;
-    padding: 16px 20px;
-  }
-  body.display-mode #view-spin .pair-chip .badge {
-    width: 48px;
-    height: 48px;
-    font-size: 20px;
-  }
-  body.display-mode #view-spin .pair-chip .names {
-    font-size: 24px;
-  }
-  body.display-mode #view-spin .spin-side {
-    grid-area: center;
-    width: 100%;
-    text-align: center;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-  }
-  body.display-mode #view-spin .spin-side h2 {
-    font-size: 32px;
-    margin: 0 0 20px;
-  }
-  body.display-mode #view-spin .spin-side .current-name {
-    font-size: 120px;
-    margin: 20px 0;
-    font-weight: 900;
+    justify-items: stretch;
   }
   body.display-mode #view-spin .roster {
-    grid-area: right;
     width: 100%;
     padding: 20px;
-    display: flex;
-    flex-direction: column;
-    gap: 0;
+  }
+  body.display-mode #view-spin .roster .roster-cols {
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
   }
   body.display-mode #view-spin .roster h3 {
     font-size: 24px;
@@ -428,31 +387,75 @@
     text-transform: uppercase;
     letter-spacing: 2px;
   }
-  body.display-mode #view-spin .roster .group {
-    margin-bottom: 20px;
-  }
   body.display-mode #view-spin .roster .p-row {
-    font-size: 24px;
-    padding: 12px 16px;
+    font-size: 22px;
+    padding: 10px 14px;
     gap: 12px;
   }
   body.display-mode #view-spin .roster .p-row .sd {
     width: 40px;
     height: 40px;
+    font-size: 16px;
+  }
+  body.display-mode #view-spin .spin-side {
+    width: 100%;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+  }
+  body.display-mode #view-spin .spin-side h2 {
+    font-size: 32px;
+    margin: 0 0 14px;
+  }
+  body.display-mode #view-spin .spin-side .current-name {
+    font-size: 96px;
+    margin: 10px 0 16px;
+    font-weight: 900;
+  }
+  body.display-mode #view-spin .wheel-box {
+    width: 800px;
+    height: 800px;
+    margin: 0 auto;
+  }
+  body.display-mode #view-spin .wheel-box .hub {
+    width: 160px;
+    height: 160px;
+    font-size: 24px;
+    border-width: 6px;
+  }
+  body.display-mode #view-spin .pairs-strip {
+    width: 100%;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  body.display-mode #view-spin .pair-chip {
+    font-size: 22px;
+    padding: 14px 18px;
+  }
+  body.display-mode #view-spin .pair-chip .badge {
+    width: 44px;
+    height: 44px;
     font-size: 18px;
+  }
+  body.display-mode #view-spin .pair-chip .names {
+    font-size: 22px;
   }
   body.display-mode #view-spin .controls { display: none; }
 
   /* 4K specific scaling */
   @media (min-width: 3840px) {
     body.display-mode #view-spin .spin-stage {
-      grid-template-columns: 1400px 1fr 1000px;
+      grid-template-columns: 1fr 1.3fr 1fr;
       gap: 60px;
       padding: 40px;
     }
     body.display-mode #view-spin .wheel-box {
-      width: 1200px;
-      height: 1200px;
+      width: 1100px;
+      height: 1100px;
     }
     body.display-mode #view-spin .wheel-box .hub {
       width: 220px;
@@ -461,41 +464,42 @@
       border-width: 8px;
     }
     body.display-mode #view-spin .pairs-strip {
-      max-width: 1200px;
       padding: 30px;
+      gap: 18px;
     }
     body.display-mode #view-spin .pair-chip {
-      font-size: 32px;
-      padding: 24px 28px;
+      font-size: 30px;
+      padding: 20px 24px;
     }
     body.display-mode #view-spin .pair-chip .badge {
-      width: 64px;
-      height: 64px;
-      font-size: 28px;
+      width: 60px;
+      height: 60px;
+      font-size: 26px;
     }
     body.display-mode #view-spin .pair-chip .names {
-      font-size: 32px;
+      font-size: 30px;
     }
     body.display-mode #view-spin .spin-side h2 {
-      font-size: 48px;
-      margin-bottom: 30px;
+      font-size: 56px;
+      margin-bottom: 20px;
     }
     body.display-mode #view-spin .spin-side .current-name {
-      font-size: 160px;
-      margin: 30px 0;
+      font-size: 140px;
+      margin: 20px 0 30px;
     }
+    body.display-mode #view-spin .roster { padding: 30px; }
     body.display-mode #view-spin .roster h3 {
       font-size: 32px;
-      margin-bottom: 24px;
+      margin-bottom: 18px;
     }
     body.display-mode #view-spin .roster .p-row {
-      font-size: 32px;
-      padding: 16px 20px;
+      font-size: 28px;
+      padding: 14px 18px;
     }
     body.display-mode #view-spin .roster .p-row .sd {
-      width: 56px;
-      height: 56px;
-      font-size: 24px;
+      width: 52px;
+      height: 52px;
+      font-size: 22px;
     }
   }
 
@@ -862,6 +866,7 @@
     header.top { padding: 24px 48px; gap: 32px; }
     header.top .logo { height: 160px; }
     header.top .title-block h1 { font-size: 64px; letter-spacing: 2px; }
+    header.top .title-block .champ-line { font-size: 52px; margin-top: 8px; letter-spacing: 1.5px; }
     header.top .title-block .date { font-size: 24px; margin-top: 12px; }
     header.top nav a { padding: 14px 24px; font-size: 18px; }
 
@@ -1079,21 +1084,21 @@
 <section id="view-spin" class="view">
   <div class="spin-stage">
     <div class="roster" id="roster"></div>
-    <div class="wheel-box">
-      <div class="pointer"></div>
-      <div class="hub" id="wheel-hub">SPIN</div>
-      <svg class="wheel" id="wheel" viewBox="-210 -210 420 420"></svg>
-    </div>
     <div class="spin-side">
       <h2 id="spin-label">Drawing partner for…</h2>
       <div class="current-name" id="current-name">—</div>
+      <div class="wheel-box">
+        <div class="pointer"></div>
+        <div class="hub" id="wheel-hub">SPIN</div>
+        <svg class="wheel" id="wheel" viewBox="-210 -210 420 420"></svg>
+      </div>
       <div class="controls">
         <button class="btn" id="btn-spin" style="font-size:18px; padding:14px 28px;">Spin the Wheel</button>
         <button class="btn green" id="btn-finish-pairing" style="margin-left:8px; display:none;">Build Bracket →</button>
       </div>
     </div>
+    <div class="pairs-strip" id="pairs-list"></div>
   </div>
-  <div class="pairs-strip" id="pairs-list"></div>
   <div class="pair-popup" id="pair-popup" style="display:none;">
     <div class="popup-content" id="popup-content">Team 1 ↔ Team 2</div>
   </div>
@@ -1169,6 +1174,7 @@ const defaultState = () => ({
   nextSeedToSpin: 1,
   usedBotSeeds: [],
   currentSpin: null,       // { id, targetRotation, chosenSeed, remaining, forSeed }
+  lastPopup: null,         // { id, pairs: [{topName, botName, teamNum}] }
   teams: [],               // for quadsquad: [{id, name, seed, players: [{id, name}]}]
   opponents: {},           // for quadsquad: {team1vs: 2|3|4}
   room: ''                 // cloud sync room code
@@ -1324,7 +1330,8 @@ window.addEventListener('hashchange', route);
    ========================================================================= */
 function updateHeaderTitle() {
   const name = (state.leagueName || 'Dill Dinkers').trim() || 'Dill Dinkers';
-  document.getElementById('page-title').innerHTML = escapeHtml(name) + ' <span class="champ">Championship</span>';
+  document.getElementById('page-title').textContent = name;
+  document.getElementById('page-champ').textContent = 'Championship';
   const today = new Date();
   const opts = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
   document.getElementById('page-date').textContent = today.toLocaleDateString(undefined, opts);
@@ -1595,6 +1602,7 @@ let spinning = false;
 let lastSpinIdSeen = null;
 let displayAnimLock = false;   // display tab: animation in progress, defer storage updates
 let lastPairResult = null;     // track the most recent pair for persistent display
+let lastPopupIdSeen = null;    // deduplicate popup triggers from state sync
 
 function remainingBotSeeds() {
   const r = [];
@@ -1602,25 +1610,40 @@ function remainingBotSeeds() {
   return r;
 }
 
-function showPairPopup(topName, botName) {
+function showPairPopup(pairs, onComplete) {
   const popup = document.getElementById('pair-popup');
   const content = document.getElementById('popup-content');
-  content.textContent = topName + ' ↔ ' + botName;
+  const list = Array.isArray(pairs) ? pairs : [pairs];
+  content.innerHTML = list.map(p =>
+    `<div class="popup-pair">${escapeHtml(p.topName)} and ${escapeHtml(p.botName)} are playing together as the #${p.teamNum} seed</div>`
+  ).join('');
   popup.style.display = 'block';
   popup.classList.remove('show');
-  void popup.offsetWidth; // Trigger reflow to restart animation
+  void popup.offsetWidth;
   popup.classList.add('show');
   setTimeout(() => {
     popup.style.display = 'none';
     popup.classList.remove('show');
+    if (typeof onComplete === 'function') onComplete();
   }, 5100);
 }
 
 function renderSpin() {
   const isDisplay = location.hash === '#/display';
   renderRoster();
-  renderWheel();
   renderPairsList();
+
+  // If a new pair popup is pending, show it and skip wheel reset so wheel stays on landed name
+  if (state.lastPopup && state.lastPopup.id !== lastPopupIdSeen) {
+    lastPopupIdSeen = state.lastPopup.id;
+    showPairPopup(state.lastPopup.pairs, () => {
+      lastPairResult = null;
+      renderSpin();
+    });
+    return;
+  }
+
+  renderWheel();
 
   const nextSeed = state.nextSeedToSpin;
   const spinBtn = document.getElementById('btn-spin');
@@ -1653,6 +1676,15 @@ function renderSpin() {
     lastSpinIdSeen = state.currentSpin.id;
     lastPairResult = null; // Clear when new spin starts
     animateWheelToTarget(state.currentSpin.targetRotation, state.currentSpin.remaining, state.currentSpin.forSeed);
+  }
+
+  // If a new pair popup was broadcast, show it (display tab)
+  if (state.lastPopup && state.lastPopup.id !== lastPopupIdSeen && !spinning) {
+    lastPopupIdSeen = state.lastPopup.id;
+    showPairPopup(state.lastPopup.pairs, () => {
+      lastPairResult = null;
+      renderSpin();
+    });
   }
 }
 
@@ -1752,11 +1784,11 @@ function renderRoster() {
   host.innerHTML = `
     <div class="roster-cols">
       <div>
-        <h3 style="color: var(--orange)">Top · 1–8</h3>
+        <h3 style="color: var(--orange)">Seeds 1–8</h3>
         ${buildGroup(1, 8, 'top')}
       </div>
       <div>
-        <h3 style="color: var(--green)">Bottom · 9–16</h3>
+        <h3 style="color: var(--green)">Seeds 9–16</h3>
         ${buildGroup(9, 16, 'bot')}
       </div>
     </div>
@@ -1780,12 +1812,9 @@ function commitPair(topSeed, botSeed, auto = false) {
   state.pairings.push({ topSeed, botSeed, teamSeed: topSeed, auto });
   state.usedBotSeeds.push(botSeed);
   state.nextSeedToSpin = topSeed + 1;
-
-  // Store pair for persistent display and show popup
   const topName = state.players[topSeed-1]?.name || 'Player ' + topSeed;
   const botName = state.players[botSeed-1]?.name || 'Player ' + botSeed;
-  lastPairResult = { topName, botName, teamNum: topSeed };
-  showPairPopup(topName, botName);
+  return { topName, botName, teamNum: topSeed };
 }
 
 document.getElementById('btn-spin').addEventListener('click', () => {
@@ -1820,20 +1849,31 @@ document.getElementById('btn-spin').addEventListener('click', () => {
   svg.style.transform = `rotate(${targetRotation}deg)`;
 
   setTimeout(() => {
-    spinning = false;
-    commitPair(state.nextSeedToSpin, chosenSeed, false);
-    state.currentSpin = null;
+    const forSeed = state.nextSeedToSpin;
+    const pair1 = commitPair(forSeed, chosenSeed, false);
+    const pairsToShow = [pair1];
 
-    // Auto-declare 8th pair if 7 pairs done and only one remaining
+    // Auto-declare 8th pair if 7 pairs done and only one remaining — combined popup
     if (state.pairings.length === 7) {
       const remain2 = remainingBotSeeds();
       if (remain2.length === 1) {
-        commitPair(8, remain2[0], true);
+        const pair2 = commitPair(8, remain2[0], true);
+        pairsToShow.push(pair2);
       }
     }
 
+    lastPairResult = pairsToShow[pairsToShow.length - 1];
+    state.currentSpin = null;
+    state.lastPopup = { id: Date.now(), pairs: pairsToShow };
     saveState();
-    renderSpin();
+    renderPairsList();
+
+    lastPopupIdSeen = state.lastPopup.id;
+    showPairPopup(pairsToShow, () => {
+      spinning = false;
+      lastPairResult = null;
+      renderSpin();
+    });
   }, 5100);
 });
 
@@ -2259,11 +2299,17 @@ function initQuadMatches() {
   const seed1 = state.teams.find(t => t.seed === 1);
   const opponents = state.teams.filter(t => t.id !== seed1.id).map(t => t.id);
   const opponent1Id = state.opponents.team1vs;
-  const opponent2Id = opponents.find(id => id !== opponent1Id);
-  const thirdTeamId = opponents.find(id => ![opponent1Id, seed1.id].includes(id));
+  // SF2 = the two teams that are neither seed1 nor opponent1
+  const sf2Teams = opponents.filter(id => id !== opponent1Id);
+  // Seed SF2 by lower seed first
+  const sf2Sorted = sf2Teams.sort((a, b) => {
+    const sa = state.teams.find(t => t.id === a).seed;
+    const sb = state.teams.find(t => t.id === b).seed;
+    return sa - sb;
+  });
 
   matches.sf1 = { id: 'sf1', round: 'Semifinal 1', team1Id: seed1.id, team2Id: opponent1Id, games: [], gameWins: {}, winner: null };
-  matches.sf2 = { id: 'sf2', round: 'Semifinal 2', team1Id: thirdTeamId, team2Id: opponent2Id, games: [], gameWins: {}, winner: null };
+  matches.sf2 = { id: 'sf2', round: 'Semifinal 2', team1Id: sf2Sorted[0], team2Id: sf2Sorted[1], games: [], gameWins: {}, winner: null };
   matches.finals = { id: 'finals', round: 'Finals', team1Id: null, team2Id: null, games: [], gameWins: {}, winner: null };
   matches.bronze = { id: 'bronze', round: 'Bronze Medal', team1Id: null, team2Id: null, games: [], gameWins: {}, winner: null };
 
@@ -2296,6 +2342,14 @@ function renderQuadBracket() {
   const container = document.getElementById('quad-bracket-content');
   const isAdmin = !document.body.classList.contains('display-mode');
 
+  // Self-heal: earlier versions shipped a bug where SF2 had the same team in both slots.
+  // If we detect that (or any duplicate/missing team), recompute the matches from scratch.
+  const sf2 = state.matches && state.matches.sf2;
+  if (sf2 && sf2.team1Id && sf2.team1Id === sf2.team2Id && state.opponents && state.opponents.team1vs) {
+    state.matches = initQuadMatches();
+    saveState();
+  }
+
   propagateQuadMatches();
 
   container.innerHTML = '<div class="quad-bracket-container" id="quad-bracket-grid"></div>';
@@ -2326,6 +2380,7 @@ function renderQuadMatch(match, isAdmin) {
 
   const matchDiv = document.createElement('div');
   matchDiv.className = 'quad-match' + (match.id === 'finals' ? ' finals' : '') + (match.id === 'bronze' ? ' bronze' : '');
+  matchDiv.setAttribute('data-match-id', match.id);
 
   if (!team1 || !team2) {
     matchDiv.innerHTML = `
@@ -2372,7 +2427,7 @@ function renderQuadMatch(match, isAdmin) {
       const p2Names = game.pair2.players.map(i => team2.players[i].name).join(' & ');
       const wonClass = game.winner === team1.id ? 'won-by-1' : (game.winner === team2.id ? 'won-by-2' : '');
       html += `
-        <div class="quad-game ${wonClass}">
+        <div class="quad-game ${wonClass}" data-game-num="${game.gameNum}">
           <div class="pair-players">${escapeHtml(p1Names)}</div>
           ${isAdmin ? `<input type="number" min="0" class="game-score" data-match="${match.id}" data-game="${game.gameNum}" data-slot="1" value="${game.score1 ?? ''}" placeholder="-">` : `<div style="font-weight:800; min-width:40px; text-align:center;">${game.score1 ?? '-'}</div>`}
           <div class="vs-separator">-</div>
@@ -2424,6 +2479,9 @@ function setQuadGameScore(matchId, gameNum, slot, value) {
   const game = match.games.find(g => g.gameNum === gameNum);
   if (!game) return;
 
+  const prevWinner = match.winner;
+  const prevGameWins = { ...match.gameWins };
+
   if (slot === '1') game.score1 = value;
   else game.score2 = value;
 
@@ -2446,11 +2504,32 @@ function setQuadGameScore(matchId, gameNum, slot, value) {
   else if (wins2 >= 4) match.winner = match.team2Id;
   else match.winner = null;
 
+  // Inline DOM updates (don't re-render — would wipe focus on the input you're typing in)
+  const matchEl = document.querySelector('.quad-match[data-match-id="' + matchId + '"]');
+  if (matchEl) {
+    const scoreEl = matchEl.querySelector('.quad-match-score');
+    if (scoreEl) scoreEl.textContent = wins1 + ' - ' + wins2;
+    // Update game row highlight
+    const gameRow = matchEl.querySelector('.quad-game[data-game-num="' + gameNum + '"]');
+    if (gameRow) {
+      gameRow.classList.remove('won-by-1', 'won-by-2');
+      if (game.winner === match.team1Id) gameRow.classList.add('won-by-1');
+      else if (game.winner === match.team2Id) gameRow.classList.add('won-by-2');
+    }
+  }
+
   clearTimeout(quadScoreTimeout);
   quadScoreTimeout = setTimeout(() => {
     saveState();
-    renderQuadBracket();
-  }, 300);
+    // Only do a full re-render if the match state materially changed
+    // (winner decided/undecided, or 3-3 dreambreaker condition reached)
+    const winnerChanged = prevWinner !== match.winner;
+    const hitDreambreaker = (wins1 === 3 && wins2 === 3 && !match.dreambreaker);
+    const wasDreambreaker = (prevGameWins[match.team1Id] === 3 && prevGameWins[match.team2Id] === 3);
+    if (winnerChanged || hitDreambreaker !== wasDreambreaker) {
+      renderQuadBracket();
+    }
+  }, 400);
 }
 
 function addQuadDreambreaker(matchId) {
