@@ -328,6 +328,90 @@
   body.display-mode .champion-banner .names { font-size: 22px; }
 
   .hidden { display: none !important; }
+
+  /* Large display (75" screens and above) */
+  @media (min-width: 2560px) {
+    html { font-size: 20px; }
+    header.top { padding: 24px 48px; gap: 32px; }
+    header.top .logo { height: 160px; }
+    header.top .title-block h1 { font-size: 64px; letter-spacing: 2px; }
+    header.top .title-block .date { font-size: 24px; margin-top: 12px; }
+    header.top nav a { padding: 14px 24px; font-size: 18px; }
+
+    input[type=text], input[type=number] { font-size: 24px; padding: 14px 16px; }
+    .btn { padding: 16px 32px; font-size: 20px; }
+
+    .setup-wrap { max-width: 1200px; }
+    .setup-wrap h2 { font-size: 28px; }
+    .league-row { gap: 24px; margin: 28px 0 16px; }
+    .league-row label { font-size: 18px; }
+    .league-row input { font-size: 28px; }
+    .note { font-size: 18px; }
+
+    .setup-two-col { gap: 48px; }
+    .players-grid { gap: 12px; }
+    .player-row { gap: 16px; }
+    .player-row .seed { width: 56px; height: 56px; font-size: 20px; }
+    .player-row input { font-size: 22px; }
+    .group-title { font-size: 16px; margin-top: 28px; }
+
+    .sync-panel { padding: 24px 28px; }
+    .sync-panel .sync-title { font-size: 16px; }
+    .sync-row { gap: 16px; }
+    .sync-row input { font-size: 24px; width: 200px; }
+    .sync-status { font-size: 18px; }
+    .sync-url { font-size: 16px; }
+
+    .toolbar { gap: 16px; margin-top: 32px; }
+
+    /* Wheel/Spin view */
+    .spin-stage { gap: 48px; padding: 12px 32px 0; }
+    .wheel-box { width: 680px; height: 680px; }
+    body.display-mode #view-spin .wheel-box { width: 800px; height: 800px; }
+    .wheel-box .pointer { border-left: 32px solid transparent; border-right: 32px solid transparent; border-top: 52px solid var(--ink); }
+    .wheel-box .hub { width: 140px; height: 140px; font-size: 18px; border: 6px solid var(--ink); }
+    body.display-mode #view-spin .wheel-box .hub { width: 160px; height: 160px; font-size: 20px; }
+
+    .spin-side { width: 580px; }
+    .spin-side h2 { font-size: 28px; }
+    .spin-side .current-name { font-size: 72px; margin: 16px 0 32px; }
+    body.display-mode .spin-side .current-name { font-size: 96px; }
+
+    .pairs-strip { gap: 16px 20px; }
+    .pair-chip { padding: 14px 18px; font-size: 20px; }
+    .pair-chip .badge { width: 40px; height: 40px; font-size: 16px; }
+    body.display-mode #view-spin .pair-chip { font-size: 22px; }
+
+    /* Bracket view */
+    .bracket-grid { gap: 12px 24px; }
+    .match { font-size: 18px; }
+    body.display-mode .match { font-size: 22px; }
+    .match-header { padding: 6px 12px; font-size: 14px; }
+
+    .slot { padding: 8px 12px; min-height: 42px; gap: 10px; }
+    .slot .seed-badge { width: 28px; height: 28px; font-size: 12px; }
+    .slot .names { font-size: 18px; }
+    .slot .score { font-size: 20px; min-width: 44px; }
+    .slot .score-input { width: 60px; padding: 4px 8px; font-size: 18px; }
+    body.display-mode .slot { min-height: 54px; padding: 10px 16px; }
+    body.display-mode .slot .names { font-size: 22px; }
+    body.display-mode .slot .score { font-size: 26px; }
+
+    .match-footer { padding: 8px 12px; gap: 10px; }
+    .match-footer button { font-size: 14px; padding: 6px 16px; }
+
+    .zone-label { font-size: 14px; padding: 6px 14px; }
+    .col-label { font-size: 14px; margin-bottom: 10px; }
+
+    .gf-title-block .brand-title { font-size: 64px; letter-spacing: 2px; }
+    .gf-title-block .brand-date { font-size: 22px; margin-top: 10px; }
+    .gf-logo-block .logo-big { max-height: 240px; max-width: 300px; }
+
+    .champion-banner { padding: 24px; font-size: 28px; }
+    .champion-banner .names { font-size: 40px; }
+    body.display-mode .champion-banner { padding: 16px; font-size: 24px; }
+    body.display-mode .champion-banner .names { font-size: 32px; }
+  }
 </style>
 </head>
 <body>
