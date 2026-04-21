@@ -1681,22 +1681,24 @@ function showPairPopup(pairs, onComplete) {
   }, 5100);
 }
 
-function renderSpin() {
+function renderSpin(opts) {
+  opts = opts || {};
   const isDisplay = location.hash === '#/display';
   renderRoster();
   renderPairsList();
 
-  // If a new pair popup is pending, show it and skip wheel reset so wheel stays on landed name
+  // If a new pair popup is pending, show it and keep the wheel on its landed name.
+  // After the popup fades, wheel still stays put — it only moves on the next spin click.
   if (state.lastPopup && state.lastPopup.id !== lastPopupIdSeen) {
     lastPopupIdSeen = state.lastPopup.id;
     showPairPopup(state.lastPopup.pairs, () => {
       lastPairResult = null;
-      renderSpin();
+      renderSpin({ skipWheel: true });
     });
     return;
   }
 
-  renderWheel();
+  if (!opts.skipWheel) renderWheel();
 
   const nextSeed = state.nextSeedToSpin;
   const spinBtn = document.getElementById('btn-spin');
@@ -1867,6 +1869,9 @@ document.getElementById('btn-spin').addEventListener('click', () => {
   if (remaining.length === 0) return;
   lastPairResult = null; // Clear persistent pair display when new spin starts
 
+  // Reset and redraw the wheel from its previous landed position before animating
+  renderWheel(remaining);
+
   spinning = true;
   const chosenIdx = Math.floor(Math.random() * remaining.length);
   const chosenSeed = remaining[chosenIdx];
@@ -1887,10 +1892,14 @@ document.getElementById('btn-spin').addEventListener('click', () => {
   lastSpinIdSeen = state.currentSpin.id;
   saveState();
 
-  // Local animation
+  // Local animation — queue the transform after the reset from renderWheel lands
   wheelRotation = targetRotation;
   const svg = document.getElementById('wheel');
-  svg.style.transform = `rotate(${targetRotation}deg)`;
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      svg.style.transform = `rotate(${targetRotation}deg)`;
+    });
+  });
 
   setTimeout(() => {
     const forSeed = state.nextSeedToSpin;
@@ -1916,7 +1925,7 @@ document.getElementById('btn-spin').addEventListener('click', () => {
     showPairPopup(pairsToShow, () => {
       spinning = false;
       lastPairResult = null;
-      renderSpin();
+      renderSpin({ skipWheel: true });
     });
   }, 5100);
 });
