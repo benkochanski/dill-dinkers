@@ -1074,7 +1074,7 @@
 
     <div class="toolbar" style="margin-top:24px;">
       <button class="btn" id="btn-quad-fill-demo" type="button">Fill Demo Data</button>
-      <button class="btn green" id="btn-quad-seeding" type="button">Proceed to Seeding →</button>
+      <button class="btn green" id="btn-quad-seeding" type="button">Proceed to Opponent Selection →</button>
       <button class="btn ghost" id="btn-back-tournament-type" type="button">Back</button>
     </div>
   </div>
@@ -1385,7 +1385,7 @@ function renderQuadSetup() {
     const panel = document.createElement('div');
     panel.className = 'team-panel';
     panel.innerHTML = `
-      <h3>Team ${idx + 1}</h3>
+      <h3>Seed ${idx + 1}</h3>
       <div class="team-name-input">
         <label for="team-${idx}-name">Team Name</label>
         <input type="text" id="team-${idx}-name" value="${escapeHtml(team.name)}" placeholder="e.g. Team A">
@@ -1447,9 +1447,11 @@ document.getElementById('btn-quad-seeding').addEventListener('click', () => {
   if (missing.length) { alert('Please fill in all team names and player names.'); return; }
   if (!state.leagueName.trim()) { alert('Please enter a league name.'); return; }
 
-  state.phase = 'seeding';
+  // Seed is determined by entry order: first team is Seed 1, etc.
+  state.teams.forEach((t, idx) => { t.seed = idx + 1; });
+  state.phase = 'opponent-select';
   saveState();
-  location.hash = '#/quad-seeding';
+  location.hash = '#/quad-opponent-select';
 });
 
 document.getElementById('btn-back-tournament-type').addEventListener('click', () => {
@@ -2281,7 +2283,7 @@ function renderQuadOpponentSelect() {
 
 if (document.getElementById('btn-back-quad-seeding')) {
   document.getElementById('btn-back-quad-seeding').addEventListener('click', () => {
-    location.hash = '#/quad-seeding';
+    location.hash = '#/quad-setup';
   });
 }
 
