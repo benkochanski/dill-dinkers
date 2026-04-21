@@ -706,6 +706,15 @@
   .hidden { display: none !important; }
 
   /* QuadSquad Bracket */
+  /* When in display mode, the fixed logo + title overlay the top of the view.
+     Push the bracket content down so the stage toolbar and first match card
+     don't collide with them. */
+  body.bracket-display #view-quad-bracket .bracket-wrap {
+    padding-top: 180px;
+  }
+  body.bracket-display #view-quad-bracket .quad-stage-toolbar {
+    margin-top: 0;
+  }
   .quad-stage-toolbar {
     display: flex;
     gap: 8px;
