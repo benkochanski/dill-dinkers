@@ -701,6 +701,161 @@
 
   .hidden { display: none !important; }
 
+  /* QuadSquad Bracket */
+  .quad-bracket-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin-top: 20px;
+  }
+  .quad-match {
+    background: #fff;
+    border: 2px solid var(--line);
+    border-radius: 12px;
+    padding: 16px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  }
+  .quad-match.finals { border-color: var(--orange); background: #fff9f0; }
+  .quad-match.bronze { border-color: var(--green); background: #f5fbe8; }
+  .quad-match-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid var(--line);
+  }
+  .quad-match-header h3 {
+    margin: 0;
+    font-size: 16px;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    font-weight: 900;
+  }
+  .quad-match-score {
+    font-size: 20px;
+    font-weight: 900;
+    color: var(--ink);
+  }
+  .quad-match-teams {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 12px;
+    align-items: center;
+    margin-bottom: 16px;
+    padding: 8px;
+    background: var(--soft);
+    border-radius: 6px;
+  }
+  .quad-match-team {
+    font-weight: 800;
+    font-size: 14px;
+  }
+  .quad-match-team.winner { color: var(--green); }
+  .quad-match-team.loser { color: var(--muted); }
+  .quad-match-team .seed-tag {
+    display: inline-block;
+    background: var(--ink);
+    color: #fff;
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    margin-right: 6px;
+  }
+  .quad-match-vs { color: var(--muted); font-weight: 600; }
+  .quad-round {
+    margin-bottom: 12px;
+  }
+  .quad-round-label {
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 1.4px;
+    color: var(--muted);
+    margin-bottom: 6px;
+    padding-left: 4px;
+  }
+  .quad-game {
+    display: grid;
+    grid-template-columns: 1fr auto auto auto 1fr;
+    gap: 8px;
+    align-items: center;
+    padding: 8px 10px;
+    background: var(--soft);
+    border-radius: 6px;
+    margin-bottom: 6px;
+    font-size: 13px;
+  }
+  .quad-game.won-by-1 { background: rgba(244, 121, 32, 0.1); }
+  .quad-game.won-by-2 { background: rgba(139, 199, 81, 0.15); }
+  .quad-game .pair-players {
+    font-weight: 600;
+  }
+  .quad-game .pair-players.right { text-align: right; }
+  .quad-game .game-score {
+    width: 50px;
+    padding: 4px 6px;
+    border: 1.5px solid var(--line);
+    border-radius: 4px;
+    text-align: center;
+    font-weight: 800;
+    font-size: 14px;
+  }
+  .quad-game .vs-separator { color: var(--muted); font-weight: 800; }
+  .quad-dreambreaker {
+    margin-top: 12px;
+    padding: 12px;
+    background: linear-gradient(135deg, var(--orange), var(--green));
+    color: #fff;
+    border-radius: 8px;
+    text-align: center;
+    font-weight: 900;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+  }
+  .quad-dreambreaker-btn {
+    background: #fff;
+    color: var(--ink);
+    border: none;
+    padding: 8px 20px;
+    border-radius: 6px;
+    font-weight: 800;
+    cursor: pointer;
+    margin-top: 8px;
+  }
+  .quad-champion-banner {
+    grid-column: 1 / -1;
+    margin-top: 20px;
+    padding: 24px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, var(--orange), var(--green));
+    color: #fff;
+    text-align: center;
+    font-weight: 900;
+    font-size: 24px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+  .quad-champion-banner .champion-name {
+    font-size: 36px;
+    margin-top: 8px;
+    letter-spacing: 1.5px;
+  }
+
+  @media (min-width: 2560px) {
+    .quad-match { padding: 24px; }
+    .quad-match-header h3 { font-size: 24px; }
+    .quad-match-score { font-size: 28px; }
+    .quad-match-team { font-size: 20px; }
+    .quad-game { font-size: 18px; padding: 12px 14px; }
+    .quad-game .game-score { width: 70px; padding: 8px 10px; font-size: 20px; }
+    .quad-round-label { font-size: 16px; }
+    .quad-champion-banner { font-size: 36px; padding: 32px; }
+    .quad-champion-banner .champion-name { font-size: 52px; }
+  }
+
+
   /* Large display (75" screens and above) */
   @media (min-width: 2560px) {
     html { font-size: 20px; }
@@ -2137,7 +2292,250 @@ function initQuadMatches() {
 
 function renderQuadBracket() {
   const container = document.getElementById('quad-bracket-content');
-  container.innerHTML = '<div style="padding: 20px;"><p style="font-size: 16px;">Bracket rendering coming next. Matches initialized: ' + Object.keys(state.matches).length + '</p></div>';
+  const isAdmin = !document.body.classList.contains('display-mode');
+
+  propagateQuadMatches();
+
+  container.innerHTML = '<div class="quad-bracket-container" id="quad-bracket-grid"></div>';
+  const grid = document.getElementById('quad-bracket-grid');
+
+  ['sf1', 'sf2', 'finals', 'bronze'].forEach(matchId => {
+    const match = state.matches[matchId];
+    if (!match) return;
+    grid.appendChild(renderQuadMatch(match, isAdmin));
+  });
+
+  const finals = state.matches.finals;
+  if (finals && finals.winner) {
+    const champTeam = state.teams.find(t => t.id === finals.winner);
+    const banner = document.createElement('div');
+    banner.className = 'quad-champion-banner';
+    banner.innerHTML = `
+      <div>🏆 Champion 🏆</div>
+      <div class="champion-name">${escapeHtml(champTeam.name)}</div>
+    `;
+    grid.appendChild(banner);
+  }
+}
+
+function renderQuadMatch(match, isAdmin) {
+  const team1 = state.teams.find(t => t.id === match.team1Id);
+  const team2 = state.teams.find(t => t.id === match.team2Id);
+
+  const matchDiv = document.createElement('div');
+  matchDiv.className = 'quad-match' + (match.id === 'finals' ? ' finals' : '') + (match.id === 'bronze' ? ' bronze' : '');
+
+  if (!team1 || !team2) {
+    matchDiv.innerHTML = `
+      <div class="quad-match-header">
+        <h3>${escapeHtml(match.round)}</h3>
+      </div>
+      <div class="quad-match-teams">
+        <div class="quad-match-team" style="color: var(--muted); font-style: italic;">Awaiting ${match.id === 'finals' ? 'semifinal winners' : 'semifinal losers'}</div>
+      </div>
+    `;
+    return matchDiv;
+  }
+
+  const wins1 = match.gameWins[match.team1Id] || 0;
+  const wins2 = match.gameWins[match.team2Id] || 0;
+
+  let html = `
+    <div class="quad-match-header">
+      <h3>${escapeHtml(match.round)}</h3>
+      <div class="quad-match-score">${wins1} - ${wins2}</div>
+    </div>
+    <div class="quad-match-teams">
+      <div class="quad-match-team ${match.winner === team1.id ? 'winner' : (match.winner ? 'loser' : '')}">
+        <span class="seed-tag">Seed ${team1.seed}</span>${escapeHtml(team1.name)}
+      </div>
+      <div class="quad-match-vs">vs</div>
+      <div class="quad-match-team ${match.winner === team2.id ? 'winner' : (match.winner ? 'loser' : '')}" style="text-align:right;">
+        ${escapeHtml(team2.name)}<span class="seed-tag" style="margin-left:6px; margin-right:0;">Seed ${team2.seed}</span>
+      </div>
+    </div>
+  `;
+
+  const rounds = {};
+  match.games.forEach(g => {
+    if (!rounds[g.round]) rounds[g.round] = [];
+    rounds[g.round].push(g);
+  });
+
+  Object.keys(rounds).sort((a, b) => a - b).forEach(roundNum => {
+    const isDreambreaker = parseInt(roundNum) === 4;
+    html += `<div class="quad-round"><div class="quad-round-label">${isDreambreaker ? 'Dreambreaker' : 'Round ' + roundNum}</div>`;
+    rounds[roundNum].forEach(game => {
+      const p1Names = game.pair1.players.map(i => team1.players[i].name).join(' & ');
+      const p2Names = game.pair2.players.map(i => team2.players[i].name).join(' & ');
+      const wonClass = game.winner === team1.id ? 'won-by-1' : (game.winner === team2.id ? 'won-by-2' : '');
+      html += `
+        <div class="quad-game ${wonClass}">
+          <div class="pair-players">${escapeHtml(p1Names)}</div>
+          ${isAdmin ? `<input type="number" min="0" class="game-score" data-match="${match.id}" data-game="${game.gameNum}" data-slot="1" value="${game.score1 ?? ''}" placeholder="-">` : `<div style="font-weight:800; min-width:40px; text-align:center;">${game.score1 ?? '-'}</div>`}
+          <div class="vs-separator">-</div>
+          ${isAdmin ? `<input type="number" min="0" class="game-score" data-match="${match.id}" data-game="${game.gameNum}" data-slot="2" value="${game.score2 ?? ''}" placeholder="-">` : `<div style="font-weight:800; min-width:40px; text-align:center;">${game.score2 ?? '-'}</div>`}
+          <div class="pair-players right">${escapeHtml(p2Names)}</div>
+        </div>
+      `;
+    });
+    html += `</div>`;
+  });
+
+  if (isAdmin && wins1 === 3 && wins2 === 3 && !match.dreambreaker) {
+    html += `
+      <div class="quad-dreambreaker">
+        <div>Match tied 3-3!</div>
+        <button class="quad-dreambreaker-btn" data-match="${match.id}">Add Dreambreaker Game 7</button>
+      </div>
+    `;
+  }
+
+  matchDiv.innerHTML = html;
+
+  if (isAdmin) {
+    matchDiv.querySelectorAll('.game-score').forEach(inp => {
+      inp.addEventListener('input', (e) => {
+        const matchId = e.target.dataset.match;
+        const gameNum = parseInt(e.target.dataset.game, 10);
+        const slot = e.target.dataset.slot;
+        const val = e.target.value === '' ? null : parseInt(e.target.value, 10);
+        setQuadGameScore(matchId, gameNum, slot, val);
+      });
+    });
+
+    const dbBtn = matchDiv.querySelector('.quad-dreambreaker-btn');
+    if (dbBtn) {
+      dbBtn.addEventListener('click', () => {
+        addQuadDreambreaker(match.id);
+      });
+    }
+  }
+
+  return matchDiv;
+}
+
+let quadScoreTimeout;
+function setQuadGameScore(matchId, gameNum, slot, value) {
+  const match = state.matches[matchId];
+  if (!match) return;
+  const game = match.games.find(g => g.gameNum === gameNum);
+  if (!game) return;
+
+  if (slot === '1') game.score1 = value;
+  else game.score2 = value;
+
+  if (game.score1 !== null && game.score2 !== null && game.score1 !== game.score2) {
+    game.winner = game.score1 > game.score2 ? match.team1Id : match.team2Id;
+  } else {
+    game.winner = null;
+  }
+
+  match.gameWins = {};
+  match.gameWins[match.team1Id] = 0;
+  match.gameWins[match.team2Id] = 0;
+  match.games.forEach(g => {
+    if (g.winner) match.gameWins[g.winner]++;
+  });
+
+  const wins1 = match.gameWins[match.team1Id];
+  const wins2 = match.gameWins[match.team2Id];
+  if (wins1 >= 4) match.winner = match.team1Id;
+  else if (wins2 >= 4) match.winner = match.team2Id;
+  else match.winner = null;
+
+  clearTimeout(quadScoreTimeout);
+  quadScoreTimeout = setTimeout(() => {
+    saveState();
+    renderQuadBracket();
+  }, 300);
+}
+
+function addQuadDreambreaker(matchId) {
+  const match = state.matches[matchId];
+  if (!match) return;
+  const team1 = state.teams.find(t => t.id === match.team1Id);
+  const team2 = state.teams.find(t => t.id === match.team2Id);
+
+  match.games.push({
+    gameNum: 7,
+    round: 4,
+    pair1: { teamId: team1.id, players: [0, 1] },
+    pair2: { teamId: team2.id, players: [0, 1] },
+    score1: null,
+    score2: null,
+    winner: null
+  });
+  match.dreambreaker = true;
+  saveState();
+  renderQuadBracket();
+}
+
+function propagateQuadMatches() {
+  const sf1 = state.matches.sf1;
+  const sf2 = state.matches.sf2;
+  const finals = state.matches.finals;
+  const bronze = state.matches.bronze;
+
+  if (!sf1 || !sf2 || !finals || !bronze) return;
+
+  const ensureGames = (match) => {
+    if (!match.team1Id || !match.team2Id) return;
+    if (match.games && match.games.length > 0) return;
+    const team1 = state.teams.find(t => t.id === match.team1Id);
+    const team2 = state.teams.find(t => t.id === match.team2Id);
+    if (!team1 || !team2) return;
+
+    const pairings = [];
+    for (let i = 0; i < 4; i++) {
+      for (let j = i + 1; j < 4; j++) {
+        pairings.push({ pair1: {teamId: team1.id, players: [i, j]}, pair2: {teamId: team2.id, players: [i, j]} });
+      }
+    }
+    match.games = pairings.slice(0, 6).map((p, idx) => ({
+      gameNum: idx + 1, round: Math.floor(idx / 2) + 1, pair1: p.pair1, pair2: p.pair2, score1: null, score2: null, winner: null
+    }));
+    match.gameWins = {};
+    match.gameWins[match.team1Id] = 0;
+    match.gameWins[match.team2Id] = 0;
+  };
+
+  if (sf1.winner && sf2.winner) {
+    const needsReset = finals.team1Id !== sf1.winner || finals.team2Id !== sf2.winner;
+    if (needsReset) {
+      finals.team1Id = sf1.winner;
+      finals.team2Id = sf2.winner;
+      finals.games = [];
+      finals.gameWins = {};
+      finals.winner = null;
+    }
+    ensureGames(finals);
+  } else {
+    finals.team1Id = null;
+    finals.team2Id = null;
+    finals.games = [];
+    finals.winner = null;
+  }
+
+  const sf1Loser = sf1.winner ? (sf1.team1Id === sf1.winner ? sf1.team2Id : sf1.team1Id) : null;
+  const sf2Loser = sf2.winner ? (sf2.team1Id === sf2.winner ? sf2.team2Id : sf2.team1Id) : null;
+
+  if (sf1Loser && sf2Loser) {
+    const needsReset = bronze.team1Id !== sf1Loser || bronze.team2Id !== sf2Loser;
+    if (needsReset) {
+      bronze.team1Id = sf1Loser;
+      bronze.team2Id = sf2Loser;
+      bronze.games = [];
+      bronze.gameWins = {};
+      bronze.winner = null;
+    }
+    ensureGames(bronze);
+  } else {
+    bronze.team1Id = null;
+    bronze.team2Id = null;
+    bronze.games = [];
+    bronze.winner = null;
+  }
 }
 </script>
 </body>
