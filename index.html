@@ -366,6 +366,11 @@
   body.display-mode .ladder-round-banner { font-size: 22px; padding: 12px 18px; margin-bottom: 10px; }
   body.display-mode .ladder-toolbar { display: none; }
   body.display-mode .seed-tag { font-size: 0.85em; }
+  /* Push the courts layout below the upper-right branding block in display mode */
+  body.bracket-display #view-ladder-court-courts .bracket-wrap { padding-top: 180px; }
+  body.bracket-display #view-ladder-court-courts .ladder-round-banner {
+    margin-right: 240px; /* leave room for brand block on the right */
+  }
   /* 4K-specific scaling for 75" displays */
   @media (min-width: 3000px) {
     body.display-mode .ladder-court-layout { grid-template-columns: 420px 1fr; gap: 28px; }
@@ -376,6 +381,8 @@
     body.display-mode .ladder-score-display { font-size: 28px; }
     body.display-mode .ladder-standings table { font-size: 20px; }
     body.display-mode .ladder-round-banner { font-size: 28px; padding: 18px 24px; }
+    body.bracket-display #view-ladder-court-courts .bracket-wrap { padding-top: 260px; }
+    body.bracket-display #view-ladder-court-courts .ladder-round-banner { margin-right: 360px; }
   }
 
   /* QuadSquad Setup */
@@ -2490,6 +2497,30 @@ function renderLadderCourts() {
         renderLadderCourts(); // refresh standings + winner styling
       });
     });
+  }
+
+  // Branding blocks (display-mode only) — logo upper right, title to its left.
+  // Same pattern as the bracket display.
+  const wrap = grid.closest('.bracket-wrap');
+  if (wrap) {
+    wrap.querySelectorAll('.gf-logo-block, .gf-title-block').forEach(el => el.remove());
+    if (document.body.classList.contains('bracket-display')) {
+      const brandLeague = (state.leagueName || 'Ladder League').trim() || 'Ladder League';
+      const today = new Date().toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+      const logoBlock = document.createElement('div');
+      logoBlock.className = 'gf-logo-block';
+      logoBlock.innerHTML = `<img class="logo-big" src="logo.jpg" alt="${escapeHtml(brandLeague)}">`;
+      wrap.appendChild(logoBlock);
+
+      const titleBlock = document.createElement('div');
+      titleBlock.className = 'gf-title-block';
+      titleBlock.innerHTML = `
+        <div class="brand-title">${escapeHtml(brandLeague)} <span class="champ">Championship</span></div>
+        <div class="brand-date">${today}</div>
+      `;
+      wrap.appendChild(titleBlock);
+    }
   }
 
   // Toolbar
