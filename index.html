@@ -164,6 +164,155 @@
     color: var(--muted);
   }
 
+  /* Ladder League by Court */
+  .ladder-court-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+    gap: 20px;
+    padding: 8px 0 16px;
+  }
+  .ladder-court-card {
+    background: #fff;
+    border: 1.5px solid var(--line);
+    border-radius: 12px;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .ladder-court-card.championship {
+    border-color: var(--orange);
+    border-width: 2.5px;
+    box-shadow: 0 4px 14px rgba(244,121,32,0.15);
+  }
+  .ladder-court-card .court-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    border-bottom: 2px solid var(--ink);
+    padding-bottom: 6px;
+  }
+  .ladder-court-card .court-title {
+    font-size: 17px;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--ink);
+  }
+  .ladder-court-card.championship .court-title { color: var(--orange); }
+  .ladder-court-card .court-sub {
+    font-size: 11px;
+    color: var(--muted);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .8px;
+  }
+  .ladder-section-title {
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: var(--muted);
+    margin: 4px 0 2px;
+  }
+  .ladder-game-row {
+    display: grid;
+    grid-template-columns: 1fr 56px auto 56px 1fr;
+    gap: 6px;
+    align-items: center;
+    padding: 6px 0;
+    border-bottom: 1px dashed var(--line);
+    font-size: 13px;
+  }
+  .ladder-game-row:last-child { border-bottom: none; }
+  .ladder-game-team { line-height: 1.3; }
+  .ladder-game-team.right { text-align: right; }
+  .ladder-game-team .player {
+    display: inline-block;
+    margin-right: 4px;
+  }
+  .ladder-game-team.right .player { margin-right: 0; margin-left: 4px; }
+  .ladder-game-team strong { font-weight: 800; }
+  .ladder-game-vs {
+    font-weight: 800;
+    color: var(--muted);
+    font-size: 11px;
+    text-align: center;
+  }
+  .ladder-score-input {
+    width: 100%;
+    text-align: center;
+    padding: 4px 4px;
+    font-size: 14px;
+    font-weight: 700;
+  }
+  .ladder-score-display {
+    text-align: center;
+    font-size: 16px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+  }
+  .ladder-team-winner { color: var(--green); }
+  .ladder-standings {
+    margin-top: 6px;
+    background: var(--soft);
+    border-radius: 8px;
+    padding: 10px 12px;
+  }
+  .ladder-standings table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .ladder-standings th, .ladder-standings td { text-align: left; padding: 4px 6px; }
+  .ladder-standings th {
+    font-size: 10px;
+    text-transform: uppercase;
+    color: var(--muted);
+    border-bottom: 1px solid var(--line);
+    letter-spacing: .8px;
+  }
+  .ladder-standings td { border-bottom: 1px solid #f0f0ee; }
+  .ladder-standings tr:last-child td { border-bottom: none; }
+  .ladder-standings .rank {
+    font-weight: 800;
+    color: var(--orange);
+    width: 22px;
+    text-align: center;
+  }
+  .ladder-standings .pts, .ladder-standings .wins {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  .ladder-standings .wins { font-weight: 700; }
+  .ladder-round-banner {
+    text-align: center;
+    background: var(--ink);
+    color: #fff;
+    padding: 10px 16px;
+    font-weight: 900;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    font-size: 15px;
+  }
+  .ladder-toolbar {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    margin-top: 8px;
+    flex-wrap: wrap;
+  }
+  /* Display mode tweaks */
+  body.display-mode .ladder-court-grid { grid-template-columns: repeat(auto-fit, minmax(560px, 1fr)); gap: 28px; }
+  body.display-mode .ladder-court-card { padding: 20px 22px; }
+  body.display-mode .ladder-court-card .court-title { font-size: 24px; }
+  body.display-mode .ladder-court-card .court-sub { font-size: 14px; }
+  body.display-mode .ladder-game-row { font-size: 18px; padding: 8px 0; }
+  body.display-mode .ladder-score-display { font-size: 22px; }
+  body.display-mode .ladder-section-title { font-size: 14px; }
+  body.display-mode .ladder-standings table { font-size: 17px; }
+  body.display-mode .ladder-standings th { font-size: 12px; }
+  body.display-mode .ladder-round-banner { font-size: 22px; padding: 14px 22px; }
+  body.display-mode .ladder-toolbar { display: none; }
+
   /* QuadSquad Setup */
   .quad-setup-wrap {
     max-width: 1000px;
@@ -1123,6 +1272,10 @@
         <h3>Partner League Bracket</h3>
         <p>8 pre-formed teams entered directly as seeds 1–8. Double-elimination bracket.</p>
       </button>
+      <button class="tournament-type-button" id="btn-ladderbycourt">
+        <h3>Ladder League by Court</h3>
+        <p>Players paste in seed order. 4-per-court round robins, then advance to championship and consolation courts.</p>
+      </button>
       <button class="tournament-type-button" id="btn-quadsquad">
         <h3>QuadSquad</h3>
         <p>4 teams with 4 players each. 6-game matches with dynamic opponent selection.</p>
@@ -1222,6 +1375,52 @@
       <div class="sync-url" id="partner-sync-url"></div>
       <button class="btn ghost" id="btn-partner-copy-url" type="button" style="margin-top:8px;">Copy Display URL</button>
     </div>
+  </div>
+</section>
+
+<!-- LADDER LEAGUE BY COURT — SETUP -->
+<section id="view-ladder-court-setup" class="view">
+  <div class="setup-wrap">
+    <h2>Ladder League by Court — Setup</h2>
+
+    <div class="league-row">
+      <label for="ladder-court-league-input">League Name</label>
+      <input type="text" id="ladder-court-league-input" placeholder="e.g. Tuesday Night Ladder">
+    </div>
+    <div class="note">The page title becomes "<span id="ladder-court-league-preview">League</span> Championship".</div>
+
+    <p class="note" style="margin-top:18px">Paste player names in seed order — one per line, top seed first. Total must be a multiple of 4 (8, 12, 16, 20, …). Courts will be balanced automatically using snake seeding.</p>
+
+    <textarea id="ladder-court-paste" placeholder="Player 1 (top seed)&#10;Player 2&#10;Player 3&#10;..." rows="14" style="width:100%; font-family:inherit; font-size:14px; padding:12px; border:1.5px solid var(--line); border-radius:8px; resize:vertical; box-sizing:border-box;"></textarea>
+    <div class="note" id="ladder-court-count" style="margin-top:6px;">0 players entered.</div>
+
+    <div class="toolbar" style="margin-top:18px;">
+      <button class="btn green" id="btn-ladder-court-continue" type="button">Generate Courts →</button>
+      <button class="btn ghost" id="btn-ladder-court-fill-demo" type="button">Fill Demo (12 players)</button>
+      <button class="btn ghost" id="btn-ladder-court-back" type="button">Back</button>
+    </div>
+
+    <div class="sync-panel">
+      <div class="sync-title">Cloud Sync — Display on Another Computer</div>
+      <div class="sync-row">
+        <label for="ladder-court-room-input" style="font-weight:700; font-size:13px;">Room Code</label>
+        <input type="text" id="ladder-court-room-input" maxlength="6" placeholder="ABC123">
+        <button class="btn ghost" id="btn-ladder-court-room-new" type="button">New Code</button>
+        <span class="sync-status" id="ladder-court-sync-status">Checking…</span>
+      </div>
+      <div class="note">Anyone on any device can open the Display URL below to watch live.</div>
+      <div class="sync-url" id="ladder-court-sync-url"></div>
+      <button class="btn ghost" id="btn-ladder-court-copy-url" type="button" style="margin-top:8px;">Copy Display URL</button>
+    </div>
+  </div>
+</section>
+
+<!-- LADDER LEAGUE BY COURT — COURTS (admin + display) -->
+<section id="view-ladder-court-courts" class="view">
+  <div class="bracket-wrap" style="max-width:1700px; margin:0 auto;">
+    <div id="ladder-court-banner" class="ladder-round-banner"></div>
+    <div id="ladder-court-grid" class="ladder-court-grid"></div>
+    <div class="ladder-toolbar" id="ladder-court-toolbar"></div>
   </div>
 </section>
 
@@ -1363,7 +1562,7 @@
 const KEY = 'ddp-tournament-v3';
 
 const defaultState = () => ({
-  tournamentType: 'dilldinkers', // 'dilldinkers', 'partnerleague', or 'quadsquad'
+  tournamentType: 'dilldinkers', // 'dilldinkers', 'partnerleague', 'ladderbycourt', or 'quadsquad'
   quadStage: 'semis', // 'semis' or 'finals' — which QuadSquad stage to display
   leagueName: 'Dill Dinkers',
   phase: 'setup',
@@ -1377,6 +1576,10 @@ const defaultState = () => ({
   lastPopup: null,         // { id, pairs: [{topName, botName, teamNum}] }
   teams: [],               // for quadsquad: [{id, name, seed, players: [{id, name}]}]
   opponents: {},           // for quadsquad: {team1vs: 2|3|4}
+  // Ladder League by Court state
+  ladderCourtPlayersText: '',                      // raw paste text
+  ladderCourtPlayers: [],                          // [{seed, name}]
+  ladderCourtRounds: [],                           // [{roundIndex, courts: [{courtNum, label, players, games}]}]
   room: ''                 // cloud sync room code
 });
 
@@ -1477,6 +1680,8 @@ function parseRoute() {
     defaultHash = state.phase === 'setup' ? '#/quad-setup' : '#/quad-bracket';
   } else if (state.tournamentType === 'partnerleague') {
     defaultHash = state.phase === 'setup' ? '#/partner-setup' : '#/admin';
+  } else if (state.tournamentType === 'ladderbycourt') {
+    defaultHash = state.phase === 'setup' ? '#/ladder-court-setup' : '#/ladder-court-courts';
   } else {
     defaultHash = state.phase === 'setup' ? '#/setup' : '#/admin';
   }
@@ -1507,6 +1712,18 @@ function route() {
     } else if (hash === 'display') {
       document.getElementById('view-bracket').classList.add('active');
       renderBracket();
+    }
+  } else if (state.tournamentType === 'ladderbycourt') {
+    // Ladder League by Court routes
+    if (hash === 'ladder-court-setup') {
+      document.getElementById('view-ladder-court-setup').classList.add('active');
+      renderLadderCourtSetup();
+    } else if (hash === 'ladder-court-courts' || hash === 'admin') {
+      document.getElementById('view-ladder-court-courts').classList.add('active');
+      renderLadderCourts();
+    } else if (hash === 'display') {
+      document.getElementById('view-ladder-court-courts').classList.add('active');
+      renderLadderCourts();
     }
   } else if (state.tournamentType === 'quadsquad') {
     // QuadSquad routes
@@ -1596,6 +1813,17 @@ document.getElementById('btn-partnerleague').addEventListener('click', () => {
   state.leagueName = '';
   saveState();
   location.hash = '#/partner-setup';
+});
+
+document.getElementById('btn-ladderbycourt').addEventListener('click', () => {
+  state.tournamentType = 'ladderbycourt';
+  state.phase = 'setup';
+  state.ladderCourtPlayersText = '';
+  state.ladderCourtPlayers = [];
+  state.ladderCourtRounds = [];
+  state.leagueName = '';
+  saveState();
+  location.hash = '#/ladder-court-setup';
 });
 
 document.getElementById('btn-quadsquad').addEventListener('click', () => {
@@ -1763,6 +1991,445 @@ document.getElementById('btn-partner-copy-url').addEventListener('click', () => 
     setTimeout(() => { btn.textContent = orig; }, 1500);
   });
 });
+
+/* =========================================================================
+   LADDER LEAGUE BY COURT
+   ========================================================================= */
+
+// --- Helpers ---
+
+// Snake-seed allocation: with N players and N/4 courts, distribute so the
+// top seed plays the two middle seeds + the lowest seed, etc.
+// e.g. 12 players / 3 courts → C1: 1,6,7,12 | C2: 2,5,8,11 | C3: 3,4,9,10
+function ladderAllocateCourts(players) {
+  const numCourts = Math.floor(players.length / 4);
+  if (numCourts < 1) return [];
+  const courts = Array.from({ length: numCourts }, () => []);
+  let pickIdx = 0;
+  let round = 0;
+  while (pickIdx < players.length) {
+    const order = round % 2 === 0
+      ? Array.from({ length: numCourts }, (_, i) => i)
+      : Array.from({ length: numCourts }, (_, i) => numCourts - 1 - i);
+    for (const ci of order) {
+      if (pickIdx >= players.length) break;
+      courts[ci].push(players[pickIdx]);
+      pickIdx++;
+    }
+    round++;
+  }
+  return courts;
+}
+
+// 4-player round robin where each player partners with each other once.
+// players is an array of 4 {seed, name}.
+function ladderGenerateGames(players) {
+  if (players.length !== 4) return [];
+  const [a, b, c, d] = players;
+  return [
+    { gameIdx: 0, team1: [a.seed, d.seed], team2: [b.seed, c.seed], score1: null, score2: null },
+    { gameIdx: 1, team1: [a.seed, c.seed], team2: [b.seed, d.seed], score1: null, score2: null },
+    { gameIdx: 2, team1: [a.seed, b.seed], team2: [c.seed, d.seed], score1: null, score2: null }
+  ];
+}
+
+function ladderPlayerName(seed) {
+  const p = (state.ladderCourtPlayers || []).find(x => x.seed === seed);
+  return p ? p.name : `Seed ${seed}`;
+}
+
+function ladderComputeStandings(court) {
+  const stats = {};
+  court.players.forEach(p => {
+    stats[p.seed] = { seed: p.seed, name: p.name, wins: 0, losses: 0, points: 0, pointsAgainst: 0, games: 0 };
+  });
+  court.games.forEach(g => {
+    const s1 = (g.score1 === '' || g.score1 == null) ? null : Number(g.score1);
+    const s2 = (g.score2 === '' || g.score2 == null) ? null : Number(g.score2);
+    if (s1 == null || s2 == null || isNaN(s1) || isNaN(s2)) return;
+    g.team1.forEach(seed => { if (stats[seed]) { stats[seed].points += s1; stats[seed].pointsAgainst += s2; stats[seed].games++; } });
+    g.team2.forEach(seed => { if (stats[seed]) { stats[seed].points += s2; stats[seed].pointsAgainst += s1; stats[seed].games++; } });
+    if (s1 > s2) {
+      g.team1.forEach(seed => { if (stats[seed]) stats[seed].wins++; });
+      g.team2.forEach(seed => { if (stats[seed]) stats[seed].losses++; });
+    } else if (s2 > s1) {
+      g.team2.forEach(seed => { if (stats[seed]) stats[seed].wins++; });
+      g.team1.forEach(seed => { if (stats[seed]) stats[seed].losses++; });
+    }
+  });
+  return Object.values(stats).sort((a, b) =>
+    b.wins - a.wins ||
+    (b.points - b.pointsAgainst) - (a.points - a.pointsAgainst) ||
+    b.points - a.points
+  );
+}
+
+function ladderRoundComplete(round) {
+  if (!round || !round.courts || !round.courts.length) return false;
+  return round.courts.every(c => c.games.every(g => {
+    const s1 = (g.score1 === '' || g.score1 == null) ? null : Number(g.score1);
+    const s2 = (g.score2 === '' || g.score2 == null) ? null : Number(g.score2);
+    return s1 != null && s2 != null && !isNaN(s1) && !isNaN(s2);
+  }));
+}
+
+function ladderCourtLabelFor(rangeStart, rangeEnd) {
+  if (rangeStart === 1) return 'Championship Court';
+  return `Court ${rangeStart}–${rangeEnd}`;
+}
+
+function ladderAdvanceRound() {
+  const rounds = state.ladderCourtRounds || [];
+  const currentRound = rounds[rounds.length - 1];
+  if (!ladderRoundComplete(currentRound)) {
+    alert('Every game in every court needs scores before advancing.');
+    return;
+  }
+  // Compute per-court standings, then global ranking by [place, then performance].
+  const placements = [];
+  currentRound.courts.forEach((court, courtIdx) => {
+    const standings = ladderComputeStandings(court);
+    standings.forEach((p, idx) => placements.push({ ...p, courtIdx, place: idx + 1 }));
+  });
+  placements.sort((a, b) =>
+    a.place - b.place ||
+    b.wins - a.wins ||
+    (b.points - b.pointsAgainst) - (a.points - a.pointsAgainst) ||
+    b.points - a.points
+  );
+
+  // Group into courts of 4 in global ranking order.
+  const newCourts = [];
+  for (let i = 0; i < placements.length; i += 4) {
+    const group = placements.slice(i, i + 4).map(p => ({ seed: p.seed, name: p.name }));
+    if (group.length !== 4) break;
+    const rangeStart = i + 1;
+    const rangeEnd = i + 4;
+    newCourts.push({
+      courtNum: newCourts.length + 1,
+      label: ladderCourtLabelFor(rangeStart, rangeEnd),
+      isChampionship: rangeStart === 1,
+      players: group,
+      games: ladderGenerateGames(group)
+    });
+  }
+
+  state.ladderCourtRounds.push({
+    roundIndex: rounds.length,
+    courts: newCourts
+  });
+  saveState();
+  renderLadderCourts();
+}
+
+function ladderResetToSetup() {
+  if (!confirm('Reset this Ladder League? All scores will be cleared.')) return;
+  state.phase = 'setup';
+  state.ladderCourtRounds = [];
+  saveState();
+  location.hash = '#/ladder-court-setup';
+}
+
+// --- Setup view ---
+
+let ladderCourtPasteTimeout = null;
+
+function renderLadderCourtSetup() {
+  const leagueInput = document.getElementById('ladder-court-league-input');
+  leagueInput.value = state.leagueName || '';
+  document.getElementById('ladder-court-league-preview').textContent = state.leagueName || 'League';
+
+  const ta = document.getElementById('ladder-court-paste');
+  ta.value = state.ladderCourtPlayersText || '';
+  updateLadderCourtCount();
+  updateLadderCourtSyncPanel();
+}
+
+function updateLadderCourtCount() {
+  const ta = document.getElementById('ladder-court-paste');
+  const lines = (ta.value || '').split('\n').map(s => s.trim()).filter(Boolean);
+  const n = lines.length;
+  let msg = `${n} player${n === 1 ? '' : 's'} entered.`;
+  if (n === 0) {
+    msg += ' Paste names to begin.';
+  } else if (n % 4 !== 0) {
+    msg += ` ⚠ Need a multiple of 4 — ${n % 4} extra.`;
+  } else {
+    const courts = n / 4;
+    msg += ` → ${courts} court${courts === 1 ? '' : 's'} of 4.`;
+  }
+  document.getElementById('ladder-court-count').textContent = msg;
+}
+
+document.getElementById('ladder-court-league-input').addEventListener('input', e => {
+  state.leagueName = e.target.value;
+  document.getElementById('ladder-court-league-preview').textContent = state.leagueName || 'League';
+  clearTimeout(ladderCourtPasteTimeout);
+  ladderCourtPasteTimeout = setTimeout(saveState, 300);
+});
+
+document.getElementById('ladder-court-paste').addEventListener('input', e => {
+  state.ladderCourtPlayersText = e.target.value;
+  updateLadderCourtCount();
+  clearTimeout(ladderCourtPasteTimeout);
+  ladderCourtPasteTimeout = setTimeout(saveState, 300);
+});
+
+document.getElementById('btn-ladder-court-back').addEventListener('click', () => {
+  location.hash = '#/tournament-type';
+});
+
+document.getElementById('btn-ladder-court-fill-demo').addEventListener('click', () => {
+  const demo = [
+    'Alex Smith', 'Maria Garcia', 'Brian Jones', 'Soo-Jin Park',
+    'Casey Taylor', 'Wei Chen', 'Dana Brown', 'Jin Kim',
+    'Evan Davis', 'Fiona Lee', 'Grant Wilson', 'Priya Patel'
+  ];
+  state.ladderCourtPlayersText = demo.join('\n');
+  if (!state.leagueName.trim()) state.leagueName = 'Ladder League';
+  saveState();
+  renderLadderCourtSetup();
+});
+
+document.getElementById('btn-ladder-court-continue').addEventListener('click', () => {
+  const raw = state.ladderCourtPlayersText || '';
+  const names = raw.split('\n').map(s => s.trim()).filter(Boolean);
+  if (names.length === 0) { alert('Please paste at least 4 names.'); return; }
+  if (names.length % 4 !== 0) { alert(`You entered ${names.length} names — must be a multiple of 4 (8, 12, 16, …).`); return; }
+  if (!state.leagueName.trim()) { alert('Please enter a league name.'); return; }
+
+  state.ladderCourtPlayers = names.map((name, i) => ({ seed: i + 1, name }));
+  const courtPlayerArrays = ladderAllocateCourts(state.ladderCourtPlayers);
+  const courts = courtPlayerArrays.map((players, idx) => ({
+    courtNum: idx + 1,
+    label: `Court ${idx + 1}`,
+    isChampionship: false,
+    players,
+    games: ladderGenerateGames(players)
+  }));
+  state.ladderCourtRounds = [{ roundIndex: 0, courts }];
+  state.phase = 'bracket';
+  saveState();
+  location.hash = '#/ladder-court-courts';
+});
+
+// Ladder Court sync panel
+function updateLadderCourtSyncPanel() {
+  const statusEl = document.getElementById('ladder-court-sync-status');
+  const urlEl = document.getElementById('ladder-court-sync-url');
+  const input = document.getElementById('ladder-court-room-input');
+  if (!statusEl || !urlEl || !input) return;
+  input.value = state.room || '';
+  const enabled = !!(window.ddpFirebase && window.ddpFirebase.enabled);
+  if (!enabled) {
+    statusEl.textContent = '✗ Not configured — paste Firebase config';
+    statusEl.className = 'sync-status off';
+  } else if (!state.room) {
+    statusEl.textContent = '○ Pick a room code to enable sync';
+    statusEl.className = 'sync-status off';
+  } else {
+    statusEl.textContent = '✓ Cloud sync active — room ' + state.room;
+    statusEl.className = 'sync-status on';
+  }
+  const base = location.href.split('#')[0];
+  urlEl.textContent = state.room ? `${base}#/display?room=${state.room}` : '(pick a room code to see the display URL)';
+}
+
+document.getElementById('ladder-court-room-input').addEventListener('input', e => {
+  state.room = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
+  e.target.value = state.room;
+  saveState();
+  connectToRoom(state.room);
+  updateLadderCourtSyncPanel();
+});
+
+document.getElementById('btn-ladder-court-room-new').addEventListener('click', () => {
+  state.room = randomRoomCode();
+  saveState();
+  connectToRoom(state.room);
+  updateLadderCourtSyncPanel();
+});
+
+document.getElementById('btn-ladder-court-copy-url').addEventListener('click', () => {
+  const url = document.getElementById('ladder-court-sync-url').textContent;
+  if (!url || url.startsWith('(')) return;
+  navigator.clipboard.writeText(url).then(() => {
+    const btn = document.getElementById('btn-ladder-court-copy-url');
+    const orig = btn.textContent;
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = orig; }, 1500);
+  });
+});
+
+// --- Courts view (admin + display) ---
+
+let ladderScoreSaveTimeout = null;
+
+function renderLadderCourts() {
+  const { name: hash } = parseRoute();
+  const isAdmin = hash !== 'display';
+
+  const banner = document.getElementById('ladder-court-banner');
+  const grid = document.getElementById('ladder-court-grid');
+  const toolbar = document.getElementById('ladder-court-toolbar');
+  if (!banner || !grid || !toolbar) return;
+
+  const rounds = state.ladderCourtRounds || [];
+  if (!rounds.length) {
+    banner.textContent = 'No courts yet';
+    grid.innerHTML = '';
+    toolbar.innerHTML = '';
+    return;
+  }
+
+  const currentRound = rounds[rounds.length - 1];
+  const roundNum = currentRound.roundIndex + 1;
+  const leagueName = (state.leagueName || 'Ladder League').trim();
+  banner.textContent = `${leagueName} — Round ${roundNum}`;
+
+  grid.innerHTML = '';
+  currentRound.courts.forEach((court, courtIdx) => {
+    const card = document.createElement('div');
+    card.className = 'ladder-court-card' + (court.isChampionship ? ' championship' : '');
+
+    const header = document.createElement('div');
+    header.className = 'court-header';
+    header.innerHTML = `
+      <div class="court-title">${escapeHtml(court.label || `Court ${court.courtNum}`)}</div>
+      <div class="court-sub">Round Robin · 3 games</div>
+    `;
+    card.appendChild(header);
+
+    // Games section
+    const gamesTitle = document.createElement('div');
+    gamesTitle.className = 'ladder-section-title';
+    gamesTitle.textContent = 'Games';
+    card.appendChild(gamesTitle);
+
+    court.games.forEach((g, gIdx) => {
+      const s1 = (g.score1 === '' || g.score1 == null) ? null : Number(g.score1);
+      const s2 = (g.score2 === '' || g.score2 == null) ? null : Number(g.score2);
+      const hasScores = s1 != null && s2 != null && !isNaN(s1) && !isNaN(s2);
+      const t1Win = hasScores && s1 > s2;
+      const t2Win = hasScores && s2 > s1;
+
+      const team1Names = g.team1.map(seed => `<span class="player">${escapeHtml(ladderPlayerName(seed))}</span>`).join(' & ');
+      const team2Names = g.team2.map(seed => `<span class="player">${escapeHtml(ladderPlayerName(seed))}</span>`).join(' & ');
+
+      const row = document.createElement('div');
+      row.className = 'ladder-game-row';
+
+      let scoreCell1, scoreCell2;
+      if (isAdmin) {
+        scoreCell1 = `<input type="number" class="ladder-score-input" data-court="${courtIdx}" data-game="${gIdx}" data-side="1" value="${g.score1 == null ? '' : g.score1}" min="0" max="99">`;
+        scoreCell2 = `<input type="number" class="ladder-score-input" data-court="${courtIdx}" data-game="${gIdx}" data-side="2" value="${g.score2 == null ? '' : g.score2}" min="0" max="99">`;
+      } else {
+        scoreCell1 = `<div class="ladder-score-display">${hasScores ? s1 : '–'}</div>`;
+        scoreCell2 = `<div class="ladder-score-display">${hasScores ? s2 : '–'}</div>`;
+      }
+
+      row.innerHTML = `
+        <div class="ladder-game-team ${t1Win ? 'ladder-team-winner' : ''}">${team1Names}</div>
+        ${scoreCell1}
+        <div class="ladder-game-vs">vs</div>
+        ${scoreCell2}
+        <div class="ladder-game-team right ${t2Win ? 'ladder-team-winner' : ''}">${team2Names}</div>
+      `;
+      card.appendChild(row);
+    });
+
+    // Standings section
+    const standingsTitle = document.createElement('div');
+    standingsTitle.className = 'ladder-section-title';
+    standingsTitle.textContent = 'Standings';
+    card.appendChild(standingsTitle);
+
+    const standings = ladderComputeStandings(court);
+    const standingsBox = document.createElement('div');
+    standingsBox.className = 'ladder-standings';
+    standingsBox.innerHTML = `
+      <table>
+        <thead>
+          <tr><th class="rank">#</th><th>Player</th><th class="wins">W</th><th class="wins">L</th><th class="pts">PF</th><th class="pts">PA</th><th class="pts">+/−</th></tr>
+        </thead>
+        <tbody>
+          ${standings.map((p, i) => `
+            <tr>
+              <td class="rank">${i + 1}</td>
+              <td>${escapeHtml(p.name)}</td>
+              <td class="wins">${p.wins}</td>
+              <td class="wins">${p.losses}</td>
+              <td class="pts">${p.points}</td>
+              <td class="pts">${p.pointsAgainst}</td>
+              <td class="pts">${(p.points - p.pointsAgainst) > 0 ? '+' : ''}${p.points - p.pointsAgainst}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+    card.appendChild(standingsBox);
+
+    grid.appendChild(card);
+  });
+
+  // Wire up score inputs (admin only).
+  // Save on input (debounced) so Firebase sync stays live, but only re-render
+  // on blur — re-rendering mid-type would steal focus from the input.
+  if (isAdmin) {
+    grid.querySelectorAll('.ladder-score-input').forEach(inp => {
+      const writeValue = () => {
+        const courtIdx = Number(inp.dataset.court);
+        const gameIdx = Number(inp.dataset.game);
+        const side = inp.dataset.side;
+        const round = state.ladderCourtRounds[state.ladderCourtRounds.length - 1];
+        const game = round.courts[courtIdx].games[gameIdx];
+        const v = inp.value === '' ? null : Number(inp.value);
+        if (side === '1') game.score1 = v;
+        else game.score2 = v;
+      };
+      inp.addEventListener('input', () => {
+        writeValue();
+        clearTimeout(ladderScoreSaveTimeout);
+        ladderScoreSaveTimeout = setTimeout(saveState, 400);
+      });
+      inp.addEventListener('blur', () => {
+        writeValue();
+        clearTimeout(ladderScoreSaveTimeout);
+        saveState();
+        renderLadderCourts(); // refresh standings + winner styling
+      });
+    });
+  }
+
+  // Toolbar
+  toolbar.innerHTML = '';
+  if (isAdmin) {
+    const complete = ladderRoundComplete(currentRound);
+    const isLastPossibleRound = rounds.length >= 2; // Round 2 = final round in standard ladder
+    if (complete && !isLastPossibleRound) {
+      const advBtn = document.createElement('button');
+      advBtn.className = 'btn green';
+      advBtn.textContent = 'Advance to Next Round →';
+      advBtn.addEventListener('click', ladderAdvanceRound);
+      toolbar.appendChild(advBtn);
+    } else if (complete && isLastPossibleRound) {
+      const doneNote = document.createElement('div');
+      doneNote.style.cssText = 'font-weight: 800; color: var(--green); font-size: 14px; padding: 8px 16px; background: #f0f9e8; border-radius: 8px;';
+      doneNote.textContent = '✓ Tournament complete — final standings shown above.';
+      toolbar.appendChild(doneNote);
+    } else {
+      const note = document.createElement('div');
+      note.style.cssText = 'font-size: 13px; color: var(--muted); padding: 8px 12px;';
+      note.textContent = 'Enter all game scores to enable next round.';
+      toolbar.appendChild(note);
+    }
+    const resetBtn = document.createElement('button');
+    resetBtn.className = 'btn ghost';
+    resetBtn.textContent = 'Reset Tournament';
+    resetBtn.addEventListener('click', ladderResetToSetup);
+    toolbar.appendChild(resetBtn);
+  }
+}
 
 /* =========================================================================
    QUADSQUAD SETUP
