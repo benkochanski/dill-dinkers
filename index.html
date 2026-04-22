@@ -2583,8 +2583,14 @@ function propagate() {
         const slot = idx === 0 ? 'team1' : 'team2';
         let derived = m[slot];
         if (src.seed) {
-          const p = state.pairings.find(p => p.teamSeed === src.seed);
-          derived = p ? p.teamSeed : null;
+          if (state.tournamentType === 'partnerleague') {
+            // Partner League: seed IS the teamSeed directly (no pairings)
+            const exists = (state.partnerTeams || []).some(t => t.seed === src.seed);
+            derived = exists ? src.seed : null;
+          } else {
+            const p = state.pairings.find(p => p.teamSeed === src.seed);
+            derived = p ? p.teamSeed : null;
+          }
         } else if (src.winOf) {
           if (id === 'GFR') {
             const gf = state.matches['GF'];
