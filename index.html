@@ -71,7 +71,7 @@
 
   /* Tournament Type Selector */
   .tournament-type-wrap {
-    max-width: 600px;
+    max-width: 800px;
     margin: 60px auto;
     text-align: center;
   }
@@ -114,6 +114,49 @@
 
   /* Setup */
   .setup-wrap { max-width: 920px; margin: 0 auto; }
+
+  /* Partner League Setup */
+  .partner-teams-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 16px;
+  }
+  .partner-team-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    background: var(--soft);
+    border-radius: 8px;
+    border-left: 5px solid var(--orange);
+  }
+  .partner-team-row .seed {
+    font-weight: 800;
+    font-size: 16px;
+    color: var(--orange);
+    min-width: 28px;
+    text-align: center;
+  }
+  .partner-team-row input {
+    flex: 1;
+    border: 1.5px solid var(--line);
+    border-radius: 6px;
+    padding: 7px 10px;
+    font-size: 14px;
+    font-family: inherit;
+  }
+  .partner-paste-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 18px;
+    margin-bottom: 4px;
+  }
+  .partner-paste-hint {
+    font-size: 13px;
+    color: var(--muted);
+  }
 
   /* QuadSquad Setup */
   .quad-setup-wrap {
@@ -1029,8 +1072,12 @@
     <h2>Select Tournament Format</h2>
     <div class="tournament-type-buttons">
       <button class="tournament-type-button" id="btn-dilldinkers">
-        <h3>Dill Dinkers</h3>
+        <h3>Ladder League Bracket</h3>
         <p>16 players in 8 doubles teams. Double-elimination bracket with spin pairing.</p>
+      </button>
+      <button class="tournament-type-button" id="btn-partnerleague">
+        <h3>Partner League Bracket</h3>
+        <p>8 pre-formed teams entered directly as seeds 1–8. Double-elimination bracket.</p>
       </button>
       <button class="tournament-type-button" id="btn-quadsquad">
         <h3>QuadSquad</h3>
@@ -1081,6 +1128,55 @@
       <div class="note">Anyone on any device can open the Display URL below to watch live — make sure they use the same room code.</div>
       <div class="sync-url" id="sync-url"></div>
       <button class="btn ghost" id="btn-copy-url" type="button" style="margin-top:8px;">Copy Display URL</button>
+    </div>
+  </div>
+</section>
+
+<!-- PARTNER LEAGUE SETUP -->
+<section id="view-partner-setup" class="view">
+  <div class="setup-wrap">
+    <h2>Partner League Setup</h2>
+
+    <div class="league-row">
+      <label for="partner-league-name-input">League Name</label>
+      <input type="text" id="partner-league-name-input" placeholder="e.g. Spring League">
+    </div>
+    <div class="note">The page title becomes "<span id="partner-league-preview">Spring League</span> Championship".</div>
+
+    <p class="note" style="margin-top:18px">Enter 8 seeded teams. Seed 1 is the top seed.</p>
+
+    <div class="partner-paste-row">
+      <button class="btn ghost" id="btn-partner-paste-list" type="button">📋 Paste a List</button>
+      <span class="partner-paste-hint">— or type team names below</span>
+    </div>
+
+    <div id="partner-paste-area" style="display:none; margin-bottom:16px;">
+      <textarea id="partner-paste-input" placeholder="Paste one team name per line (8 lines = seeds 1–8)" rows="9" style="width:100%; font-family:inherit; font-size:14px; padding:10px; border:1.5px solid var(--line); border-radius:8px; resize:vertical; box-sizing:border-box;"></textarea>
+      <div style="display:flex; gap:8px; margin-top:8px;">
+        <button class="btn green" id="btn-partner-parse" type="button">Apply List</button>
+        <button class="btn ghost" id="btn-partner-paste-cancel" type="button">Cancel</button>
+      </div>
+    </div>
+
+    <div id="partner-teams-grid" class="partner-teams-grid"></div>
+
+    <div class="toolbar" style="margin-top:24px;">
+      <button class="btn green" id="btn-partner-continue" type="button">Continue to Bracket →</button>
+      <button class="btn ghost" id="btn-partner-fill-demo" type="button">Fill Demo Names</button>
+      <button class="btn ghost" id="btn-partner-back" type="button">Back</button>
+    </div>
+
+    <div class="sync-panel">
+      <div class="sync-title">Cloud Sync — Display on Another Computer</div>
+      <div class="sync-row">
+        <label for="partner-room-input" style="font-weight:700; font-size:13px;">Room Code</label>
+        <input type="text" id="partner-room-input" maxlength="6" placeholder="ABC123">
+        <button class="btn ghost" id="btn-partner-room-new" type="button">New Code</button>
+        <span class="sync-status" id="partner-sync-status">Checking…</span>
+      </div>
+      <div class="note">Anyone on any device can open the Display URL below to watch live.</div>
+      <div class="sync-url" id="partner-sync-url"></div>
+      <button class="btn ghost" id="btn-partner-copy-url" type="button" style="margin-top:8px;">Copy Display URL</button>
     </div>
   </div>
 </section>
@@ -1223,11 +1319,12 @@
 const KEY = 'ddp-tournament-v3';
 
 const defaultState = () => ({
-  tournamentType: 'dilldinkers', // 'dilldinkers' or 'quadsquad'
+  tournamentType: 'dilldinkers', // 'dilldinkers', 'partnerleague', or 'quadsquad'
   quadStage: 'semis', // 'semis' or 'finals' — which QuadSquad stage to display
   leagueName: 'Dill Dinkers',
   phase: 'setup',
   players: Array(16).fill(null).map((_, i) => ({ seed: i + 1, name: '' })),
+  partnerTeams: Array(8).fill(null).map((_, i) => ({ seed: i + 1, name: '' })), // for partnerleague
   pairings: [],
   matches: {},
   nextSeedToSpin: 1,
@@ -1301,15 +1398,29 @@ function initMatches() {
   Object.keys(BRACKET).forEach(id => {
     matches[id] = { id, team1: null, team2: null, score1: null, score2: null, winner: null, loser: null };
   });
-  const pairsBySeed = Object.fromEntries(state.pairings.map(p => [p.teamSeed, p]));
-  Object.keys(BRACKET).forEach(id => {
-    const def = BRACKET[id];
-    def.sources.forEach((src, idx) => {
-      if (src.seed && pairsBySeed[src.seed]) {
-        matches[id][idx === 0 ? 'team1' : 'team2'] = pairsBySeed[src.seed].teamSeed;
-      }
+
+  if (state.tournamentType === 'partnerleague') {
+    // Partner league: teams ARE seeds 1-8 directly — no pairing lookup needed
+    const seedSet = new Set(state.partnerTeams.map(t => t.seed));
+    Object.keys(BRACKET).forEach(id => {
+      const def = BRACKET[id];
+      def.sources.forEach((src, idx) => {
+        if (src.seed && seedSet.has(src.seed)) {
+          matches[id][idx === 0 ? 'team1' : 'team2'] = src.seed;
+        }
+      });
     });
-  });
+  } else {
+    const pairsBySeed = Object.fromEntries(state.pairings.map(p => [p.teamSeed, p]));
+    Object.keys(BRACKET).forEach(id => {
+      const def = BRACKET[id];
+      def.sources.forEach((src, idx) => {
+        if (src.seed && pairsBySeed[src.seed]) {
+          matches[id][idx === 0 ? 'team1' : 'team2'] = pairsBySeed[src.seed].teamSeed;
+        }
+      });
+    });
+  }
   return matches;
 }
 
@@ -1317,9 +1428,14 @@ function initMatches() {
    ROUTING
    ========================================================================= */
 function parseRoute() {
-  const defaultHash = (state.tournamentType === 'quadsquad') ? '#/quad-setup' :
-                      (state.phase === 'setup' ? (state.tournamentType === 'quadsquad' ? '#/quad-setup' : '#/setup') :
-                       state.tournamentType === 'quadsquad' ? '#/quad-bracket' : '#/admin');
+  let defaultHash;
+  if (state.tournamentType === 'quadsquad') {
+    defaultHash = state.phase === 'setup' ? '#/quad-setup' : '#/quad-bracket';
+  } else if (state.tournamentType === 'partnerleague') {
+    defaultHash = state.phase === 'setup' ? '#/partner-setup' : '#/admin';
+  } else {
+    defaultHash = state.phase === 'setup' ? '#/setup' : '#/admin';
+  }
   const raw = (location.hash || defaultHash).replace(/^#\//, '');
   const [name, qs] = raw.split('?');
   return { name, params: new URLSearchParams(qs || '') };
@@ -1336,6 +1452,18 @@ function route() {
   if (hash === 'tournament-type') {
     document.getElementById('view-tournament-type').classList.add('active');
     renderTournamentType();
+  } else if (state.tournamentType === 'partnerleague') {
+    // Partner League routes — same bracket views, custom setup
+    if (hash === 'partner-setup') {
+      document.getElementById('view-partner-setup').classList.add('active');
+      renderPartnerSetup();
+    } else if (hash === 'admin') {
+      document.getElementById('view-bracket').classList.add('active');
+      renderBracket();
+    } else if (hash === 'display') {
+      document.getElementById('view-bracket').classList.add('active');
+      renderBracket();
+    }
   } else if (state.tournamentType === 'quadsquad') {
     // QuadSquad routes
     if (hash === 'quad-setup') {
@@ -1415,6 +1543,17 @@ document.getElementById('btn-dilldinkers').addEventListener('click', () => {
   location.hash = '#/setup';
 });
 
+document.getElementById('btn-partnerleague').addEventListener('click', () => {
+  state.tournamentType = 'partnerleague';
+  state.phase = 'setup';
+  state.partnerTeams = Array(8).fill(null).map((_, i) => ({ seed: i + 1, name: '' }));
+  state.pairings = [];
+  state.matches = {};
+  state.leagueName = '';
+  saveState();
+  location.hash = '#/partner-setup';
+});
+
 document.getElementById('btn-quadsquad').addEventListener('click', () => {
   state.tournamentType = 'quadsquad';
   state.phase = 'setup';
@@ -1427,6 +1566,137 @@ document.getElementById('btn-quadsquad').addEventListener('click', () => {
   ];
   saveState();
   location.hash = '#/quad-setup';
+});
+
+/* =========================================================================
+   PARTNER LEAGUE SETUP
+   ========================================================================= */
+function renderPartnerSetup() {
+  const leagueInput = document.getElementById('partner-league-name-input');
+  leagueInput.value = state.leagueName || '';
+  document.getElementById('partner-league-preview').textContent = state.leagueName || 'League';
+
+  const grid = document.getElementById('partner-teams-grid');
+  grid.innerHTML = '';
+  (state.partnerTeams || []).forEach((team, idx) => {
+    const row = document.createElement('div');
+    row.className = 'partner-team-row';
+    row.innerHTML = `<div class="seed">${idx + 1}</div>
+      <input type="text" value="${escapeHtml(team.name)}" placeholder="Team name" data-partner-seed="${idx}">`;
+    grid.appendChild(row);
+    const inp = row.querySelector('input');
+    inp.addEventListener('input', () => {
+      state.partnerTeams[idx].name = inp.value;
+      clearTimeout(nameInputTimeout);
+      nameInputTimeout = setTimeout(saveState, 300);
+    });
+  });
+  updatePartnerSyncPanel();
+}
+
+document.getElementById('partner-league-name-input').addEventListener('input', e => {
+  state.leagueName = e.target.value;
+  document.getElementById('partner-league-preview').textContent = state.leagueName || 'League';
+  clearTimeout(leagueInputTimeout);
+  leagueInputTimeout = setTimeout(saveState, 300);
+});
+
+document.getElementById('btn-partner-fill-demo').addEventListener('click', () => {
+  const demo = ['Smith & Garcia', 'Jones & Park', 'Taylor & Chen', 'Brown & Kim',
+                'Davis & Lee', 'Wilson & Patel', 'Moore & Clark', 'Anderson & White'];
+  state.partnerTeams = demo.map((n, i) => ({ seed: i + 1, name: n }));
+  if (!state.leagueName.trim()) state.leagueName = 'Partner League';
+  saveState();
+  renderPartnerSetup();
+});
+
+document.getElementById('btn-partner-back').addEventListener('click', () => {
+  location.hash = '#/tournament-type';
+});
+
+document.getElementById('btn-partner-continue').addEventListener('click', () => {
+  const missing = state.partnerTeams.filter(t => !t.name.trim());
+  if (missing.length) { alert(`Please fill in all 8 team names (${missing.length} missing).`); return; }
+  if (!state.leagueName.trim()) { alert('Please enter a league name.'); return; }
+  state.phase = 'bracket';
+  state.matches = initMatches();
+  saveState();
+  location.hash = '#/admin';
+});
+
+// Paste list UI
+document.getElementById('btn-partner-paste-list').addEventListener('click', () => {
+  const area = document.getElementById('partner-paste-area');
+  area.style.display = area.style.display === 'none' ? 'block' : 'none';
+  if (area.style.display === 'block') document.getElementById('partner-paste-input').focus();
+});
+
+document.getElementById('btn-partner-paste-cancel').addEventListener('click', () => {
+  document.getElementById('partner-paste-area').style.display = 'none';
+  document.getElementById('partner-paste-input').value = '';
+});
+
+document.getElementById('btn-partner-parse').addEventListener('click', () => {
+  const raw = document.getElementById('partner-paste-input').value;
+  // Split on newlines, then commas if only 1 line detected, strip blanks
+  let lines = raw.split('\n').map(s => s.trim()).filter(Boolean);
+  if (lines.length < 2) lines = raw.split(',').map(s => s.trim()).filter(Boolean);
+  if (lines.length === 0) { alert('No names found — paste one team name per line.'); return; }
+  lines.slice(0, 8).forEach((name, i) => {
+    state.partnerTeams[i].name = name;
+  });
+  saveState();
+  renderPartnerSetup();
+  document.getElementById('partner-paste-area').style.display = 'none';
+  document.getElementById('partner-paste-input').value = '';
+});
+
+// Partner sync panel
+function updatePartnerSyncPanel() {
+  const statusEl = document.getElementById('partner-sync-status');
+  const urlEl = document.getElementById('partner-sync-url');
+  const input = document.getElementById('partner-room-input');
+  if (!statusEl || !urlEl || !input) return;
+  input.value = state.room || '';
+  const enabled = !!(window.ddpFirebase && window.ddpFirebase.enabled);
+  if (!enabled) {
+    statusEl.textContent = '✗ Not configured — paste Firebase config';
+    statusEl.className = 'sync-status off';
+  } else if (!state.room) {
+    statusEl.textContent = '○ Pick a room code to enable sync';
+    statusEl.className = 'sync-status off';
+  } else {
+    statusEl.textContent = '✓ Cloud sync active — room ' + state.room;
+    statusEl.className = 'sync-status on';
+  }
+  const base = location.href.split('#')[0];
+  urlEl.textContent = state.room ? `${base}#/display?room=${state.room}` : '(pick a room code to see the display URL)';
+}
+
+document.getElementById('partner-room-input').addEventListener('input', e => {
+  state.room = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
+  e.target.value = state.room;
+  saveState();
+  connectToRoom(state.room);
+  updatePartnerSyncPanel();
+});
+
+document.getElementById('btn-partner-room-new').addEventListener('click', () => {
+  state.room = randomRoomCode();
+  saveState();
+  connectToRoom(state.room);
+  updatePartnerSyncPanel();
+});
+
+document.getElementById('btn-partner-copy-url').addEventListener('click', () => {
+  const url = document.getElementById('partner-sync-url').textContent;
+  if (!url || url.startsWith('(')) return;
+  navigator.clipboard.writeText(url).then(() => {
+    const btn = document.getElementById('btn-partner-copy-url');
+    const orig = btn.textContent;
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = orig; }, 1500);
+  });
 });
 
 /* =========================================================================
@@ -1954,6 +2224,11 @@ document.getElementById('btn-finish-pairing').addEventListener('click', () => {
    ========================================================================= */
 function teamLabel(teamSeed) {
   if (!teamSeed) return null;
+  if (state.tournamentType === 'partnerleague') {
+    const team = (state.partnerTeams || []).find(t => t.seed === teamSeed);
+    if (!team) return null;
+    return { teamSeed, a: team.name, b: '', display: team.name };
+  }
   const p = state.pairings.find(x => x.teamSeed === teamSeed);
   if (!p) return null;
   const a = state.players[p.topSeed-1].name;
@@ -2231,9 +2506,10 @@ function renderChampion() {
   }
   if (champion) {
     const t = teamLabel(champion);
+    const nameDisplay = t.b ? `${escapeHtml(t.a)} &amp; ${escapeHtml(t.b)}` : escapeHtml(t.a);
     const el = document.createElement('div');
     el.className = 'champion-banner';
-    el.innerHTML = `🏆 Tournament Champions 🏆<div class="names">${escapeHtml(t.a)} &amp; ${escapeHtml(t.b)}</div>`;
+    el.innerHTML = `🏆 Tournament Champions 🏆<div class="names">${nameDisplay}</div>`;
     host.appendChild(el);
   }
 }
