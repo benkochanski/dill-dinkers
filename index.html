@@ -165,11 +165,60 @@
   }
 
   /* Ladder League by Court */
+  .ladder-court-layout {
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    gap: 16px;
+    align-items: start;
+    margin-bottom: 12px;
+  }
+  .ladder-court-roster {
+    background: var(--soft);
+    border-radius: 12px;
+    padding: 12px 14px;
+    border-left: 5px solid var(--orange);
+    align-self: start;
+  }
+  .ladder-court-roster h3 {
+    margin: 0 0 8px;
+    font-size: 13px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: var(--ink);
+    border-bottom: 2px solid var(--ink);
+    padding-bottom: 5px;
+  }
+  .ladder-court-roster ol {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .ladder-court-roster li {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    padding: 3px 0;
+    font-size: 13px;
+  }
+  .ladder-court-roster li .seed-num {
+    font-weight: 800;
+    color: var(--orange);
+    min-width: 22px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
   .ladder-court-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
-    gap: 20px;
-    padding: 8px 0 16px;
+    /* JS sets grid-template-columns: repeat(N, minmax(0, 1fr)) at render time */
+    gap: 14px;
+    padding: 0 0 8px;
+  }
+  .seed-tag {
+    color: var(--muted);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    margin-left: 3px;
   }
   .ladder-court-card {
     background: #fff;
@@ -301,17 +350,33 @@
     flex-wrap: wrap;
   }
   /* Display mode tweaks */
-  body.display-mode .ladder-court-grid { grid-template-columns: repeat(auto-fit, minmax(560px, 1fr)); gap: 28px; }
-  body.display-mode .ladder-court-card { padding: 20px 22px; }
-  body.display-mode .ladder-court-card .court-title { font-size: 24px; }
-  body.display-mode .ladder-court-card .court-sub { font-size: 14px; }
-  body.display-mode .ladder-game-row { font-size: 18px; padding: 8px 0; }
-  body.display-mode .ladder-score-display { font-size: 22px; }
-  body.display-mode .ladder-section-title { font-size: 14px; }
-  body.display-mode .ladder-standings table { font-size: 17px; }
-  body.display-mode .ladder-standings th { font-size: 12px; }
-  body.display-mode .ladder-round-banner { font-size: 22px; padding: 14px 22px; }
+  body.display-mode .ladder-court-layout { grid-template-columns: 320px 1fr; gap: 20px; }
+  body.display-mode .ladder-court-roster { padding: 16px 18px; }
+  body.display-mode .ladder-court-roster h3 { font-size: 17px; padding-bottom: 7px; }
+  body.display-mode .ladder-court-roster li { font-size: 17px; padding: 4px 0; gap: 10px; }
+  body.display-mode .ladder-court-grid { gap: 18px; }
+  body.display-mode .ladder-court-card { padding: 18px 20px; }
+  body.display-mode .ladder-court-card .court-title { font-size: 22px; }
+  body.display-mode .ladder-court-card .court-sub { font-size: 13px; }
+  body.display-mode .ladder-game-row { font-size: 16px; padding: 7px 0; grid-template-columns: 1fr 50px auto 50px 1fr; gap: 4px; }
+  body.display-mode .ladder-score-display { font-size: 20px; }
+  body.display-mode .ladder-section-title { font-size: 13px; }
+  body.display-mode .ladder-standings table { font-size: 15px; }
+  body.display-mode .ladder-standings th { font-size: 11px; }
+  body.display-mode .ladder-round-banner { font-size: 22px; padding: 12px 18px; margin-bottom: 10px; }
   body.display-mode .ladder-toolbar { display: none; }
+  body.display-mode .seed-tag { font-size: 0.85em; }
+  /* 4K-specific scaling for 75" displays */
+  @media (min-width: 3000px) {
+    body.display-mode .ladder-court-layout { grid-template-columns: 420px 1fr; gap: 28px; }
+    body.display-mode .ladder-court-roster h3 { font-size: 22px; }
+    body.display-mode .ladder-court-roster li { font-size: 22px; padding: 6px 0; }
+    body.display-mode .ladder-court-card .court-title { font-size: 30px; }
+    body.display-mode .ladder-game-row { font-size: 22px; }
+    body.display-mode .ladder-score-display { font-size: 28px; }
+    body.display-mode .ladder-standings table { font-size: 20px; }
+    body.display-mode .ladder-round-banner { font-size: 28px; padding: 18px 24px; }
+  }
 
   /* QuadSquad Setup */
   .quad-setup-wrap {
@@ -1417,9 +1482,12 @@
 
 <!-- LADDER LEAGUE BY COURT — COURTS (admin + display) -->
 <section id="view-ladder-court-courts" class="view">
-  <div class="bracket-wrap" style="max-width:1700px; margin:0 auto;">
+  <div class="bracket-wrap" style="max-width:none; margin:0;">
     <div id="ladder-court-banner" class="ladder-round-banner"></div>
-    <div id="ladder-court-grid" class="ladder-court-grid"></div>
+    <div class="ladder-court-layout">
+      <aside id="ladder-court-roster" class="ladder-court-roster"></aside>
+      <div id="ladder-court-grid" class="ladder-court-grid"></div>
+    </div>
     <div class="ladder-toolbar" id="ladder-court-toolbar"></div>
   </div>
 </section>
@@ -2271,6 +2339,7 @@ function renderLadderCourts() {
 
   const banner = document.getElementById('ladder-court-banner');
   const grid = document.getElementById('ladder-court-grid');
+  const roster = document.getElementById('ladder-court-roster');
   const toolbar = document.getElementById('ladder-court-toolbar');
   if (!banner || !grid || !toolbar) return;
 
@@ -2278,6 +2347,7 @@ function renderLadderCourts() {
   if (!rounds.length) {
     banner.textContent = 'No courts yet';
     grid.innerHTML = '';
+    if (roster) roster.innerHTML = '';
     toolbar.innerHTML = '';
     return;
   }
@@ -2286,6 +2356,22 @@ function renderLadderCourts() {
   const roundNum = currentRound.roundIndex + 1;
   const leagueName = (state.leagueName || 'Ladder League').trim();
   banner.textContent = `${leagueName} — Round ${roundNum}`;
+
+  // Render the seeded-players roster (left sidebar)
+  if (roster) {
+    const players = state.ladderCourtPlayers || [];
+    roster.innerHTML = `
+      <h3>Seeded Players</h3>
+      <ol>
+        ${players.map(p => `
+          <li><span class="seed-num">${p.seed}.</span><span class="player-name">${escapeHtml(p.name)}</span></li>
+        `).join('')}
+      </ol>
+    `;
+  }
+
+  // Force all courts onto a single row so 4 courts fit on a 75" display.
+  grid.style.gridTemplateColumns = `repeat(${currentRound.courts.length}, minmax(0, 1fr))`;
 
   grid.innerHTML = '';
   currentRound.courts.forEach((court, courtIdx) => {
@@ -2313,8 +2399,12 @@ function renderLadderCourts() {
       const t1Win = hasScores && s1 > s2;
       const t2Win = hasScores && s2 > s1;
 
-      const team1Names = g.team1.map(seed => `<span class="player">${escapeHtml(ladderPlayerName(seed))}</span>`).join(' & ');
-      const team2Names = g.team2.map(seed => `<span class="player">${escapeHtml(ladderPlayerName(seed))}</span>`).join(' & ');
+      const team1Names = g.team1.map(seed =>
+        `<span class="player">${escapeHtml(ladderPlayerName(seed))} <span class="seed-tag">(${seed})</span></span>`
+      ).join(' &amp; ');
+      const team2Names = g.team2.map(seed =>
+        `<span class="player">${escapeHtml(ladderPlayerName(seed))} <span class="seed-tag">(${seed})</span></span>`
+      ).join(' &amp; ');
 
       const row = document.createElement('div');
       row.className = 'ladder-game-row';
@@ -2350,13 +2440,14 @@ function renderLadderCourts() {
     standingsBox.innerHTML = `
       <table>
         <thead>
-          <tr><th class="rank">#</th><th>Player</th><th class="wins">W</th><th class="wins">L</th><th class="pts">PF</th><th class="pts">PA</th><th class="pts">+/−</th></tr>
+          <tr><th class="rank">#</th><th>Player</th><th class="wins">Seed</th><th class="wins">W</th><th class="wins">L</th><th class="pts">PF</th><th class="pts">PA</th><th class="pts">+/−</th></tr>
         </thead>
         <tbody>
           ${standings.map((p, i) => `
             <tr>
               <td class="rank">${i + 1}</td>
               <td>${escapeHtml(p.name)}</td>
+              <td class="wins"><span class="seed-tag">${p.seed}</span></td>
               <td class="wins">${p.wins}</td>
               <td class="wins">${p.losses}</td>
               <td class="pts">${p.points}</td>
