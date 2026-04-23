@@ -756,16 +756,24 @@
     .pair-popup .popup-pair { margin: 24px 0; }
   }
 
-  /* Spin — 3-column: roster LEFT, label/name/wheel MIDDLE, teams-stack RIGHT */
+  /* Spin — 3-column: wheel+pairs LEFT, label/name MIDDLE, roster RIGHT */
   #view-spin { display: none; }
   #view-spin.active { display: flex; flex-direction: column; }
   .spin-stage {
     display: grid;
-    grid-template-columns: 1fr 1.2fr 1fr;
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr);
     gap: 36px;
     align-items: start;
     justify-content: center;
     padding: 8px 20px 0;
+  }
+  .spin-left {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    min-width: 0;
+    width: 100%;
   }
   .wheel-box { position: relative; width: 460px; height: 460px; flex-shrink: 0; margin: 14px auto 0; }
   body.display-mode #view-spin .wheel-box { width: 560px; height: 560px; }
@@ -834,39 +842,57 @@
   .roster .p-row.used { opacity: .35; text-decoration: line-through; }
   .roster .p-row.drawing { outline: 3px solid var(--orange); box-shadow: 0 0 0 3px rgba(244,121,32,.3); }
 
-  /* Display mode — 3-column: roster LEFT, label+name+wheel MIDDLE, teams-stack RIGHT */
+  /* Display mode — 3-column: wheel+pairs LEFT, name MIDDLE, roster RIGHT.
+     minmax(0, …) is required so grid tracks can shrink below content size — without it,
+     long player names blow the grid wider than the viewport and clip at both edges. */
   body.display-mode #view-spin .spin-stage {
     display: grid;
-    grid-template-columns: 1fr 1.3fr 1fr;
-    gap: 40px;
-    padding: 20px;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr) minmax(0, 1.1fr);
+    gap: 24px;
+    padding: 16px;
     flex: 1 1 auto;
     align-items: start;
     justify-items: stretch;
   }
+  body.display-mode #view-spin .spin-left {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 18px;
+    min-width: 0;
+    width: 100%;
+  }
   body.display-mode #view-spin .roster {
     width: 100%;
-    padding: 20px;
+    padding: 16px;
+    min-width: 0;
   }
+  /* Roster on the right. At sub-4K widths we keep 2 columns so all 16 seeds fit
+     without scrolling. At true 4K (media query below) we switch to a single tall
+     stack — the 75" display has plenty of vertical room. */
   body.display-mode #view-spin .roster .roster-cols {
-    grid-template-columns: 1fr 1fr;
-    gap: 16px;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 14px;
   }
   body.display-mode #view-spin .roster h3 {
-    font-size: 24px;
-    margin: 0 0 16px;
+    font-size: 18px;
+    margin: 0 0 10px;
     text-transform: uppercase;
     letter-spacing: 2px;
   }
   body.display-mode #view-spin .roster .p-row {
-    font-size: 22px;
-    padding: 10px 14px;
-    gap: 12px;
+    font-size: 18px;
+    padding: 8px 12px;
+    gap: 10px;
+    min-width: 0;
   }
   body.display-mode #view-spin .roster .p-row .sd {
-    width: 40px;
-    height: 40px;
-    font-size: 16px;
+    width: 32px;
+    height: 32px;
+    font-size: 14px;
+  }
+  body.display-mode #view-spin .roster .p-row .nm {
+    min-width: 0;
   }
   body.display-mode #view-spin .spin-side {
     width: 100%;
@@ -875,64 +901,88 @@
     flex-direction: column;
     align-items: center;
     justify-content: flex-start;
+    min-width: 0;
   }
   body.display-mode #view-spin .spin-side h2 {
-    font-size: 32px;
-    margin: 0 0 14px;
+    font-size: 26px;
+    margin: 0 0 12px;
   }
   body.display-mode #view-spin .spin-side .current-name {
-    font-size: 96px;
-    margin: 10px 0 16px;
+    /* Cap with viewport-aware sizing so very long names shrink to fit.
+       Use overflow-wrap (not word-break) so long names wrap at spaces, not mid-word. */
+    font-size: clamp(36px, 4.6vw, 80px);
+    margin: 8px 0 14px;
     font-weight: 900;
+    line-height: 1.05;
+    word-break: normal;
+    overflow-wrap: break-word;
+    hyphens: none;
   }
   body.display-mode #view-spin .wheel-box {
-    width: 800px;
-    height: 800px;
+    /* Scale with the left column so the wheel never blows out the layout. */
+    width: min(720px, 46vw);
+    height: min(720px, 46vw);
     margin: 0 auto;
   }
   body.display-mode #view-spin .wheel-box .hub {
-    width: 160px;
-    height: 160px;
-    font-size: 24px;
-    border-width: 6px;
+    width: 140px;
+    height: 140px;
+    font-size: 20px;
+    border-width: 5px;
+    padding: 0 8px;
+    line-height: 1.1;
+  }
+  body.display-mode #view-spin .wheel-box .hub.paired {
+    font-size: 16px;
   }
   body.display-mode #view-spin .pairs-strip {
     width: 100%;
-    padding: 16px;
+    padding: 12px;
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 10px;
+    min-width: 0;
   }
   body.display-mode #view-spin .pair-chip {
-    font-size: 22px;
-    padding: 14px 18px;
+    font-size: 16px;
+    padding: 10px 14px;
+    min-width: 0;
   }
   body.display-mode #view-spin .pair-chip .badge {
-    width: 44px;
-    height: 44px;
-    font-size: 18px;
+    width: 34px;
+    height: 34px;
+    font-size: 14px;
   }
   body.display-mode #view-spin .pair-chip .names {
-    font-size: 22px;
+    font-size: 16px;
+    min-width: 0;
   }
   body.display-mode #view-spin .controls { display: none; }
 
-  /* 4K specific scaling */
+  /* 4K specific scaling — 75" 4K display (3840×2160) */
   @media (min-width: 3840px) {
     body.display-mode #view-spin .spin-stage {
-      grid-template-columns: 1fr 1.3fr 1fr;
+      grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 0.85fr);
       gap: 60px;
       padding: 40px;
     }
+    body.display-mode #view-spin .spin-left { gap: 36px; }
+    body.display-mode #view-spin .roster .roster-cols {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 18px;
+    }
     body.display-mode #view-spin .wheel-box {
-      width: 1100px;
-      height: 1100px;
+      width: min(1400px, 36vw);
+      height: min(1400px, 36vw);
     }
     body.display-mode #view-spin .wheel-box .hub {
-      width: 220px;
-      height: 220px;
-      font-size: 36px;
+      width: 240px;
+      height: 240px;
+      font-size: 38px;
       border-width: 8px;
+    }
+    body.display-mode #view-spin .wheel-box .hub.paired {
+      font-size: 28px;
     }
     body.display-mode #view-spin .pairs-strip {
       padding: 30px;
@@ -955,7 +1005,7 @@
       margin-bottom: 20px;
     }
     body.display-mode #view-spin .spin-side .current-name {
-      font-size: 140px;
+      font-size: clamp(96px, 5.5vw, 160px);
       margin: 20px 0 30px;
     }
     body.display-mode #view-spin .roster { padding: 30px; }
@@ -1464,23 +1514,18 @@
 
     .toolbar { gap: 16px; margin-top: 32px; }
 
-    /* Wheel/Spin view */
+    /* Wheel/Spin view (admin only — display-mode overrides live in the
+       display-mode block above and the 3840px @media block below). */
     .spin-stage { gap: 48px; padding: 12px 32px 0; }
     .wheel-box { width: 680px; height: 680px; }
-    body.display-mode #view-spin .wheel-box { width: 800px; height: 800px; }
     .wheel-box .pointer { border-left: 32px solid transparent; border-right: 32px solid transparent; border-top: 52px solid var(--ink); }
     .wheel-box .hub { width: 140px; height: 140px; font-size: 18px; border: 6px solid var(--ink); }
-    body.display-mode #view-spin .wheel-box .hub { width: 160px; height: 160px; font-size: 20px; }
 
-    .spin-side { width: 580px; }
     .spin-side h2 { font-size: 28px; }
-    .spin-side .current-name { font-size: 72px; margin: 16px 0 32px; }
-    body.display-mode .spin-side .current-name { font-size: 96px; }
 
     .pairs-strip { gap: 16px 20px; }
     .pair-chip { padding: 14px 18px; font-size: 20px; }
     .pair-chip .badge { width: 40px; height: 40px; font-size: 16px; }
-    body.display-mode #view-spin .pair-chip { font-size: 22px; }
 
     /* Bracket view */
     .bracket-grid { gap: 12px 24px; }
@@ -1803,21 +1848,23 @@
 <!-- SPIN -->
 <section id="view-spin" class="view">
   <div class="spin-stage">
-    <div class="roster" id="roster"></div>
-    <div class="spin-side">
-      <h2 id="spin-label">Drawing partner for…</h2>
-      <div class="current-name" id="current-name">—</div>
+    <div class="spin-left">
       <div class="wheel-box">
         <div class="pointer"></div>
         <div class="hub" id="wheel-hub">SPIN</div>
         <svg class="wheel" id="wheel" viewBox="-210 -210 420 420"></svg>
       </div>
+      <div class="pairs-strip" id="pairs-list"></div>
+    </div>
+    <div class="spin-side">
+      <h2 id="spin-label">Drawing partner for…</h2>
+      <div class="current-name" id="current-name">—</div>
       <div class="controls">
         <button class="btn" id="btn-spin" style="font-size:18px; padding:14px 28px;">Spin the Wheel</button>
         <button class="btn green" id="btn-finish-pairing" style="margin-left:8px; display:none;">Build Bracket →</button>
       </div>
     </div>
-    <div class="pairs-strip" id="pairs-list"></div>
+    <div class="roster" id="roster"></div>
   </div>
   <div class="pair-popup" id="pair-popup" style="display:none;">
     <div class="popup-content" id="popup-content">Team 1 ↔ Team 2</div>
@@ -3424,13 +3471,27 @@ function renderSpin(opts) {
   renderPairsList();
 
   // If a new pair popup is pending, show it and lock the wheel on its landed name.
-  // The wheel stays locked after the popup fades — it only moves again on the next spin click.
+  // The wheel + name + hub stay locked after the popup fades — they only update on
+  // the next spin click (admin) or new currentSpin broadcast (display).
   if (state.lastPopup && state.lastPopup.id !== lastPopupIdSeen) {
     lastPopupIdSeen = state.lastPopup.id;
+    // Make sure the wheel has at least been drawn once before locking — otherwise a
+    // fresh page load (or display-tab open) with a pending popup shows an empty wheel.
+    const svg = document.getElementById('wheel');
+    if (!svg.children.length) {
+      const popupBots = (state.lastPopup.pairs || []).map(p => p.botSeed).filter(Boolean);
+      const seedsForLockedWheel = [...new Set([...remainingBotSeeds(), ...popupBots])].sort((a,b)=>a-b);
+      renderWheel(seedsForLockedWheel);
+    }
     wheelLocked = true;
+    // Mirror state.lastPopup into lastPairResult so display tab keeps the persistent name
+    // even on the first render after sync (before showPairPopup's callback fires).
+    const popupPairs = state.lastPopup.pairs || [];
+    if (popupPairs.length) lastPairResult = popupPairs[popupPairs.length - 1];
     showPairPopup(state.lastPopup.pairs, () => {
-      lastPairResult = null;
-      renderSpin();
+      // Do NOT clear lastPairResult here — the plan calls for the paired names to
+      // remain on the wheel and central display until the next spin begins.
+      renderSpin({ skipWheel: true });
     });
     return;
   }
@@ -3447,18 +3508,21 @@ function renderSpin(opts) {
   if (state.pairings.length >= 8) {
     label.textContent = 'All pairs drawn';
     nameEl.textContent = 'Ready for bracket';
+    hubEl.classList.remove('paired');
     spinBtn.style.display = 'none';
     finishBtn.style.display = isDisplay ? 'none' : 'inline-block';
   } else if (lastPairResult && !spinning) {
     // Show persistent paired names until next spin starts
     label.textContent = 'Team ' + lastPairResult.teamNum + ' paired with…';
     nameEl.textContent = lastPairResult.botName;
-    hubEl.textContent = lastPairResult.topName + ' & ' + lastPairResult.botName;
+    hubEl.textContent = wheelLabelFor(lastPairResult.topName) + ' & ' + wheelLabelFor(lastPairResult.botName);
+    hubEl.classList.add('paired');
     spinBtn.style.display = isDisplay ? 'none' : 'inline-block';
     finishBtn.style.display = 'none';
   } else {
     label.textContent = 'Drawing partner for…';
     nameEl.textContent = state.players[nextSeed-1]?.name || '—';
+    hubEl.classList.remove('paired');
     spinBtn.style.display = isDisplay ? 'none' : 'inline-block';
     finishBtn.style.display = 'none';
   }
@@ -3470,6 +3534,16 @@ function renderSpin(opts) {
     wheelLocked = false;   // New spin — unlock so animateWheelToTarget can redraw
     animateWheelToTarget(state.currentSpin.targetRotation, state.currentSpin.remaining, state.currentSpin.forSeed);
   }
+}
+
+function wheelLabelFor(fullName) {
+  if (!fullName) return '—';
+  const trimmed = String(fullName).trim();
+  if (trimmed.length <= 12) return trimmed;
+  // Long name — drop to first name (or first token)
+  const firstName = trimmed.split(/\s+/)[0] || trimmed;
+  if (firstName.length <= 12) return firstName;
+  return firstName.slice(0, 11) + '…';
 }
 
 function renderWheel(remainingOverride) {
@@ -3503,8 +3577,9 @@ function renderWheel(remainingOverride) {
     svg.appendChild(path);
 
     const mid = (i + 0.5) * slice - 90;
-    const tx = Math.cos(mid * Math.PI/180) * (R * 0.62);
-    const ty = Math.sin(mid * Math.PI/180) * (R * 0.62);
+    // Push labels slightly farther from center so they don't crowd the hub.
+    const tx = Math.cos(mid * Math.PI/180) * (R * 0.68);
+    const ty = Math.sin(mid * Math.PI/180) * (R * 0.68);
     const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
     label.setAttribute('x', tx);
     label.setAttribute('y', ty);
@@ -3515,8 +3590,8 @@ function renderWheel(remainingOverride) {
     label.setAttribute('font-size', '17');
     label.setAttribute('fill', (color === '#111111') ? '#fff' : '#111');
     label.setAttribute('transform', `rotate(${mid + 90}, ${tx}, ${ty})`);
-    const name = state.players[seed-1].name || '—';
-    label.textContent = name.length > 14 ? name.slice(0,14) + '…' : name;
+    const fullName = state.players[seed-1].name || '—';
+    label.textContent = wheelLabelFor(fullName);
     svg.appendChild(label);
   });
 
@@ -3598,7 +3673,7 @@ function commitPair(topSeed, botSeed, auto = false) {
   state.nextSeedToSpin = topSeed + 1;
   const topName = state.players[topSeed-1]?.name || 'Player ' + topSeed;
   const botName = state.players[botSeed-1]?.name || 'Player ' + botSeed;
-  return { topName, botName, teamNum: topSeed };
+  return { topName, botName, teamNum: topSeed, topSeed, botSeed };
 }
 
 document.getElementById('btn-spin').addEventListener('click', () => {
@@ -3663,7 +3738,9 @@ document.getElementById('btn-spin').addEventListener('click', () => {
     lastPopupIdSeen = state.lastPopup.id;
     showPairPopup(pairsToShow, () => {
       spinning = false;
-      lastPairResult = null;
+      // Keep lastPairResult set — name + hub stay persistent until next spin click.
+      // The btn-spin handler clears it (and unlocks the wheel) when the user starts
+      // the next spin.
       renderSpin({ skipWheel: true });
     });
   }, 5100);
