@@ -167,7 +167,7 @@
   /* Ladder League by Court */
   .ladder-court-layout {
     display: grid;
-    grid-template-columns: 380px 1fr;
+    grid-template-columns: 460px 1fr;
     gap: 16px;
     align-items: start;
     margin-bottom: 12px;
@@ -228,6 +228,7 @@
   .ladder-roster-table td {
     padding: 4px 6px;
     border-bottom: 1px solid #eceae4;
+    white-space: nowrap;
   }
   .ladder-roster-table tr:last-child td { border-bottom: none; }
   .ladder-roster-table .seed-col {
@@ -241,6 +242,7 @@
   .ladder-roster-table .name-col {
     font-weight: 700;
     color: var(--ink);
+    white-space: nowrap;
   }
   .ladder-roster-table .stat-col {
     text-align: right;
@@ -390,7 +392,7 @@
     flex-wrap: wrap;
   }
   /* Display mode tweaks */
-  body.display-mode .ladder-court-layout { grid-template-columns: 320px 1fr; gap: 20px; }
+  body.display-mode .ladder-court-layout { grid-template-columns: 400px 1fr; gap: 20px; }
   body.display-mode .ladder-court-roster { padding: 16px 18px; }
   body.display-mode .ladder-court-roster h3 { font-size: 17px; padding-bottom: 7px; }
   body.display-mode .ladder-court-roster li { font-size: 17px; padding: 4px 0; gap: 10px; }
@@ -427,7 +429,7 @@
 
   /* 4K-specific scaling for 75" displays — large boxes, big fonts */
   @media (min-width: 3000px) {
-    body.display-mode .ladder-court-layout { grid-template-columns: 720px 1fr; gap: 32px; }
+    body.display-mode .ladder-court-layout { grid-template-columns: 960px 1fr; gap: 32px; }
     body.display-mode .ladder-court-roster { padding: 24px 26px; }
     body.display-mode .ladder-court-roster h3 { font-size: 26px; padding-bottom: 10px; margin-bottom: 14px; }
     body.display-mode .ladder-court-roster li { font-size: 24px; padding: 8px 0; gap: 14px; }
