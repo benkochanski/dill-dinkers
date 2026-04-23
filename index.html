@@ -3488,10 +3488,15 @@ function renderWheel(remainingOverride) {
   // Silently normalize the cumulative rotation to its mod-360 equivalent.
   // This is visually identical to the current position (no snap) but lets the
   // next animation start from a small angle so target rotations stay sane.
+  // We disable the transition, set the transform, and FORCE A SYNC REFLOW so
+  // the browser commits this reset before the caller re-enables the transition.
+  // Without the reflow, the browser would batch the reset with the subsequent
+  // transform change and animate the wheel BACKWARDS over the net difference.
   svg.style.transition = 'none';
   const normalized = ((wheelRotation % 360) + 360) % 360;
   wheelRotation = normalized;
   svg.style.transform = `rotate(${normalized}deg)`;
+  void svg.offsetWidth; // force synchronous reflow — commit reset
   svg.innerHTML = '';
 
   const remaining = remainingOverride || remainingBotSeeds();
