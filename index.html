@@ -3435,7 +3435,7 @@ function renderSpin(opts) {
     return;
   }
 
-  if (!opts.skipWheel && !wheelLocked) renderWheel();
+  if (!opts.skipWheel && !wheelLocked && !displayAnimLock) renderWheel();
 
   const nextSeed = state.nextSeedToSpin;
   const spinBtn = document.getElementById('btn-spin');
@@ -3485,9 +3485,13 @@ function wheelLabelFor(fullName) {
 
 function renderWheel(remainingOverride) {
   const svg = document.getElementById('wheel');
+  // Silently normalize the cumulative rotation to its mod-360 equivalent.
+  // This is visually identical to the current position (no snap) but lets the
+  // next animation start from a small angle so target rotations stay sane.
   svg.style.transition = 'none';
-  wheelRotation = 0;
-  svg.style.transform = 'rotate(0deg)';
+  const normalized = ((wheelRotation % 360) + 360) % 360;
+  wheelRotation = normalized;
+  svg.style.transform = `rotate(${normalized}deg)`;
   svg.innerHTML = '';
 
   const remaining = remainingOverride || remainingBotSeeds();
@@ -3537,22 +3541,34 @@ function renderWheel(remainingOverride) {
 }
 
 function animateWheelToTarget(targetRotation, remaining, forSeed) {
-  // Redraw wheel with the spin-start remaining set, then animate to target
+  // Set the lock BEFORE redrawing so any in-flight renderSpin path can't
+  // double-call renderWheel. We also redraw the wedges with the spin-start
+  // remaining set so the chosen wedge is in the right slot.
+  displayAnimLock = true;
   renderWheel(remaining);
   if (forSeed) {
     document.getElementById('current-name').textContent = state.players[forSeed-1]?.name || '—';
     document.getElementById('spin-label').textContent = 'Drawing partner for…';
   }
   const svg = document.getElementById('wheel');
-  displayAnimLock = true;
+  // Build a forward-rotating target: continue from the wheel's current
+  // (normalized) position so viewers never see the wheel snap.
+  const startRotation = wheelRotation;
+  const targetMod = ((targetRotation % 360) + 360) % 360;
+  let delta = targetMod - startRotation;
+  if (delta < 0) delta += 360;
+  const newRotation = startRotation + (6 * 360) + delta;
+  wheelRotation = newRotation;
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
-      svg.style.transform = `rotate(${targetRotation}deg)`;
+      svg.style.transform = `rotate(${newRotation}deg)`;
     });
   });
   setTimeout(() => {
     displayAnimLock = false;
-    // Pick up any deferred state updates
+    // Lock the wheel so any deferred state update we now process won't
+    // re-render the wheel and clobber the landed visual.
+    wheelLocked = true;
     state = loadState();
     route();
   }, SPIN_DURATION_MS + 150);
@@ -3618,7 +3634,8 @@ document.getElementById('btn-spin').addEventListener('click', () => {
   if (remaining.length === 0) return;
   lastPairResult = null; // Clear persistent pair display when new spin starts
 
-  // Reset and redraw the wheel from its previous landed position before animating
+  // Lock BEFORE redrawing so Firebase echoes can't trigger a mid-spin renderWheel.
+  displayAnimLock = true;
   wheelLocked = false;
   renderWheel(remaining);
 
@@ -3642,12 +3659,20 @@ document.getElementById('btn-spin').addEventListener('click', () => {
   lastSpinIdSeen = state.currentSpin.id;
   saveState();
 
-  // Local animation — queue the transform after the reset from renderWheel lands
-  wheelRotation = targetRotation;
+  // Local animation — continue forward from current normalized rotation so the
+  // wheel never visually snaps. We compute newRotation so the wheel ends at the
+  // same screen position as targetRotation (mod 360) but rotates 6+ turns to get
+  // there from wherever it currently sits.
+  const startRotation = wheelRotation;
+  const targetMod = ((targetRotation % 360) + 360) % 360;
+  let delta = targetMod - startRotation;
+  if (delta < 0) delta += 360;
+  const newRotation = startRotation + extraSpins + delta;
+  wheelRotation = newRotation;
   const svg = document.getElementById('wheel');
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
-      svg.style.transform = `rotate(${targetRotation}deg)`;
+      svg.style.transform = `rotate(${newRotation}deg)`;
     });
   });
 
@@ -3671,6 +3696,10 @@ document.getElementById('btn-spin').addEventListener('click', () => {
     saveState();
     renderPairsList();
 
+    // Release the spin lock and lock the wheel visually so any deferred state
+    // updates we now process won't redraw the wheel and clobber the landed view.
+    displayAnimLock = false;
+    wheelLocked = true;
     lastPopupIdSeen = state.lastPopup.id;
     showPairPopup(pairsToShow, () => {
       spinning = false;
