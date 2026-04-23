@@ -2351,6 +2351,11 @@ function parseLadderPlayerPaste(raw) {
   if (isHeader) {
     headers = firstCells;
     dataLines = lines.slice(1);
+  } else {
+    // No header row — infer headers from data so that downstream consumers
+    // (eligibility filter, seeded-players table) can still find a "Weeks Played"
+    // column. Detect the last column of integer 0–52 values as weeks.
+    headers = inferHeadersFromData(dataLines, splitCells);
   }
 
   const players = dataLines.map((line, i) => {
@@ -2368,6 +2373,49 @@ function parseLadderPlayerPaste(raw) {
   }).filter(Boolean);
 
   return { players, headers };
+}
+
+// Inspect the data rows and produce a sensible header array. The first column
+// is always "Player". The last column whose values are all integers in 0–52 is
+// labeled "Weeks Played". Other columns get generic labels like "Stat 1".
+// Returns null if there's only a single column (no stats to label).
+function inferHeadersFromData(dataLines, splitCells) {
+  if (!dataLines.length) return null;
+  const colCounts = dataLines.map(l => splitCells(l).length);
+  const maxCols = Math.max(...colCounts);
+  if (maxCols < 2) return null; // names only — no stats columns to label
+
+  // Build per-column samples (skip column 0 which is the name)
+  const isIntegerInWeeksRange = (v) => {
+    const s = String(v || '').trim();
+    if (!s) return false;
+    if (!/^-?\d+$/.test(s)) return false; // strict integer (no decimals, no %)
+    const n = parseInt(s, 10);
+    return Number.isFinite(n) && n >= 0 && n <= 52;
+  };
+  const columnLooksLikeWeeks = (colIdx) => {
+    const vals = dataLines
+      .map(l => splitCells(l)[colIdx])
+      .filter(v => v != null && String(v).trim() !== '');
+    if (vals.length === 0) return false;
+    return vals.every(isIntegerInWeeksRange);
+  };
+
+  // Find the rightmost column that looks like weeks.
+  let weeksCol = -1;
+  for (let c = maxCols - 1; c >= 1; c--) {
+    if (columnLooksLikeWeeks(c)) { weeksCol = c; break; }
+  }
+
+  const headers = ['Player'];
+  for (let c = 1; c < maxCols; c++) {
+    if (c === weeksCol) {
+      headers.push('Weeks Played');
+    } else {
+      headers.push(`Stat ${c}`);
+    }
+  }
+  return headers;
 }
 
 // Snake-seed allocation: with N players and N/4 courts, distribute so the
