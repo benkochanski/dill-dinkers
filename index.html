@@ -167,7 +167,7 @@
   /* Ladder League by Court */
   .ladder-court-layout {
     display: grid;
-    grid-template-columns: 260px 1fr;
+    grid-template-columns: 380px 1fr;
     gap: 16px;
     align-items: start;
     margin-bottom: 12px;
@@ -208,6 +208,46 @@
     text-align: right;
     font-variant-numeric: tabular-nums;
   }
+  /* Full stats-table view of the roster */
+  .ladder-roster-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+  }
+  .ladder-roster-table th {
+    text-align: left;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--muted);
+    padding: 4px 6px;
+    border-bottom: 1.5px solid var(--ink);
+    white-space: nowrap;
+  }
+  .ladder-roster-table td {
+    padding: 4px 6px;
+    border-bottom: 1px solid #eceae4;
+  }
+  .ladder-roster-table tr:last-child td { border-bottom: none; }
+  .ladder-roster-table .seed-col {
+    width: 28px;
+    text-align: center;
+  }
+  .ladder-roster-table td.seed-col .seed-num {
+    font-weight: 800;
+    color: var(--orange);
+  }
+  .ladder-roster-table .name-col {
+    font-weight: 700;
+    color: var(--ink);
+  }
+  .ladder-roster-table .stat-col {
+    text-align: right;
+    color: var(--ink);
+    white-space: nowrap;
+  }
+  .ladder-roster-table th.stat-col { text-align: right; }
   .ladder-court-grid {
     display: grid;
     /* JS sets grid-template-columns: repeat(N, minmax(0, 1fr)) at render time */
@@ -387,10 +427,14 @@
 
   /* 4K-specific scaling for 75" displays — large boxes, big fonts */
   @media (min-width: 3000px) {
-    body.display-mode .ladder-court-layout { grid-template-columns: 460px 1fr; gap: 32px; }
+    body.display-mode .ladder-court-layout { grid-template-columns: 720px 1fr; gap: 32px; }
     body.display-mode .ladder-court-roster { padding: 24px 26px; }
     body.display-mode .ladder-court-roster h3 { font-size: 26px; padding-bottom: 10px; margin-bottom: 14px; }
     body.display-mode .ladder-court-roster li { font-size: 24px; padding: 8px 0; gap: 14px; }
+    body.display-mode .ladder-roster-table { font-size: 22px; }
+    body.display-mode .ladder-roster-table th { font-size: 16px; padding: 8px 10px; }
+    body.display-mode .ladder-roster-table td { padding: 8px 10px; }
+    body.display-mode .ladder-roster-table .seed-col { width: 48px; }
     body.display-mode .ladder-court-grid { gap: 28px; }
     body.display-mode .ladder-court-card { padding: 30px 34px; gap: 16px; border-radius: 16px; }
     body.display-mode .ladder-court-card.championship { border-width: 4px; }
@@ -1492,9 +1536,9 @@
     </div>
     <div class="note">The page title becomes "<span id="ladder-court-league-preview">League</span> Championship".</div>
 
-    <p class="note" style="margin-top:18px">Paste player names in seed order — one per line, top seed first. Total must be a multiple of 4 (8, 12, 16, 20, …). Courts will be balanced automatically using snake seeding.</p>
+    <p class="note" style="margin-top:18px">Paste player names in seed order — one per line, top seed first. <strong>Or paste a tab-separated stats table</strong> from a spreadsheet (header row starting with "Player" or "Name"); the extra columns will be shown next to each player. Total must be a multiple of 4 (8, 12, 16, 20, …). Courts will be balanced automatically using snake seeding.</p>
 
-    <textarea id="ladder-court-paste" placeholder="Player 1 (top seed)&#10;Player 2&#10;Player 3&#10;..." rows="14" style="width:100%; font-family:inherit; font-size:14px; padding:12px; border:1.5px solid var(--line); border-radius:8px; resize:vertical; box-sizing:border-box;"></textarea>
+    <textarea id="ladder-court-paste" placeholder="Player&#9;Winning %&#9;Scoring %&#9;Points&#10;Eric Tkacz&#9;69.37%&#9;91.02%&#9;78.0&#10;Saged Rizk&#9;68.17%&#9;85.40%&#9;75.1&#10;...&#10;&#10;— or just one name per line:&#10;Player 1&#10;Player 2&#10;..." rows="14" style="width:100%; font-family:inherit; font-size:14px; padding:12px; border:1.5px solid var(--line); border-radius:8px; resize:vertical; box-sizing:border-box;"></textarea>
     <div class="note" id="ladder-court-count" style="margin-top:6px;">0 players entered.</div>
 
     <div class="toolbar" style="margin-top:18px;">
@@ -1684,7 +1728,8 @@ const defaultState = () => ({
   opponents: {},           // for quadsquad: {team1vs: 2|3|4}
   // Ladder League by Court state
   ladderCourtPlayersText: '',                      // raw paste text
-  ladderCourtPlayers: [],                          // [{seed, name}]
+  ladderCourtPlayers: [],                          // [{seed, name, stats?}]
+  ladderCourtSeedHeaders: null,                    // table headers from paste, e.g. ['Player','Winning %',...] or null
   ladderCourtRounds: [],                           // [{roundIndex, courts: [{courtNum, label, players, games}]}]
   room: ''                 // cloud sync room code
 });
@@ -2104,6 +2149,50 @@ document.getElementById('btn-partner-copy-url').addEventListener('click', () => 
 
 // --- Helpers ---
 
+// Parse the paste field. Supports two formats:
+// 1. One name per line (simple)
+// 2. Tab-separated table with header row whose first column is "Player" / "Name"
+//    — e.g. pasted from a spreadsheet with Winning %, Scoring %, Points, etc.
+// Returns { players: [{seed, name, stats?}], headers: [...]|null }
+function parseLadderPlayerPaste(raw) {
+  const lines = (raw || '').split('\n').map(s => s.replace(/\r$/, '')).filter(l => l.trim().length > 0);
+  if (!lines.length) return { players: [], headers: null };
+
+  // Detect table: any line contains a tab OR multiple cells separated by 2+ spaces.
+  const splitCells = (line) => {
+    // Prefer tab-split; fall back to 2+ spaces (rare when pasting from non-tab sources)
+    if (line.indexOf('\t') !== -1) return line.split('\t').map(s => s.trim());
+    const parts = line.split(/\s{2,}/).map(s => s.trim()).filter(Boolean);
+    return parts.length > 1 ? parts : [line.trim()];
+  };
+
+  const firstCells = splitCells(lines[0]);
+  const isHeader = firstCells.length > 1 && /^(player|name)$/i.test(firstCells[0]);
+
+  let headers = null;
+  let dataLines = lines;
+  if (isHeader) {
+    headers = firstCells;
+    dataLines = lines.slice(1);
+  }
+
+  const players = dataLines.map((line, i) => {
+    const cells = splitCells(line);
+    const name = (cells[0] || '').trim();
+    if (!name) return null;
+    let stats = null;
+    if (headers && cells.length > 1) {
+      stats = {};
+      for (let j = 1; j < cells.length && j < headers.length; j++) {
+        stats[headers[j]] = cells[j] || '';
+      }
+    }
+    return { seed: i + 1, name, stats };
+  }).filter(Boolean);
+
+  return { players, headers };
+}
+
 // Snake-seed allocation: with N players and N/4 courts, distribute so the
 // top seed plays the two middle seeds + the lowest seed, etc.
 // e.g. 12 players / 3 courts → C1: 1,6,7,12 | C2: 2,5,8,11 | C3: 3,4,9,10
@@ -2286,12 +2375,27 @@ document.getElementById('btn-ladder-court-back').addEventListener('click', () =>
 });
 
 document.getElementById('btn-ladder-court-fill-demo').addEventListener('click', () => {
+  // Demo paste: full stats table format (16 players)
   const demo = [
-    'Alex Smith', 'Maria Garcia', 'Brian Jones', 'Soo-Jin Park',
-    'Casey Taylor', 'Wei Chen', 'Dana Brown', 'Jin Kim',
-    'Evan Davis', 'Fiona Lee', 'Grant Wilson', 'Priya Patel'
-  ];
-  state.ladderCourtPlayersText = demo.join('\n');
+    'Player\tWinning %\tScoring %\tPoints\tPoints Behind',
+    'Eric Tkacz\t69.37%\t91.02%\t78.0\t--',
+    'Saged Rizk\t68.17%\t85.40%\t75.1\t3.0',
+    'Augie Smith\t66.06%\t87.19%\t74.5\t0.6',
+    'Dan Kessler\t69.42%\t81.44%\t74.2\t0.3',
+    'Bobby DeGray\t64.25%\t84.71%\t72.4\t1.8',
+    'Dennis Unver\t57.47%\t78.40%\t65.8\t6.6',
+    'Alex Ilchenko\t54.67%\t80.78%\t65.1\t0.7',
+    'Joel Magsayo\t51.00%\t83.35%\t63.9\t1.2',
+    'Joe Loparco\t55.56%\t75.76%\t63.6\t0.3',
+    'Sri Vankamamidi\t50.20%\t81.90%\t62.9\t0.8',
+    'Kersh Singh\t50.63%\t79.30%\t62.1\t0.8',
+    'Ian Braverman\t50.42%\t78.12%\t61.5\t0.6',
+    'Josh Rappaport\t45.96%\t78.55%\t59.0\t2.5',
+    'Aidan Traktovenko\t46.67%\t75.45%\t58.2\t0.8',
+    'Inakshi Chandra-Mohanty\t45.83%\t73.59%\t56.9\t1.2',
+    'Javed Sharif\t43.33%\t75.45%\t56.2\t0.8',
+  ].join('\n');
+  state.ladderCourtPlayersText = demo;
   if (!state.leagueName.trim()) state.leagueName = 'Ladder League';
   saveState();
   renderLadderCourtSetup();
@@ -2299,12 +2403,13 @@ document.getElementById('btn-ladder-court-fill-demo').addEventListener('click', 
 
 document.getElementById('btn-ladder-court-continue').addEventListener('click', () => {
   const raw = state.ladderCourtPlayersText || '';
-  const names = raw.split('\n').map(s => s.trim()).filter(Boolean);
-  if (names.length === 0) { alert('Please paste at least 4 names.'); return; }
-  if (names.length % 4 !== 0) { alert(`You entered ${names.length} names — must be a multiple of 4 (8, 12, 16, …).`); return; }
+  const parsed = parseLadderPlayerPaste(raw);
+  if (parsed.players.length === 0) { alert('Please paste at least 4 names.'); return; }
+  if (parsed.players.length % 4 !== 0) { alert(`You entered ${parsed.players.length} names — must be a multiple of 4 (8, 12, 16, …).`); return; }
   if (!state.leagueName.trim()) { alert('Please enter a league name.'); return; }
 
-  state.ladderCourtPlayers = names.map((name, i) => ({ seed: i + 1, name }));
+  state.ladderCourtPlayers = parsed.players;
+  state.ladderCourtSeedHeaders = parsed.headers; // null if no header row
   const courtPlayerArrays = ladderAllocateCourts(state.ladderCourtPlayers);
   const courts = courtPlayerArrays.map((players, idx) => ({
     courtNum: idx + 1,
@@ -2395,17 +2500,47 @@ function renderLadderCourts() {
   const leagueName = (state.leagueName || 'Ladder League').trim();
   banner.textContent = `${leagueName} — Round ${roundNum}`;
 
-  // Render the seeded-players roster (left sidebar)
+  // Render the seeded-players roster (left sidebar).
+  // If the paste included a stats table, render it as a full table.
   if (roster) {
     const players = state.ladderCourtPlayers || [];
-    roster.innerHTML = `
-      <h3>Seeded Players</h3>
-      <ol>
-        ${players.map(p => `
-          <li><span class="seed-num">${p.seed}.</span><span class="player-name">${escapeHtml(p.name)}</span></li>
-        `).join('')}
-      </ol>
-    `;
+    const headers = state.ladderCourtSeedHeaders || null;
+    const hasStats = headers && players.some(p => p.stats);
+
+    if (hasStats) {
+      // headers[0] is the name column ("Player"); the rest are stat columns
+      const statCols = headers.slice(1);
+      roster.innerHTML = `
+        <h3>Seeded Players</h3>
+        <table class="ladder-roster-table">
+          <thead>
+            <tr>
+              <th class="seed-col">#</th>
+              <th class="name-col">${escapeHtml(headers[0] || 'Player')}</th>
+              ${statCols.map(h => `<th class="stat-col">${escapeHtml(h)}</th>`).join('')}
+            </tr>
+          </thead>
+          <tbody>
+            ${players.map(p => `
+              <tr>
+                <td class="seed-col"><span class="seed-num">${p.seed}</span></td>
+                <td class="name-col">${escapeHtml(p.name)}</td>
+                ${statCols.map(h => `<td class="stat-col">${escapeHtml((p.stats && p.stats[h]) || '')}</td>`).join('')}
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+    } else {
+      roster.innerHTML = `
+        <h3>Seeded Players</h3>
+        <ol>
+          ${players.map(p => `
+            <li><span class="seed-num">${p.seed}.</span><span class="player-name">${escapeHtml(p.name)}</span></li>
+          `).join('')}
+        </ol>
+      `;
+    }
   }
 
   // Layout: 4 courts → 2x2 grid (larger boxes); other counts → single row.
