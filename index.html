@@ -367,24 +367,11 @@
   body.display-mode .ladder-toolbar { display: none; }
   body.display-mode .seed-tag { font-size: 0.85em; }
 
-  /* Display-mode layout fills the full viewport vertically — no blank space at bottom */
-  body.display-mode #view-ladder-court-courts.view.active {
-    padding: 8px 14px 14px;
-    overflow: hidden;
-  }
+  /* Display-mode layout — fills viewport but cards are naturally sized.
+     Use a 2x2 grid for 4 courts so each box is substantial (set by JS). */
   body.display-mode #view-ladder-court-courts .bracket-wrap {
-    flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 0;
+    padding: 0;
   }
-  body.display-mode #view-ladder-court-courts .ladder-court-layout {
-    flex: 1; min-height: 0; margin-bottom: 0;
-  }
-  body.display-mode #view-ladder-court-courts .ladder-court-roster { height: 100%; overflow: auto; }
-  body.display-mode #view-ladder-court-courts .ladder-court-grid { height: 100%; align-items: stretch; }
-  body.display-mode #view-ladder-court-courts .ladder-court-card {
-    height: 100%; display: flex; flex-direction: column;
-  }
-  body.display-mode #view-ladder-court-courts .ladder-standings { flex: 1; display: flex; flex-direction: column; }
-  body.display-mode #view-ladder-court-courts .ladder-standings table { flex: 1; }
 
   /* Push the courts layout below the upper-right branding block in display mode */
   body.bracket-display #view-ladder-court-courts .bracket-wrap { padding-top: 200px; }
@@ -398,17 +385,33 @@
     top: 80px; right: 280px;
   }
 
-  /* 4K-specific scaling for 75" displays */
+  /* 4K-specific scaling for 75" displays — large boxes, big fonts */
   @media (min-width: 3000px) {
-    body.display-mode .ladder-court-layout { grid-template-columns: 420px 1fr; gap: 28px; }
-    body.display-mode .ladder-court-roster h3 { font-size: 22px; }
-    body.display-mode .ladder-court-roster li { font-size: 22px; padding: 6px 0; }
-    body.display-mode .ladder-court-card .court-title { font-size: 30px; }
-    body.display-mode .ladder-game-row { font-size: 22px; }
-    body.display-mode .ladder-score-display { font-size: 28px; }
-    body.display-mode .ladder-standings table { font-size: 20px; }
-    body.display-mode .ladder-round-banner { font-size: 28px; padding: 18px 24px; }
-    body.bracket-display #view-ladder-court-courts .bracket-wrap { padding-top: 290px; }
+    body.display-mode .ladder-court-layout { grid-template-columns: 460px 1fr; gap: 32px; }
+    body.display-mode .ladder-court-roster { padding: 24px 26px; }
+    body.display-mode .ladder-court-roster h3 { font-size: 26px; padding-bottom: 10px; margin-bottom: 14px; }
+    body.display-mode .ladder-court-roster li { font-size: 24px; padding: 8px 0; gap: 14px; }
+    body.display-mode .ladder-court-grid { gap: 28px; }
+    body.display-mode .ladder-court-card { padding: 30px 34px; gap: 16px; border-radius: 16px; }
+    body.display-mode .ladder-court-card.championship { border-width: 4px; }
+    body.display-mode .ladder-court-card .court-header { padding-bottom: 12px; border-bottom-width: 3px; }
+    body.display-mode .ladder-court-card .court-title { font-size: 44px; letter-spacing: 1.5px; }
+    body.display-mode .ladder-court-card .court-sub { font-size: 18px; }
+    body.display-mode .ladder-section-title { font-size: 18px; margin-top: 8px; margin-bottom: 4px; }
+    body.display-mode .ladder-game-row {
+      font-size: 26px; padding: 14px 0;
+      grid-template-columns: 1fr 80px auto 80px 1fr; gap: 14px;
+    }
+    body.display-mode .ladder-score-display { font-size: 38px; }
+    body.display-mode .ladder-standings { padding: 18px 20px; margin-top: 8px; }
+    body.display-mode .ladder-standings table { font-size: 24px; }
+    body.display-mode .ladder-standings th { font-size: 16px; padding: 8px 10px; }
+    body.display-mode .ladder-standings td { padding: 8px 10px; }
+    body.display-mode .ladder-standings .rank { width: 38px; }
+    body.display-mode .seed-tag { font-size: 0.78em; }
+    body.display-mode .ladder-round-banner { font-size: 30px; padding: 18px 28px; margin-bottom: 14px; }
+
+    body.bracket-display #view-ladder-court-courts .bracket-wrap { padding-top: 280px; }
     body.bracket-display #view-ladder-court-courts .gf-logo-block { top: 36px; right: 64px; }
     body.bracket-display #view-ladder-court-courts .gf-title-block { top: 110px; right: 360px; }
   }
@@ -2405,8 +2408,10 @@ function renderLadderCourts() {
     `;
   }
 
-  // Force all courts onto a single row so 4 courts fit on a 75" display.
-  grid.style.gridTemplateColumns = `repeat(${currentRound.courts.length}, minmax(0, 1fr))`;
+  // Layout: 4 courts → 2x2 grid (larger boxes); other counts → single row.
+  const numCourts = currentRound.courts.length;
+  const cols = numCourts === 4 ? 2 : numCourts;
+  grid.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
 
   grid.innerHTML = '';
   currentRound.courts.forEach((court, courtIdx) => {
