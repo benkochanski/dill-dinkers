@@ -3472,6 +3472,17 @@ function renderSpin(opts) {
   }
 }
 
+function wheelLabelFor(fullName) {
+  if (!fullName) return '—';
+  const trimmed = String(fullName).trim();
+  if (trimmed.length <= 12) return trimmed;
+  // Long name — drop to first name (or first token) so dense wheels with 8 wedges
+  // and long surnames don't have overlapping labels.
+  const firstName = trimmed.split(/\s+/)[0] || trimmed;
+  if (firstName.length <= 12) return firstName;
+  return firstName.slice(0, 11) + '…';
+}
+
 function renderWheel(remainingOverride) {
   const svg = document.getElementById('wheel');
   svg.style.transition = 'none';
@@ -3515,8 +3526,8 @@ function renderWheel(remainingOverride) {
     label.setAttribute('font-size', '17');
     label.setAttribute('fill', (color === '#111111') ? '#fff' : '#111');
     label.setAttribute('transform', `rotate(${mid + 90}, ${tx}, ${ty})`);
-    const name = state.players[seed-1].name || '—';
-    label.textContent = name.length > 14 ? name.slice(0,14) + '…' : name;
+    const fullName = state.players[seed-1].name || '—';
+    label.textContent = wheelLabelFor(fullName);
     svg.appendChild(label);
   });
 
