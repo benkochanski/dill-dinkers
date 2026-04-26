@@ -41,19 +41,27 @@ function createLeague_(input) {
   const league_id = makeId_('league');
 
   appendObjects_('Leagues', [{
-    league_id:    league_id,
-    name:         input.name,
-    full_name:    input.full_name,
-    format_type:  input.format_type,
-    day_of_week:  input.day_of_week,
-    start_time:   input.start_time || '',
-    level:        input.level || '',
-    season_label: input.season_label || '',
-    weeks_count:  weeksCount,
-    status:       input.status || 'draft',
-    created_at:   stamp,
-    created_by:   me,
+    league_id:         league_id,
+    name:              input.name,
+    full_name:         input.full_name,
+    format_type:       input.format_type,
+    day_of_week:       input.day_of_week,
+    start_time:        input.start_time || '',
+    level:             input.level || '',
+    season_label:      input.season_label || '',
+    weeks_count:       weeksCount,
+    num_groups:        input.num_groups || '',
+    bonus_starts_week: input.bonus_starts_week || 3,
+    status:            input.status || 'draft',
+    created_at:        stamp,
+    created_by:        me,
   }]);
+
+  // For ladder format, seed the standard Bonus_Config so standings work
+  // out of the box. Operator can override later via Bonus_Config rows.
+  if (input.format_type === 'ladder' && input.num_groups) {
+    seedBonusConfigStandard_(league_id, input.num_groups);
+  }
 
   if (weeks.length) {
     const rows = weeks.map((w, i) => ({

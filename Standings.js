@@ -47,11 +47,15 @@ function computeLadderStandings_(league_id) {
   const roster = getObjects_('Rosters')
     .filter(r => r.league_id === league_id && r.status === 'active');
 
+  const bonusCfg = getObjects_('Bonus_Config').filter(c => c.league_id === league_id);
+
   // Initialize one row per rostered player so people who haven't played
   // yet still appear (with zeros).
   const stats = {};
+  const playerGames = {};  // player_id -> list of games they played in
   roster.forEach(r => {
     stats[r.player_id] = newPlayerStats_(r.player_id, playerById[r.player_id], r.level);
+    playerGames[r.player_id] = [];
   });
 
   // Walk every game and credit each of the 4 players.
@@ -64,18 +68,24 @@ function computeLadderStandings_(league_id) {
 
     t1.forEach(pid => {
       if (!stats[pid]) stats[pid] = newPlayerStats_(pid, playerById[pid]);
+      if (!playerGames[pid]) playerGames[pid] = [];
       creditPlayer_(stats[pid], s1, s2, g.week_number);
+      playerGames[pid].push(g);
     });
     t2.forEach(pid => {
       if (!stats[pid]) stats[pid] = newPlayerStats_(pid, playerById[pid]);
+      if (!playerGames[pid]) playerGames[pid] = [];
       creditPlayer_(stats[pid], s2, s1, g.week_number);
+      playerGames[pid].push(g);
     });
   });
+
+  const league = getLeagueById_(league_id);
 
   // Bonuses + percentages + composite score.
   const out = Object.keys(stats).map(pid => {
     const s = stats[pid];
-    const bonuses = computeBonuses_(s);
+    const bonuses = computeBonuses_(pid, playerGames[pid] || [], league, bonusCfg);
     s.w_bonus = bonuses.w_bonus;
     s.p_bonus = bonuses.p_bonus;
     s.win_pct    = s.games_played ? (s.wins   + s.w_bonus) / s.games_played : 0;
@@ -117,17 +127,81 @@ function creditPlayer_(s, my_score, their_score, week_number) {
 }
 
 /**
- * Bonus formula. PLACEHOLDER — replace once the user specifies the
- * rule. Reference sheet shows examples like:
- *   16/19 wins, weeks≈4 → W bonus 0.54, P bonus 0.72
- *    9/12 wins, weeks=2 → W bonus 0.24, P bonus 0.36
- *   13/30 wins, all 6 weeks → W bonus 0.00, P bonus 0.00 (anomaly)
+ * Bonus calc — driven by Bonus_Config rows for the league.
  *
- * Current shape: zero. The standings will compute correctly w/o bonuses
- * (just slightly different from reference until we plug in the rule).
+ * Rule:
+ *   - bonuses kick in once week_number >= league.bonus_starts_week
+ *   - W bonus accumulates ONLY on games this player won (one increment per win)
+ *   - P bonus accumulates on every qualifying game (win OR loss)
+ *   - per-group multiplier comes from Bonus_Config (typically (N-r)*0.03,
+ *     so the bottom group is 0)
+ *
+ * If no Bonus_Config rows exist for the league, returns zero (graceful
+ * degrade — standings still compute, just without bonuses).
+ *
+ * @param {string} player_id — for win lookup against each game
+ * @param {Array}  games   subset of games this player appears in
+ * @param {Object} league  the league row (for bonus_starts_week)
+ * @param {Array}  bonusCfg  the Bonus_Config rows for this league
  */
-function computeBonuses_(stats) {
-  return { w_bonus: 0, p_bonus: 0 };
+function computeBonuses_(player_id, games, league, bonusCfg) {
+  if (!bonusCfg || !bonusCfg.length) return { w_bonus: 0, p_bonus: 0 };
+
+  const cfgByRank = {};
+  bonusCfg.forEach(c => { cfgByRank[String(c.group_rank)] = c; });
+
+  const startsWeek = Number(league && league.bonus_starts_week) || 3;
+
+  let w = 0, p = 0;
+  games.forEach(g => {
+    if (Number(g.week_number) < startsWeek) return;
+    const c = cfgByRank[String(g.group_number)];
+    if (!c) return;
+    p += Number(c.p_multiplier_per_game) || 0;
+    if (playerWonGame_(player_id, g)) {
+      w += Number(c.w_multiplier_per_win) || 0;
+    }
+  });
+  return { w_bonus: w, p_bonus: p };
+}
+
+function playerWonGame_(player_id, g) {
+  const onT1 = g.t1_player_1_id === player_id || g.t1_player_2_id === player_id;
+  const onT2 = g.t2_player_1_id === player_id || g.t2_player_2_id === player_id;
+  if (onT1 && Number(g.winner) === 1) return true;
+  if (onT2 && Number(g.winner) === 2) return true;
+  return false;
+}
+
+/**
+ * Generate Bonus_Config rows for a ladder league using the standard
+ *  multiplier = (num_groups - group_rank) * 0.03 rule (so the bottom
+ *  group is 0, matching the reference). W and P use the same multiplier.
+ *
+ *  Idempotent: replaces any existing Bonus_Config rows for this league.
+ */
+function seedBonusConfigStandard_(league_id, num_groups) {
+  const N = Number(num_groups);
+  if (!N || N < 1) throw new Error('num_groups must be >= 1');
+
+  // Drop existing config for this league
+  const all = getObjects_('Bonus_Config').filter(c => c.league_id !== league_id);
+  overwriteObjects_('Bonus_Config', all);
+
+  const rows = [];
+  for (let r = 1; r <= N; r++) {
+    const m = (N - r) * 0.03;
+    rows.push({
+      league_id:               league_id,
+      group_rank:              r,
+      w_multiplier_per_win:    m,
+      p_multiplier_per_game:   m,
+      notes:                   '(num_groups - group_rank) * 0.03',
+    });
+  }
+  appendObjects_('Bonus_Config', rows);
+  audit_('bonus_config_seed', 'league', league_id, null, { num_groups: N });
+  return rows;
 }
 
 /* ------------------------------------------------------------------ */

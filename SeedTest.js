@@ -19,6 +19,8 @@ function seedTestLadder() {
       level: 'Levels 2-4',
       season_label: 'Mar/Apr 2026',
       status: 'active',
+      num_groups: 6,
+      bonus_starts_week: 3,
       weeks: [
         { week_starts: 'Mar 02', week_ends: 'Mar 08', play_date: 'Mar 05' },
         { week_starts: 'Mar 09', week_ends: 'Mar 15', play_date: 'Mar 12' },

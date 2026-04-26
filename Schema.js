@@ -26,8 +26,8 @@ const SCHEMA = {
     notes: 'League registry. format_type in {ladder, partner}.',
     columns: [
       'league_id', 'name', 'full_name', 'format_type', 'day_of_week',
-      'start_time', 'level', 'season_label', 'weeks_count', 'status',
-      'created_at', 'created_by',
+      'start_time', 'level', 'season_label', 'weeks_count', 'num_groups',
+      'bonus_starts_week', 'status', 'created_at', 'created_by',
     ],
   },
 
@@ -133,6 +133,14 @@ const SCHEMA = {
     ],
   },
 
+  Bonus_Config: {
+    notes: 'Per-league bonus multipliers (ladder format). One row per group_rank. W bonus only counts on wins; P bonus counts on every qualifying game.',
+    columns: [
+      'league_id', 'group_rank', 'w_multiplier_per_win',
+      'p_multiplier_per_game', 'notes',
+    ],
+  },
+
 };
 
 const TABLE_ORDER = [
@@ -140,5 +148,5 @@ const TABLE_ORDER = [
   'Leagues', 'League_Schedule', 'Match_Schedule',
   'Players', 'Registrations', 'Rosters', 'Teams', 'Session_Groups',
   'Games', 'Substitutions',
-  'DUPR', 'Email_Log', 'Audit_Log',
+  'DUPR', 'Email_Log', 'Audit_Log', 'Bonus_Config',
 ];
