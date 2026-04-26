@@ -28,7 +28,14 @@ function renderHome_(user) {
 }
 
 function renderAdmin_(user, params)     { return htmlStub_('Admin',    user); }
-function renderOperator_(user, params)  { return htmlStub_('Operator', user); }
+function renderOperator_(user, params)  {
+  const t = HtmlService.createTemplateFromFile('Operator');
+  t.user = user;
+  t.appName = CONFIG.APP_NAME;
+  return t.evaluate()
+    .setTitle(CONFIG.APP_NAME + ' — Operator')
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+}
 function renderDisplay_(user, params)   { return htmlStub_('Display',  user); }
 function renderPlayer_(user, params)    { return htmlStub_('Player',   user); }
 

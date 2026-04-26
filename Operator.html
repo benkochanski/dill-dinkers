@@ -1,0 +1,230 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Operator — <?= appName ?></title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, -apple-system, sans-serif; margin: 0; padding: 16px; max-width: 1100px; margin-inline: auto; color: #222; }
+    h1 { margin: 0 0 4px; font-size: 22px; }
+    h2 { font-size: 16px; margin: 24px 0 8px; }
+    .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+    select, input { padding: 8px 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; }
+    button { padding: 8px 14px; background: #2c5; color: #fff; border: none; border-radius: 6px; font-size: 14px; cursor: pointer; }
+    button:hover { background: #1a4; }
+    button.secondary { background: #888; }
+    button.secondary:hover { background: #666; }
+    table { border-collapse: collapse; width: 100%; font-size: 13px; }
+    th, td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; }
+    th { background: #f4f4f4; }
+    tr.win td { background: #f0fff0; }
+    .pill { display: inline-block; padding: 1px 6px; border-radius: 10px; background: #e8f0fe; color: #1a3; font-size: 11px; }
+    .err { color: #c00; }
+    .muted { color: #888; }
+    .card { border: 1px solid #ddd; border-radius: 8px; padding: 12px 16px; margin: 12px 0; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
+    label { font-size: 12px; color: #555; display: block; }
+    .nav a { color: #246; text-decoration: none; margin-right: 12px; }
+  </style>
+</head>
+<body>
+  <p class="nav"><a href="?page=home">← Home</a></p>
+  <h1>Operator</h1>
+  <p class="muted">Signed in as <?= user.email ?> — <?= user.roles.join(', ') || 'no roles' ?></p>
+
+  <div class="card">
+    <div class="row">
+      <div>
+        <label>League</label>
+        <select id="leaguePicker"><option>Loading…</option></select>
+      </div>
+      <div>
+        <label>Week</label>
+        <select id="weekPicker"></select>
+      </div>
+      <button class="secondary" onclick="refreshAll()">Refresh</button>
+    </div>
+  </div>
+
+  <div id="content" style="display:none">
+    <div class="card">
+      <h2>Enter a game</h2>
+      <div class="grid" id="gameForm">
+        <div><label>Round</label><input id="f_round" type="number" min="1" value="1"></div>
+        <div><label>Group</label><input id="f_group" type="number" min="1" value="1"></div>
+        <div><label>Game</label><input id="f_game" type="number" min="1" value="1"></div>
+        <div><label>Court</label><input id="f_court" type="number" min="1" value="1"></div>
+      </div>
+      <h2>Team 1</h2>
+      <div class="grid">
+        <div><label>P1</label><select id="f_t1p1"></select></div>
+        <div><label>P2</label><select id="f_t1p2"></select></div>
+        <div><label>Score</label><input id="f_s1" type="number" min="0" max="21"></div>
+      </div>
+      <h2>Team 2</h2>
+      <div class="grid">
+        <div><label>P1</label><select id="f_t2p1"></select></div>
+        <div><label>P2</label><select id="f_t2p2"></select></div>
+        <div><label>Score</label><input id="f_s2" type="number" min="0" max="21"></div>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <button onclick="submitGame()">Save game</button>
+        <span id="saveMsg" class="muted"></span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Recent games this week</h2>
+      <div id="gamesList">Loading…</div>
+    </div>
+
+    <div class="card">
+      <h2>Live standings</h2>
+      <div id="standings">Loading…</div>
+    </div>
+  </div>
+
+  <p id="error" class="err"></p>
+
+  <script>
+    let LEAGUES = [], CURRENT_LEAGUE = null, ROSTER = [];
+
+    function init() {
+      google.script.run
+        .withSuccessHandler(onLeagues)
+        .withFailureHandler(showErr)
+        .api_listLeagues();
+    }
+
+    function onLeagues(resp) {
+      if (!resp.ok) return showErr(resp.error);
+      LEAGUES = resp.data || [];
+      const sel = document.getElementById('leaguePicker');
+      sel.innerHTML = LEAGUES.length
+        ? LEAGUES.map(l => `<option value="${l.league_id}">${l.name} (${l.format_type})</option>`).join('')
+        : '<option value="">— no leagues yet — create one in admin —</option>';
+      sel.onchange = () => loadLeague(sel.value);
+      if (LEAGUES.length) loadLeague(LEAGUES[0].league_id);
+    }
+
+    function loadLeague(league_id) {
+      if (!league_id) { document.getElementById('content').style.display = 'none'; return; }
+      google.script.run
+        .withSuccessHandler(onLeague)
+        .withFailureHandler(showErr)
+        .api_getLeague(league_id);
+    }
+
+    function onLeague(resp) {
+      if (!resp.ok) return showErr(resp.error);
+      CURRENT_LEAGUE = resp.data.league;
+      ROSTER = resp.data.roster || [];
+
+      const wsel = document.getElementById('weekPicker');
+      const weeks = (resp.data.schedule || []).map(s => s.week_number);
+      wsel.innerHTML = weeks.length
+        ? weeks.map(w => `<option value="${w}">Week ${w}</option>`).join('')
+        : '<option value="1">Week 1</option>';
+      wsel.onchange = refreshGamesAndStandings;
+
+      ['f_t1p1','f_t1p2','f_t2p1','f_t2p2'].forEach(id => {
+        document.getElementById(id).innerHTML =
+          '<option value="">—</option>' +
+          ROSTER.map(p => `<option value="${p.player_id}">${p.full_name}</option>`).join('');
+      });
+      document.getElementById('content').style.display = '';
+      refreshGamesAndStandings();
+    }
+
+    function refreshAll() {
+      if (CURRENT_LEAGUE) loadLeague(CURRENT_LEAGUE.league_id);
+    }
+
+    function refreshGamesAndStandings() {
+      if (!CURRENT_LEAGUE) return;
+      const week = document.getElementById('weekPicker').value;
+      google.script.run
+        .withSuccessHandler(onGames)
+        .withFailureHandler(showErr)
+        .api_listGames(CURRENT_LEAGUE.league_id, week);
+      google.script.run
+        .withSuccessHandler(onStandings)
+        .withFailureHandler(showErr)
+        .api_recomputeStandings(CURRENT_LEAGUE.league_id);
+    }
+
+    function onGames(resp) {
+      if (!resp.ok) return showErr(resp.error);
+      const games = (resp.data || []).slice().reverse();
+      if (!games.length) { document.getElementById('gamesList').innerHTML = '<span class="muted">No games yet</span>'; return; }
+      const byId = Object.fromEntries(ROSTER.map(p => [p.player_id, p.full_name]));
+      const rows = games.map(g => `
+        <tr class="${g.winner === 1 ? 'win' : ''}">
+          <td>R${g.round_number || '—'}/G${g.game_in_match || '—'}</td>
+          <td>${(byId[g.t1_player_1_id]||'?')+' & '+(byId[g.t1_player_2_id]||'?')}</td>
+          <td>${g.t1_score}</td>
+          <td>${(byId[g.t2_player_1_id]||'?')+' & '+(byId[g.t2_player_2_id]||'?')}</td>
+          <td>${g.t2_score}</td>
+          <td><span class="pill">${g.status}</span></td>
+        </tr>`).join('');
+      document.getElementById('gamesList').innerHTML =
+        '<table><tr><th></th><th>Team 1</th><th></th><th>Team 2</th><th></th><th></th></tr>' + rows + '</table>';
+    }
+
+    function onStandings(resp) {
+      if (!resp.ok) return showErr(resp.error);
+      const rows = (resp.data || []).map(s => `
+        <tr>
+          <td>${s.rank}</td>
+          <td>${s.full_name}</td>
+          <td>${s.wins} / ${s.games_played}</td>
+          <td>${(s.win_pct * 100).toFixed(1)}%</td>
+          <td>${s.points} / ${s.games_played * 11}</td>
+          <td>${(s.point_pct * 100).toFixed(1)}%</td>
+          <td><strong>${s.score.toFixed(1)}</strong></td>
+        </tr>`).join('');
+      document.getElementById('standings').innerHTML = rows
+        ? '<table><tr><th>#</th><th>Player</th><th>Wins</th><th>W%</th><th>Points</th><th>P%</th><th>Score</th></tr>' + rows + '</table>'
+        : '<span class="muted">No completed games yet</span>';
+    }
+
+    function submitGame() {
+      const msg = document.getElementById('saveMsg');
+      msg.textContent = 'Saving…'; msg.className = 'muted';
+      const g = {
+        league_id:   CURRENT_LEAGUE.league_id,
+        week_number: Number(document.getElementById('weekPicker').value || 1),
+        round_number:  Number(document.getElementById('f_round').value || 0),
+        group_number:  Number(document.getElementById('f_group').value || 0),
+        game_in_match: Number(document.getElementById('f_game').value || 0),
+        court_number:  Number(document.getElementById('f_court').value || 0),
+        t1_player_1_id: document.getElementById('f_t1p1').value,
+        t1_player_2_id: document.getElementById('f_t1p2').value,
+        t2_player_1_id: document.getElementById('f_t2p1').value,
+        t2_player_2_id: document.getElementById('f_t2p2').value,
+        t1_score: document.getElementById('f_s1').value,
+        t2_score: document.getElementById('f_s2').value,
+      };
+      google.script.run
+        .withSuccessHandler(r => {
+          if (!r.ok) { msg.textContent = 'Error: ' + r.error; msg.className = 'err'; return; }
+          msg.textContent = 'Saved ✓'; msg.className = 'muted';
+          ['f_s1','f_s2'].forEach(id => document.getElementById(id).value = '');
+          // bump game number
+          const gn = document.getElementById('f_game');
+          gn.value = Number(gn.value || 0) + 1;
+          refreshGamesAndStandings();
+        })
+        .withFailureHandler(showErr)
+        .api_saveGame(g);
+    }
+
+    function showErr(e) {
+      document.getElementById('error').textContent = String(e && e.message || e);
+    }
+
+    init();
+  </script>
+</body>
+</html>
