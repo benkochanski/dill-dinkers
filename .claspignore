@@ -1,0 +1,10 @@
+# Files NOT to push to Apps Script
+**/.git/**
+**/.gitignore
+**/.claspignore
+**/.clasp.json
+**/.clasprc.json
+**/README.md
+**/node_modules/**
+**/reference/**
+**/.DS_Store
