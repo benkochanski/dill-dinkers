@@ -4,15 +4,28 @@
  */
 
 function getCurrentUser_() {
-  const email = activeUserEmail_();
-  if (!email) return { email: '', roles: [], isAdmin: false };
-  const rows = getObjects_('Roles').filter(r => r.email === email && r.active === true);
+  const email = (activeUserEmail_() || '').toLowerCase().trim();
+  if (!email) return { email: '', roles: [], isAdmin: false, rows: [] };
+  const rows = getObjects_('Roles').filter(r => {
+    const e = String(r.email || '').toLowerCase().trim();
+    const active = r.active === true || String(r.active).toUpperCase() === 'TRUE';
+    return e === email && active;
+  });
   const roles = rows.map(r => r.role);
+
+  // Bootstrap escape hatch: if the Roles tab is empty (e.g. the deployer
+  // hit the web app before running bootstrap), treat any signed-in user
+  // as admin so they can finish setup. As soon as ANY Role row exists,
+  // this fallback turns off.
+  const allRoles = getObjects_('Roles');
+  const fallbackAdmin = allRoles.length === 0;
+
   return {
     email: email,
-    roles: roles,
-    isAdmin: roles.indexOf('admin') !== -1,
-    rows: rows,  // keep the scoped rows so callers can check league_id / team_id
+    roles: roles.length ? roles : (fallbackAdmin ? ['admin'] : []),
+    isAdmin: roles.indexOf('admin') !== -1 || fallbackAdmin,
+    rows: rows,
+    fallbackAdmin: fallbackAdmin,
   };
 }
 
