@@ -322,92 +322,6 @@ Quick update for {{league_name}}…
         .api_createLeague(input);
     }
 
-    /* ----- Registrations ----- */
-
-    function importRegs() {
-      const id = document.getElementById('extSheetId').value.trim();
-      const tab = document.getElementById('extTabName').value.trim();
-      if (!id) { setMsg('importMsg', 'Sheet ID required', 'err'); return; }
-      setMsg('importMsg', 'Importing…');
-      google.script.run
-        .withSuccessHandler(r => {
-          if (!r.ok) { setMsg('importMsg', 'Error: ' + r.error, 'err'); return; }
-          setMsg('importMsg', `Scanned ${r.data.scanned}, imported ${r.data.imported}, skipped ${r.data.skipped}`);
-          refreshPending();
-        })
-        .withFailureHandler(showErr)
-        .api_importRegistrations(id, tab);
-    }
-
-    function refreshPending() {
-      google.script.run
-        .withSuccessHandler(onPending).withFailureHandler(showErr)
-        .api_listPendingRegistrations();
-    }
-
-    function onPending(resp) {
-      if (!resp.ok) return showErr(resp.error);
-      const groups = resp.data || [];
-      const div = document.getElementById('pendingList');
-      if (!groups.length) { div.innerHTML = '<span class="muted">No pending registrations.</span>'; return; }
-
-      const html = groups.map((g, gi) => {
-        const safeName = encodeURIComponent(g.league_full_name);
-        const rows = g.rows.map(r => `<tr>
-          <td>${r.full_name}<br><span class="muted">${r.member_email}</span></td>
-          <td>${r.club_level || ''}</td>
-          <td>${r.partner_status || ''}</td>
-          <td>${r.team_name || ''}</td>
-          <td>${r.partner_name || ''}</td>
-          <td>
-            <select class="approveLeague" data-reg="${r.registration_id}">
-              <option value="">— league —</option>
-              ${LEAGUES.map(l => `<option value="${l.league_id}">${l.name}</option>`).join('')}
-            </select>
-            <button onclick="approveReg('${r.registration_id}', this)">Approve</button>
-            <button class="danger" onclick="rejectReg('${r.registration_id}')">Reject</button>
-          </td>
-        </tr>`).join('');
-        return `<details open>
-          <summary><strong>${g.league_full_name}</strong> — ${g.count} pending</summary>
-          <div class="row" style="margin:8px 0;">
-            <select id="bulkLeague_${gi}">
-              <option value="">— bulk-approve all into… —</option>
-              ${LEAGUES.map(l => `<option value="${l.league_id}">${l.name}</option>`).join('')}
-            </select>
-            <button onclick="bulkApprove('${safeName}', ${gi}, this)">Approve all ${g.count}</button>
-          </div>
-          <table><tr><th>Player</th><th>Level</th><th>Partner status</th><th>Team</th><th>Partner</th><th>Action</th></tr>${rows}</table>
-        </details>`;
-      }).join('');
-      div.innerHTML = html;
-    }
-
-    function approveReg(reg_id, btn) {
-      const sel = document.querySelector(`.approveLeague[data-reg="${reg_id}"]`);
-      const league_id = sel && sel.value;
-      if (!league_id) { showErr('Pick a league first.'); return; }
-      btn.disabled = true; btn.textContent = '…';
-      google.script.run
-        .withSuccessHandler(r => {
-          if (!r.ok) { showErr(r.error); btn.disabled = false; btn.textContent = 'Approve'; return; }
-          refreshPending();
-        })
-        .withFailureHandler(showErr)
-        .api_approveRegistration(reg_id, league_id);
-    }
-
-    function rejectReg(reg_id) {
-      if (!confirm('Reject this registration?')) return;
-      google.script.run
-        .withSuccessHandler(r => {
-          if (!r.ok) return showErr(r.error);
-          refreshPending();
-        })
-        .withFailureHandler(showErr)
-        .api_rejectRegistration(reg_id, 'rejected via admin');
-    }
-
     /* ----- Roster ----- */
 
     function loadRoster() {
@@ -453,24 +367,65 @@ Quick update for {{league_name}}…
         `<table><tr><th>Team</th><th>P1</th><th>P2</th></tr>${rows}</table>`;
     }
 
-    function bulkApprove(safeName, gi, btn) {
-      const league_id = document.getElementById('bulkLeague_' + gi).value;
-      if (!league_id) { showErr('Pick a target league'); return; }
-      const name = decodeURIComponent(safeName);
-      btn.disabled = true; const orig = btn.textContent; btn.textContent = 'Approving…';
+    /* ----- Add players ----- */
+
+    function addOnePlayer() {
+      const league_id = document.getElementById('rosterLeaguePicker').value;
+      if (!league_id) { setMsg('addMsg', 'Pick a league first', 'err'); return; }
+      const row = {
+        full_name: document.getElementById('addName').value.trim(),
+        email:     document.getElementById('addEmail').value.trim(),
+        phone:     document.getElementById('addPhone').value.trim(),
+        level:     document.getElementById('addLevel').value.trim(),
+        dupr_id:   document.getElementById('addDupr').value.trim(),
+        team_name: document.getElementById('addTeam').value.trim(),
+      };
+      if (!row.full_name && !row.email) { setMsg('addMsg', 'Need at least name or email', 'err'); return; }
+      setMsg('addMsg', 'Adding…');
       google.script.run
         .withSuccessHandler(r => {
-          if (!r.ok) { showErr(r.error); btn.disabled = false; btn.textContent = orig; return; }
+          if (!r.ok) { setMsg('addMsg', 'Error: ' + r.error, 'err'); return; }
           const d = r.data;
-          const failed = (d.results || []).filter(x => !x.ok);
-          let msg = `Approved ${d.succeeded}/${d.attempted}`;
-          if (failed.length) msg += ' — failures: ' + failed.map(f => f.name + ': ' + f.error).join('; ');
-          alert(msg);
-          refreshPending();
-          refreshLeagues();  // counts may have changed
+          if (d.errors && d.errors.length) {
+            setMsg('addMsg', 'Error: ' + d.errors[0], 'err');
+          } else {
+            setMsg('addMsg', 'Added ' + (row.full_name || row.email) + ' ✓');
+            ['addName','addEmail','addPhone','addLevel','addDupr','addTeam'].forEach(id => document.getElementById(id).value = '');
+            loadRoster();
+          }
         })
         .withFailureHandler(showErr)
-        .api_bulkApproveByName(name, league_id);
+        .api_bulkAddPlayers(league_id, [row]);
+    }
+
+    function bulkAddPlayers() {
+      const league_id = document.getElementById('rosterLeaguePicker').value;
+      if (!league_id) { setMsg('bulkMsg', 'Pick a league first', 'err'); return; }
+      const text = document.getElementById('bulkPaste').value;
+      if (!text.trim()) { setMsg('bulkMsg', 'Paste some rows first', 'err'); return; }
+
+      const fields = ['full_name', 'email', 'phone', 'level', 'dupr_id', 'team_name'];
+      const rows = text.split(/\r?\n/).map(line => line.trim()).filter(Boolean).map(line => {
+        const cells = line.split(/\t|,(?=(?:[^"]*"[^"]*")*[^"]*$)/).map(c => c.trim().replace(/^"|"$/g, ''));
+        const obj = {};
+        fields.forEach((f, i) => { obj[f] = cells[i] || ''; });
+        return obj;
+      });
+      if (!rows.length) { setMsg('bulkMsg', 'No rows parsed', 'err'); return; }
+
+      setMsg('bulkMsg', 'Adding ' + rows.length + ' rows…');
+      google.script.run
+        .withSuccessHandler(r => {
+          if (!r.ok) { setMsg('bulkMsg', 'Error: ' + r.error, 'err'); return; }
+          const d = r.data;
+          let msg = 'Added ' + d.added + ', skipped ' + d.skipped;
+          if (d.errors && d.errors.length) msg += ' — ' + d.errors.length + ' errors: ' + d.errors.slice(0, 2).join('; ');
+          setMsg('bulkMsg', msg);
+          if (d.added) document.getElementById('bulkPaste').value = '';
+          loadRoster();
+        })
+        .withFailureHandler(showErr)
+        .api_bulkAddPlayers(league_id, rows);
     }
 
     /* ----- Subs ----- */
