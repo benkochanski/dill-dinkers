@@ -5,15 +5,15 @@ Apps Script web app + single master Google Sheet for managing 12+ pickleball lea
 ## Architecture in two minutes
 
 ```
-Master Sheet (one sheet, ~16 tabs)              GAS web app (single doGet)
+Master Sheet (one sheet, 15 tabs)               GAS web app (single doGet)
   Config           Players                       ?page=home    landing
-  Roles            Registrations                 ?page=admin    8 tabs
-  Leagues          Rosters                       ?page=operator entry + standings
-  League_Schedule  Teams                         ?page=display  TV scoreboard
-  Match_Schedule   Session_Groups                ?page=player   (stub)
-  Games            Substitutions
-  DUPR             Email_Log
-  Audit_Log        Bonus_Config
+  Roles            Rosters                       ?page=admin    7 tabs
+  Leagues          Teams                         ?page=operator entry + standings
+  League_Schedule  Session_Groups                ?page=display  TV scoreboard
+  Match_Schedule   Games                         ?page=player   (stub)
+  Substitutions    DUPR
+  Email_Log        Audit_Log
+  Bonus_Config
 ```
 
 All data is one row per fact; standings/displays are computed on demand from `Games` + `Bonus_Config` (no derived tabs to keep in sync).
@@ -29,17 +29,18 @@ All data is one row per fact; standings/displays are computed on demand from `Ga
 - `Web.js` — `doGet` router, HTML page renderers, `htmlError_` / `escapeHtml_`
 - `Api.js` — every `api_*` function exposed to HTML via `google.script.run`. **Trust boundary**: each entry point resolves the user, requires a role, wraps the result in `{ok, data}` or `{ok:false, error}`. `wrap_` JSON-roundtrips the response so Date objects don't tank the wire
 - `Leagues.js` — `createLeague_`, `listLeagues_`, `getLeagueSchedule_`. Auto-seeds `Bonus_Config` for ladder
-- `Players.js` — `upsertPlayer_` (by email), `addToRoster_`, `createTeam_`, `listRoster_`, `listTeams_`
+- `Players.js` — `upsertPlayer_` (by email), `addToRoster_`, `createTeam_`, `slotIntoTeam_`, `bulkAddPlayersToLeague_`, `listRoster_`, `listTeams_`
 - `Games.js` — `saveGame_`, `updateGame_`, `voidGame_`, `computeWinner_`, `listGames_`
 - `Standings.js` — `recomputeStandings_(league_id)` dispatches by `format_type`. `computeLadderStandings_` (composite Score = 0.6·W% + 0.4·P% + bonuses), `computePartnerStandings_` (W-L + +/- + GB)
 - `Schedule.js` — `generatePartnerSchedule_` (circle-method round-robin → `Match_Schedule` rows)
-- `Registrations.js` — `importRegistrationsFromSheet_` (read another Sheet by ID), `approveRegistration_` (one) / `bulkApproveByName_` (all in a league_full_name), `slotIntoTeam_`
 - `Subs.js` — `recordSubstitution_` + optional MailApp notification
 - `Email.js` — `bulkEmailLeague_` with placeholder substitution + `Email_Log`
 - `Export.js` — `exportCsv_(league_id, kind)` for `roster | teams | scores | standings | subs`
 - `SeedTest.js` — `seedTestLadder()` / `seedTestPartner()` + debug helpers
 
-HTML pages: `Home.html`, `Admin.html` (8 tabs: Leagues / Registrations / Roster / Subs / Email / Export / Roles / Audit), `Operator.html` (format-aware game entry + live standings), `Display.html` (TV scoreboard, auto-refresh 30s).
+HTML pages: `Home.html`, `Admin.html` (7 tabs: Leagues / Roster / Subs / Email / Export / Roles / Audit), `Operator.html` (format-aware game entry + live standings), `Display.html` (TV scoreboard, auto-refresh 30s).
+
+Player roster intake is direct (no staging/approval): the Roster tab has a single-player form + bulk-paste textarea (`full_name, email, phone, level, dupr_id, team_name`, comma- or tab-separated). For partner format, players sharing the same `team_name` auto-merge into a Team.
 
 ## Bonus formula (ladder only)
 
@@ -59,9 +60,7 @@ Multiplier = `(num_groups - group_rank) × 0.03` so bottom group is 0. Stored ex
 
 **Create a real league**: Admin → Leagues tab → fill form → Create. For ladder, set `# Groups` so Bonus_Config seeds correctly.
 
-**Import existing players**: Admin → Registrations → paste your old admin sheet ID (`1j9aaH-m8kOK9XrpBH6kOpBzieoZ77Kofpn4GYTPyNeI`) + tab name "Players By League" → Import. Idempotent on `(member_email, league_full_name)`.
-
-**Approve a whole league at once**: Registrations tab → expand the league_full_name group → pick target league in the bulk dropdown → "Approve all N". Per-row failures are reported; rest succeed.
+**Add players to a league**: Admin → Roster tab → pick the league → either fill the single-player form or paste rows into the bulk textarea (`Name, email, phone, level, dupr, team_name`). For partner format, two players sharing the same `team_name` auto-merge into a Team.
 
 **Add an operator**: Admin → Roles tab → email + role + (optional) league scope → Add.
 

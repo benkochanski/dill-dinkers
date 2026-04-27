@@ -56,16 +56,6 @@ const SCHEMA = {
     ],
   },
 
-  Registrations: {
-    notes: 'Inbound registrations from external system. status in {pending, approved, rejected}.',
-    columns: [
-      'registration_id', 'league_full_name', 'member_number', 'member_email',
-      'member_phone', 'full_name', 'club_level', 'dupr_id', 'partner_status',
-      'partner_name', 'team_name', 'imported_at', 'status', 'league_id',
-      'reviewed_by', 'reviewed_at',
-    ],
-  },
-
   Rosters: {
     notes: 'Approved players in a league. team_id null for ladder format.',
     columns: [
@@ -146,7 +136,7 @@ const SCHEMA = {
 const TABLE_ORDER = [
   'Config', 'Roles',
   'Leagues', 'League_Schedule', 'Match_Schedule',
-  'Players', 'Registrations', 'Rosters', 'Teams', 'Session_Groups',
+  'Players', 'Rosters', 'Teams', 'Session_Groups',
   'Games', 'Substitutions',
   'DUPR', 'Email_Log', 'Audit_Log', 'Bonus_Config',
 ];

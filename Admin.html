@@ -43,7 +43,6 @@
 
   <div class="tabs">
     <button data-tab="leagues" class="active">Leagues</button>
-    <button data-tab="registrations">Registrations</button>
     <button data-tab="roster">Roster</button>
     <button data-tab="subs">Subs</button>
     <button data-tab="email">Email</button>
@@ -85,27 +84,6 @@
     </div>
   </div>
 
-  <!-- ============ REGISTRATIONS TAB ============ -->
-  <div class="tabPanel" id="tab-registrations">
-    <div class="card">
-      <h2>Import from external Sheet</h2>
-      <p class="muted">Paste the Google Sheet ID of your existing "Players By League" registration sheet. Reads new rows and adds them as pending registrations. Idempotent — re-running skips already-imported entries.</p>
-      <div class="grid">
-        <div style="grid-column: span 2"><label>External Sheet ID</label><input id="extSheetId" placeholder="1j9aaH-m8kOK9XrpBH6kOpBzieoZ77Kofpn4GYTPyNeI"></div>
-        <div><label>Tab name</label><input id="extTabName" value="Players By League"></div>
-      </div>
-      <div class="row" style="margin-top:12px">
-        <button onclick="importRegs()">Import</button>
-        <span id="importMsg" class="muted"></span>
-      </div>
-    </div>
-
-    <div class="card">
-      <h2>Pending registrations</h2>
-      <div id="pendingList">Loading…</div>
-    </div>
-  </div>
-
   <!-- ============ ROSTER TAB ============ -->
   <div class="tabPanel" id="tab-roster">
     <div class="card">
@@ -113,7 +91,33 @@
         <div style="flex:1"><label>League</label><select id="rosterLeaguePicker"></select></div>
         <button class="secondary" onclick="loadRoster()">Refresh</button>
       </div>
-      <h2>Roster</h2>
+
+      <h2>Add one player</h2>
+      <div class="grid">
+        <div><label>Full name</label><input id="addName"></div>
+        <div><label>Email</label><input id="addEmail"></div>
+        <div><label>Phone</label><input id="addPhone"></div>
+        <div><label>Level</label><input id="addLevel" placeholder="Level 5"></div>
+        <div><label>DUPR ID</label><input id="addDupr"></div>
+        <div><label>Team name (partner only)</label><input id="addTeam"></div>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <button onclick="addOnePlayer()">Add player</button>
+        <span id="addMsg" class="muted"></span>
+      </div>
+
+      <h2>Bulk add (paste from a spreadsheet)</h2>
+      <p class="muted">One player per line. Comma- or tab-separated, in this order:
+      <code>full_name, email, phone, level, dupr_id, team_name</code>.
+      Trailing fields can be blank or omitted. <code>team_name</code> only matters for partner format — pairs with the same team_name auto-merge into a Team.</p>
+      <textarea id="bulkPaste" rows="6" style="width:100%; padding:8px; border:1px solid #ccc; border-radius:6px; font-family:monospace; font-size:13px" placeholder="Sue Daigle, sue@example.com, , Level 5, , Dinkin Pinktini's
+Jennifer Murnane, jen@example.com, , Level 5, , Dinkin Pinktini's"></textarea>
+      <div class="row" style="margin-top:8px">
+        <button onclick="bulkAddPlayers()">Add all</button>
+        <span id="bulkMsg" class="muted"></span>
+      </div>
+
+      <h2>Current roster</h2>
       <div id="rosterList">Pick a league.</div>
       <h2>Teams (partner only)</h2>
       <div id="teamsList"></div>
@@ -239,7 +243,6 @@ Quick update for {{league_name}}…
         b.onclick = () => switchTab(b.getAttribute('data-tab'));
       });
       refreshLeagues();
-      refreshPending();
       loadRoles();
     }
 

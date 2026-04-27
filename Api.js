@@ -123,38 +123,11 @@ function api_listScheduledMatches(league_id, week_number) {
   });
 }
 
-/* ----- Registrations ----- */
-
-function api_listPendingRegistrations() {
-  return wrap_(() => {
-    const user = getCurrentUser_();
-    requireRole_(user, ['admin']);
-    return listPendingRegistrations_();
-  });
-}
-
-function api_importRegistrations(externalSheetId, tabName) {
-  return wrap_(() => {
-    const user = getCurrentUser_();
-    requireRole_(user, ['admin']);
-    return importRegistrationsFromSheet_(externalSheetId, tabName);
-  });
-}
-
-function api_approveRegistration(registration_id, league_id) {
+function api_bulkAddPlayers(league_id, rows) {
   return wrap_(() => {
     const user = getCurrentUser_();
     requireRole_(user, ['admin'], league_id);
-    return approveRegistration_(registration_id, league_id);
-  });
-}
-
-function api_rejectRegistration(registration_id, reason) {
-  return wrap_(() => {
-    const user = getCurrentUser_();
-    requireRole_(user, ['admin']);
-    rejectRegistration_(registration_id, reason);
-    return { ok: true };
+    return bulkAddPlayersToLeague_(league_id, rows);
   });
 }
 
@@ -204,15 +177,7 @@ function api_bulkEmail(input) {
 
 /* ----- CSV Export ----- */
 
-/* ----- Bulk approve + Roles + Audit ----- */
-
-function api_bulkApproveByName(league_full_name, league_id) {
-  return wrap_(() => {
-    const user = getCurrentUser_();
-    requireRole_(user, ['admin'], league_id);
-    return bulkApproveByName_(league_full_name, league_id);
-  });
-}
+/* ----- Roles + Audit ----- */
 
 function api_listRoles() {
   return wrap_(() => {
