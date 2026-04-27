@@ -27,7 +27,14 @@ function renderHome_(user) {
     .addMetaTag('viewport', 'width=device-width, initial-scale=1');
 }
 
-function renderAdmin_(user, params)     { return htmlStub_('Admin',    user); }
+function renderAdmin_(user, params) {
+  const t = HtmlService.createTemplateFromFile('Admin');
+  t.user = user;
+  t.appName = CONFIG.APP_NAME;
+  return t.evaluate()
+    .setTitle(CONFIG.APP_NAME + ' — Admin')
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+}
 function renderOperator_(user, params)  {
   const t = HtmlService.createTemplateFromFile('Operator');
   t.user = user;

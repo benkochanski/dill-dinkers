@@ -123,6 +123,57 @@ function api_listScheduledMatches(league_id, week_number) {
   });
 }
 
+/* ----- Registrations ----- */
+
+function api_listPendingRegistrations() {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin']);
+    return listPendingRegistrations_();
+  });
+}
+
+function api_importRegistrations(externalSheetId, tabName) {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin']);
+    return importRegistrationsFromSheet_(externalSheetId, tabName);
+  });
+}
+
+function api_approveRegistration(registration_id, league_id) {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin'], league_id);
+    return approveRegistration_(registration_id, league_id);
+  });
+}
+
+function api_rejectRegistration(registration_id, reason) {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin']);
+    rejectRegistration_(registration_id, reason);
+    return { ok: true };
+  });
+}
+
+function api_listRoster(league_id) {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin', 'operator', 'captain'], league_id);
+    return listRoster_(league_id);
+  });
+}
+
+function api_listTeams(league_id) {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin', 'operator', 'captain'], league_id);
+    return listTeams_(league_id);
+  });
+}
+
 /* ----------------- internal ----------------- */
 function wrap_(fn) {
   try {

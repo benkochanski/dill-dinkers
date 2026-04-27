@@ -1,0 +1,332 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Admin — <?= appName ?></title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, -apple-system, sans-serif; margin: 0; padding: 16px; max-width: 1100px; margin-inline: auto; color: #222; }
+    h1 { margin: 0 0 4px; font-size: 22px; }
+    h2 { font-size: 16px; margin: 24px 0 8px; }
+    .nav a { color: #246; text-decoration: none; margin-right: 12px; }
+    .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; }
+    select, input { padding: 8px 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; width: 100%; }
+    button { padding: 8px 14px; background: #2c5; color: #fff; border: none; border-radius: 6px; font-size: 14px; cursor: pointer; }
+    button.danger { background: #c44; }
+    button.danger:hover { background: #a22; }
+    button.secondary { background: #888; }
+    button:hover { background: #1a4; }
+    label { font-size: 12px; color: #555; display: block; }
+    table { border-collapse: collapse; width: 100%; font-size: 13px; }
+    th, td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; vertical-align: top; }
+    th { background: #f4f4f4; }
+    .pill { display: inline-block; padding: 1px 6px; border-radius: 10px; background: #e8f0fe; color: #1a3; font-size: 11px; }
+    .pill.warn { background: #fff3cd; color: #856; }
+    .pill.ok { background: #d4edda; color: #155724; }
+    .err { color: #c00; }
+    .muted { color: #888; }
+    .card { border: 1px solid #ddd; border-radius: 8px; padding: 12px 16px; margin: 12px 0; }
+    .tabs { display: flex; gap: 4px; margin: 12px 0; flex-wrap: wrap; }
+    .tabs button { background: #eef; color: #246; border: 1px solid #ccd; padding: 6px 12px; }
+    .tabs button.active { background: #246; color: #fff; }
+    .tabPanel { display: none; }
+    .tabPanel.active { display: block; }
+    details summary { cursor: pointer; padding: 6px 0; }
+  </style>
+</head>
+<body>
+  <p class="nav"><a href="?page=home">← Home</a></p>
+  <h1>Admin</h1>
+  <p class="muted">Signed in as <?= user.email ?> — <?= user.roles.join(', ') || 'no roles' ?></p>
+
+  <div class="tabs">
+    <button data-tab="leagues" class="active">Leagues</button>
+    <button data-tab="registrations">Registrations</button>
+    <button data-tab="roster">Roster</button>
+  </div>
+
+  <!-- ============ LEAGUES TAB ============ -->
+  <div class="tabPanel active" id="tab-leagues">
+    <div class="card">
+      <h2>Create league</h2>
+      <div class="grid">
+        <div><label>Short name</label><input id="newName" placeholder="Mon Intermediate Coed Ladder"></div>
+        <div><label>Full name</label><input id="newFullName" placeholder="…League (Levels 4-6)"></div>
+        <div><label>Format</label><select id="newFormat">
+          <option value="ladder">ladder</option>
+          <option value="partner">partner</option>
+        </select></div>
+        <div><label>Day</label><select id="newDay">
+          <option>Monday</option><option>Tuesday</option><option>Wednesday</option>
+          <option>Thursday</option><option>Friday</option><option>Saturday</option><option>Sunday</option>
+        </select></div>
+        <div><label>Time</label><input id="newTime" placeholder="8:15p - 10p"></div>
+        <div><label>Level</label><input id="newLevel" placeholder="Levels 4-6"></div>
+        <div><label>Season</label><input id="newSeason" placeholder="Mar/Apr 2026"></div>
+        <div><label>Weeks</label><input id="newWeeks" type="number" value="8" min="1" max="20"></div>
+        <div><label># Groups (ladder)</label><input id="newGroups" type="number" value="6" min="1" max="20"></div>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <button onclick="createLeague()">Create</button>
+        <span id="createMsg" class="muted"></span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Existing leagues</h2>
+      <div id="leagueList">Loading…</div>
+    </div>
+  </div>
+
+  <!-- ============ REGISTRATIONS TAB ============ -->
+  <div class="tabPanel" id="tab-registrations">
+    <div class="card">
+      <h2>Import from external Sheet</h2>
+      <p class="muted">Paste the Google Sheet ID of your existing "Players By League" registration sheet. Reads new rows and adds them as pending registrations. Idempotent — re-running skips already-imported entries.</p>
+      <div class="grid">
+        <div style="grid-column: span 2"><label>External Sheet ID</label><input id="extSheetId" placeholder="1j9aaH-m8kOK9XrpBH6kOpBzieoZ77Kofpn4GYTPyNeI"></div>
+        <div><label>Tab name</label><input id="extTabName" value="Players By League"></div>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <button onclick="importRegs()">Import</button>
+        <span id="importMsg" class="muted"></span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Pending registrations</h2>
+      <div id="pendingList">Loading…</div>
+    </div>
+  </div>
+
+  <!-- ============ ROSTER TAB ============ -->
+  <div class="tabPanel" id="tab-roster">
+    <div class="card">
+      <div class="row">
+        <div style="flex:1"><label>League</label><select id="rosterLeaguePicker"></select></div>
+        <button class="secondary" onclick="loadRoster()">Refresh</button>
+      </div>
+      <h2>Roster</h2>
+      <div id="rosterList">Pick a league.</div>
+      <h2>Teams (partner only)</h2>
+      <div id="teamsList"></div>
+    </div>
+  </div>
+
+  <p id="error" class="err"></p>
+
+  <script>
+    let LEAGUES = [];
+
+    function showErr(e) { document.getElementById('error').textContent = String(e && e.message || e); }
+    function setMsg(id, txt, cls) { const el = document.getElementById(id); el.textContent = txt; el.className = cls || 'muted'; }
+
+    function init() {
+      // Tab switcher.
+      document.querySelectorAll('.tabs button').forEach(b => {
+        b.onclick = () => switchTab(b.getAttribute('data-tab'));
+      });
+      refreshLeagues();
+      refreshPending();
+    }
+
+    function switchTab(name) {
+      document.querySelectorAll('.tabs button').forEach(b => {
+        b.classList.toggle('active', b.getAttribute('data-tab') === name);
+      });
+      document.querySelectorAll('.tabPanel').forEach(p => {
+        p.classList.toggle('active', p.id === 'tab-' + name);
+      });
+    }
+
+    /* ----- Leagues ----- */
+
+    function refreshLeagues() {
+      google.script.run
+        .withSuccessHandler(onLeagues).withFailureHandler(showErr)
+        .api_listLeagues();
+    }
+
+    function onLeagues(resp) {
+      if (!resp.ok) return showErr(resp.error);
+      LEAGUES = resp.data || [];
+      const div = document.getElementById('leagueList');
+      if (!LEAGUES.length) { div.innerHTML = '<span class="muted">None yet — create one above.</span>'; }
+      else {
+        const rows = LEAGUES.map(l => `<tr>
+          <td><strong>${l.name}</strong><br><span class="muted">${l.full_name || ''}</span></td>
+          <td><span class="pill">${l.format_type}</span></td>
+          <td>${l.day_of_week} ${l.start_time || ''}</td>
+          <td>${l.level || ''}</td>
+          <td>${l.season_label || ''}</td>
+          <td>${l.weeks_count || ''}w / ${l.num_groups || '—'}g</td>
+          <td><span class="pill ${l.status === 'active' ? 'ok' : 'warn'}">${l.status}</span></td>
+          <td><code style="font-size:11px">${l.league_id}</code></td>
+        </tr>`).join('');
+        div.innerHTML = `<table>
+          <tr><th>Name</th><th>Format</th><th>When</th><th>Level</th><th>Season</th><th>W/G</th><th>Status</th><th>ID</th></tr>
+          ${rows}
+        </table>`;
+      }
+      // Roster picker uses the same list.
+      const rsel = document.getElementById('rosterLeaguePicker');
+      rsel.innerHTML = '<option value="">— select —</option>' +
+        LEAGUES.map(l => `<option value="${l.league_id}">${l.name}</option>`).join('');
+      rsel.onchange = loadRoster;
+    }
+
+    function createLeague() {
+      const input = {
+        name: document.getElementById('newName').value.trim(),
+        full_name: document.getElementById('newFullName').value.trim(),
+        format_type: document.getElementById('newFormat').value,
+        day_of_week: document.getElementById('newDay').value,
+        start_time: document.getElementById('newTime').value.trim(),
+        level: document.getElementById('newLevel').value.trim(),
+        season_label: document.getElementById('newSeason').value.trim(),
+        weeks: Number(document.getElementById('newWeeks').value) || 8,
+        num_groups: Number(document.getElementById('newGroups').value) || 0,
+        bonus_starts_week: 3,
+        status: 'active',
+      };
+      if (!input.name) { setMsg('createMsg', 'Need a name', 'err'); return; }
+      setMsg('createMsg', 'Creating…');
+      google.script.run
+        .withSuccessHandler(r => {
+          if (!r.ok) { setMsg('createMsg', 'Error: ' + r.error, 'err'); return; }
+          setMsg('createMsg', 'Created ' + r.data.name + ' ✓');
+          refreshLeagues();
+        })
+        .withFailureHandler(showErr)
+        .api_createLeague(input);
+    }
+
+    /* ----- Registrations ----- */
+
+    function importRegs() {
+      const id = document.getElementById('extSheetId').value.trim();
+      const tab = document.getElementById('extTabName').value.trim();
+      if (!id) { setMsg('importMsg', 'Sheet ID required', 'err'); return; }
+      setMsg('importMsg', 'Importing…');
+      google.script.run
+        .withSuccessHandler(r => {
+          if (!r.ok) { setMsg('importMsg', 'Error: ' + r.error, 'err'); return; }
+          setMsg('importMsg', `Scanned ${r.data.scanned}, imported ${r.data.imported}, skipped ${r.data.skipped}`);
+          refreshPending();
+        })
+        .withFailureHandler(showErr)
+        .api_importRegistrations(id, tab);
+    }
+
+    function refreshPending() {
+      google.script.run
+        .withSuccessHandler(onPending).withFailureHandler(showErr)
+        .api_listPendingRegistrations();
+    }
+
+    function onPending(resp) {
+      if (!resp.ok) return showErr(resp.error);
+      const groups = resp.data || [];
+      const div = document.getElementById('pendingList');
+      if (!groups.length) { div.innerHTML = '<span class="muted">No pending registrations.</span>'; return; }
+
+      const html = groups.map(g => {
+        const rows = g.rows.map(r => `<tr>
+          <td>${r.full_name}<br><span class="muted">${r.member_email}</span></td>
+          <td>${r.club_level || ''}</td>
+          <td>${r.partner_status || ''}</td>
+          <td>${r.team_name || ''}</td>
+          <td>${r.partner_name || ''}</td>
+          <td>
+            <select class="approveLeague" data-reg="${r.registration_id}">
+              <option value="">— league —</option>
+              ${LEAGUES.map(l => `<option value="${l.league_id}">${l.name}</option>`).join('')}
+            </select>
+            <button onclick="approveReg('${r.registration_id}', this)">Approve</button>
+            <button class="danger" onclick="rejectReg('${r.registration_id}')">Reject</button>
+          </td>
+        </tr>`).join('');
+        return `<details open>
+          <summary><strong>${g.league_full_name}</strong> — ${g.count} pending</summary>
+          <table><tr><th>Player</th><th>Level</th><th>Partner status</th><th>Team</th><th>Partner</th><th>Action</th></tr>${rows}</table>
+        </details>`;
+      }).join('');
+      div.innerHTML = html;
+    }
+
+    function approveReg(reg_id, btn) {
+      const sel = document.querySelector(`.approveLeague[data-reg="${reg_id}"]`);
+      const league_id = sel && sel.value;
+      if (!league_id) { showErr('Pick a league first.'); return; }
+      btn.disabled = true; btn.textContent = '…';
+      google.script.run
+        .withSuccessHandler(r => {
+          if (!r.ok) { showErr(r.error); btn.disabled = false; btn.textContent = 'Approve'; return; }
+          refreshPending();
+        })
+        .withFailureHandler(showErr)
+        .api_approveRegistration(reg_id, league_id);
+    }
+
+    function rejectReg(reg_id) {
+      if (!confirm('Reject this registration?')) return;
+      google.script.run
+        .withSuccessHandler(r => {
+          if (!r.ok) return showErr(r.error);
+          refreshPending();
+        })
+        .withFailureHandler(showErr)
+        .api_rejectRegistration(reg_id, 'rejected via admin');
+    }
+
+    /* ----- Roster ----- */
+
+    function loadRoster() {
+      const league_id = document.getElementById('rosterLeaguePicker').value;
+      if (!league_id) {
+        document.getElementById('rosterList').innerHTML = '<span class="muted">Pick a league.</span>';
+        document.getElementById('teamsList').innerHTML = '';
+        return;
+      }
+      google.script.run
+        .withSuccessHandler(onRoster).withFailureHandler(showErr)
+        .api_listRoster(league_id);
+      google.script.run
+        .withSuccessHandler(onTeams).withFailureHandler(showErr)
+        .api_listTeams(league_id);
+    }
+
+    function onRoster(resp) {
+      if (!resp.ok) return showErr(resp.error);
+      const list = resp.data || [];
+      if (!list.length) { document.getElementById('rosterList').innerHTML = '<span class="muted">No players yet.</span>'; return; }
+      const rows = list.map(r => `<tr>
+        <td>${r.full_name || '(unnamed)'}</td>
+        <td><span class="muted">${r.email || ''}</span></td>
+        <td>${r.level || r.roster_level || ''}</td>
+        <td>${r.team_id ? '<code>' + r.team_id + '</code>' : ''}</td>
+        <td><span class="pill ${r.roster_status === 'active' ? 'ok' : 'warn'}">${r.roster_status}</span></td>
+      </tr>`).join('');
+      document.getElementById('rosterList').innerHTML =
+        `<table><tr><th>Player</th><th>Email</th><th>Level</th><th>Team</th><th>Status</th></tr>${rows}</table>`;
+    }
+
+    function onTeams(resp) {
+      if (!resp.ok) return showErr(resp.error);
+      const list = resp.data || [];
+      if (!list.length) { document.getElementById('teamsList').innerHTML = '<span class="muted">No teams (or this league is ladder format).</span>'; return; }
+      const rows = list.map(t => `<tr>
+        <td><strong>${t.team_name}</strong></td>
+        <td>${t.player_1_id || '<span class="muted">—</span>'}</td>
+        <td>${t.player_2_id || '<span class="muted">—</span>'}</td>
+      </tr>`).join('');
+      document.getElementById('teamsList').innerHTML =
+        `<table><tr><th>Team</th><th>P1</th><th>P2</th></tr>${rows}</table>`;
+    }
+
+    init();
+  </script>
+</body>
+</html>
