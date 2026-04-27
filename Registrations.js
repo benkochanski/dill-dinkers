@@ -181,6 +181,29 @@ function approveRegistration_(registration_id, league_id) {
   return { player, team_id };
 }
 
+/**
+ * Bulk-approve all pending registrations matching a league_full_name into
+ * a target league_id. Returns per-row outcomes so the UI can show errors.
+ */
+function bulkApproveByName_(league_full_name, league_id) {
+  const pending = getObjects_('Registrations').filter(r =>
+    r.status === 'pending' && r.league_full_name === league_full_name);
+  const results = pending.map(r => {
+    try {
+      const r2 = approveRegistration_(r.registration_id, league_id);
+      return { registration_id: r.registration_id, name: r.full_name, ok: true, team_id: r2.team_id };
+    } catch (e) {
+      return { registration_id: r.registration_id, name: r.full_name, ok: false, error: String(e && e.message || e) };
+    }
+  });
+  return {
+    attempted: results.length,
+    succeeded: results.filter(r => r.ok).length,
+    failed:    results.filter(r => !r.ok).length,
+    results:   results,
+  };
+}
+
 function rejectRegistration_(registration_id, reason) {
   updateWhere_('Registrations',
     r => r.registration_id === registration_id,

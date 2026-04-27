@@ -204,6 +204,49 @@ function api_bulkEmail(input) {
 
 /* ----- CSV Export ----- */
 
+/* ----- Bulk approve + Roles + Audit ----- */
+
+function api_bulkApproveByName(league_full_name, league_id) {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin'], league_id);
+    return bulkApproveByName_(league_full_name, league_id);
+  });
+}
+
+function api_listRoles() {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin']);
+    return listRoles_();
+  });
+}
+
+function api_addRole(input) {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin']);
+    return addRole_(input);
+  });
+}
+
+function api_deactivateRole(email, role, scope_league_id, scope_team_id) {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin']);
+    const n = deactivateRole_(email, role, scope_league_id, scope_team_id);
+    return { deactivated: n };
+  });
+}
+
+function api_recentAudit(limit) {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin']);
+    return recentAuditLog_(limit);
+  });
+}
+
 function api_exportCsv(league_id, kind) {
   return wrap_(() => {
     const user = getCurrentUser_();

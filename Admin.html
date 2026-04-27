@@ -48,6 +48,8 @@
     <button data-tab="subs">Subs</button>
     <button data-tab="email">Email</button>
     <button data-tab="export">Export</button>
+    <button data-tab="roles">Roles</button>
+    <button data-tab="audit">Audit</button>
   </div>
 
   <!-- ============ LEAGUES TAB ============ -->
@@ -187,6 +189,42 @@ Quick update for {{league_name}}…
     </div>
   </div>
 
+  <!-- ============ ROLES TAB ============ -->
+  <div class="tabPanel" id="tab-roles">
+    <div class="card">
+      <h2>Add a role</h2>
+      <p class="muted">Roles: <strong>admin</strong> (everything), <strong>operator</strong> (scores entry / display for a league), <strong>captain</strong> (their team's view). Scope is optional — leave blank for a global role.</p>
+      <div class="grid">
+        <div><label>Email</label><input id="roleEmail" placeholder="someone@example.com"></div>
+        <div><label>Role</label><select id="roleRole">
+          <option value="operator">operator</option>
+          <option value="admin">admin</option>
+          <option value="captain">captain</option>
+        </select></div>
+        <div><label>Scope league (optional)</label><select id="roleLeague"><option value="">(global)</option></select></div>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <button onclick="addRole()">Add role</button>
+        <span id="roleMsg" class="muted"></span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Active roles</h2>
+      <div id="rolesList">Loading…</div>
+    </div>
+  </div>
+
+  <!-- ============ AUDIT TAB ============ -->
+  <div class="tabPanel" id="tab-audit">
+    <div class="card">
+      <h2>Recent activity</h2>
+      <p class="muted">Latest 100 entries from <code>Audit_Log</code> — every league create, registration approval, score save, sub, etc.</p>
+      <button class="secondary" onclick="loadAudit()">Refresh</button>
+      <div id="auditList" style="margin-top:12px">Loading…</div>
+    </div>
+  </div>
+
   <p id="error" class="err"></p>
 
   <script>
@@ -202,6 +240,7 @@ Quick update for {{league_name}}…
       });
       refreshLeagues();
       refreshPending();
+      loadRoles();
     }
 
     function switchTab(name) {
@@ -211,6 +250,8 @@ Quick update for {{league_name}}…
       document.querySelectorAll('.tabPanel').forEach(p => {
         p.classList.toggle('active', p.id === 'tab-' + name);
       });
+      // Lazy-load on first switch.
+      if (name === 'audit') loadAudit();
     }
 
     /* ----- Leagues ----- */
@@ -307,7 +348,8 @@ Quick update for {{league_name}}…
       const div = document.getElementById('pendingList');
       if (!groups.length) { div.innerHTML = '<span class="muted">No pending registrations.</span>'; return; }
 
-      const html = groups.map(g => {
+      const html = groups.map((g, gi) => {
+        const safeName = encodeURIComponent(g.league_full_name);
         const rows = g.rows.map(r => `<tr>
           <td>${r.full_name}<br><span class="muted">${r.member_email}</span></td>
           <td>${r.club_level || ''}</td>
@@ -325,6 +367,13 @@ Quick update for {{league_name}}…
         </tr>`).join('');
         return `<details open>
           <summary><strong>${g.league_full_name}</strong> — ${g.count} pending</summary>
+          <div class="row" style="margin:8px 0;">
+            <select id="bulkLeague_${gi}">
+              <option value="">— bulk-approve all into… —</option>
+              ${LEAGUES.map(l => `<option value="${l.league_id}">${l.name}</option>`).join('')}
+            </select>
+            <button onclick="bulkApprove('${safeName}', ${gi}, this)">Approve all ${g.count}</button>
+          </div>
           <table><tr><th>Player</th><th>Level</th><th>Partner status</th><th>Team</th><th>Partner</th><th>Action</th></tr>${rows}</table>
         </details>`;
       }).join('');
@@ -399,6 +448,26 @@ Quick update for {{league_name}}…
       </tr>`).join('');
       document.getElementById('teamsList').innerHTML =
         `<table><tr><th>Team</th><th>P1</th><th>P2</th></tr>${rows}</table>`;
+    }
+
+    function bulkApprove(safeName, gi, btn) {
+      const league_id = document.getElementById('bulkLeague_' + gi).value;
+      if (!league_id) { showErr('Pick a target league'); return; }
+      const name = decodeURIComponent(safeName);
+      btn.disabled = true; const orig = btn.textContent; btn.textContent = 'Approving…';
+      google.script.run
+        .withSuccessHandler(r => {
+          if (!r.ok) { showErr(r.error); btn.disabled = false; btn.textContent = orig; return; }
+          const d = r.data;
+          const failed = (d.results || []).filter(x => !x.ok);
+          let msg = `Approved ${d.succeeded}/${d.attempted}`;
+          if (failed.length) msg += ' — failures: ' + failed.map(f => f.name + ': ' + f.error).join('; ');
+          alert(msg);
+          refreshPending();
+          refreshLeagues();  // counts may have changed
+        })
+        .withFailureHandler(showErr)
+        .api_bulkApproveByName(name, league_id);
     }
 
     /* ----- Subs ----- */
@@ -491,6 +560,93 @@ Quick update for {{league_name}}…
         })
         .withFailureHandler(showErr)
         .api_bulkEmail(input);
+    }
+
+    /* ----- Export ----- */
+
+    /* ----- Roles ----- */
+
+    function loadRoles() {
+      google.script.run
+        .withSuccessHandler(onRoles).withFailureHandler(showErr)
+        .api_listRoles();
+    }
+
+    function onRoles(resp) {
+      if (!resp.ok) return showErr(resp.error);
+      const list = resp.data || [];
+      // Populate league scope picker (uses LEAGUES which loaded earlier).
+      const sel = document.getElementById('roleLeague');
+      sel.innerHTML = '<option value="">(global)</option>' +
+        LEAGUES.map(l => `<option value="${l.league_id}">${l.name}</option>`).join('');
+
+      const div = document.getElementById('rolesList');
+      if (!list.length) { div.innerHTML = '<span class="muted">No roles yet.</span>'; return; }
+      const leagueById = Object.fromEntries(LEAGUES.map(l => [l.league_id, l.name]));
+      const rows = list.map(r => `<tr>
+        <td>${r.email}</td>
+        <td><span class="pill">${r.role}</span></td>
+        <td>${r.scope_league_id ? leagueById[r.scope_league_id] || r.scope_league_id : '(global)'}</td>
+        <td>${r.scope_team_id || ''}</td>
+        <td><span class="pill ${r.active === true || String(r.active).toUpperCase()==='TRUE' ? 'ok' : 'warn'}">${r.active === true || String(r.active).toUpperCase()==='TRUE' ? 'active' : 'inactive'}</span></td>
+        <td>${r.active === true || String(r.active).toUpperCase()==='TRUE'
+          ? `<button class="danger" onclick="deactivateRole('${r.email}','${r.role}','${r.scope_league_id||''}','${r.scope_team_id||''}')">Deactivate</button>`
+          : ''}
+        </td>
+      </tr>`).join('');
+      div.innerHTML = `<table><tr><th>Email</th><th>Role</th><th>League scope</th><th>Team scope</th><th></th><th></th></tr>${rows}</table>`;
+    }
+
+    function addRole() {
+      const input = {
+        email: document.getElementById('roleEmail').value.trim(),
+        role:  document.getElementById('roleRole').value,
+        scope_league_id: document.getElementById('roleLeague').value || '',
+      };
+      if (!input.email) { setMsg('roleMsg', 'Email required', 'err'); return; }
+      setMsg('roleMsg', 'Adding…');
+      google.script.run
+        .withSuccessHandler(r => {
+          if (!r.ok) { setMsg('roleMsg', 'Error: ' + r.error, 'err'); return; }
+          setMsg('roleMsg', 'Added ✓');
+          document.getElementById('roleEmail').value = '';
+          loadRoles();
+        })
+        .withFailureHandler(showErr)
+        .api_addRole(input);
+    }
+
+    function deactivateRole(email, role, scopeLeague, scopeTeam) {
+      if (!confirm(`Deactivate ${role} for ${email}?`)) return;
+      google.script.run
+        .withSuccessHandler(r => { if (!r.ok) return showErr(r.error); loadRoles(); })
+        .withFailureHandler(showErr)
+        .api_deactivateRole(email, role, scopeLeague, scopeTeam);
+    }
+
+    /* ----- Audit ----- */
+
+    function loadAudit() {
+      document.getElementById('auditList').textContent = 'Loading…';
+      google.script.run
+        .withSuccessHandler(onAudit).withFailureHandler(showErr)
+        .api_recentAudit(100);
+    }
+
+    function onAudit(resp) {
+      if (!resp.ok) return showErr(resp.error);
+      const list = resp.data || [];
+      const div = document.getElementById('auditList');
+      if (!list.length) { div.innerHTML = '<span class="muted">No audit entries yet.</span>'; return; }
+      const rows = list.map(a => `<tr>
+        <td><span class="muted">${a.timestamp || ''}</span></td>
+        <td>${a.actor_email || ''}</td>
+        <td><span class="pill">${a.action || ''}</span></td>
+        <td>${a.entity_type || ''}</td>
+        <td><code style="font-size:11px">${a.entity_id || ''}</code></td>
+        <td><code style="font-size:11px">${(a.new_value || '').slice(0, 80)}</code></td>
+      </tr>`).join('');
+      div.innerHTML = `<table><tr><th>When</th><th>Who</th><th>Action</th><th>Entity</th><th>ID</th><th>Detail</th></tr>${rows}</table>`;
     }
 
     /* ----- Export ----- */
