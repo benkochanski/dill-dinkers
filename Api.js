@@ -109,6 +109,13 @@ function api_createTeam(league_id, team_name, player_1_id, player_2_id) {
 
 /* ----------------- internal ----------------- */
 function wrap_(fn) {
-  try { return { ok: true, data: fn() }; }
-  catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+  try {
+    // google.script.run can't transmit Date objects — the whole response
+    // becomes null silently. JSON-roundtrip coerces Dates to ISO strings
+    // (and drops `undefined`, which is also unsupported on the wire).
+    const data = fn();
+    return { ok: true, data: JSON.parse(JSON.stringify(data)) };
+  } catch (e) {
+    return { ok: false, error: String(e && e.message || e) };
+  }
 }

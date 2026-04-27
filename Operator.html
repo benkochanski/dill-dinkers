@@ -86,19 +86,36 @@
   </div>
 
   <p id="error" class="err"></p>
+  <p id="status" class="muted" style="font-size:12px"></p>
 
   <script>
     let LEAGUES = [], CURRENT_LEAGUE = null, ROSTER = [];
 
+    function setStatus(s) { document.getElementById('status').textContent = s; }
+
     function init() {
+      setStatus('init: starting…');
+      if (typeof google === 'undefined' || !google.script || !google.script.run) {
+        showErr('google.script.run is not available. ' +
+          'A browser extension may be blocking the Apps Script sandbox bridge. ' +
+          'Try an incognito window or disable extensions for script.google.com.');
+        return;
+      }
+      setStatus('init: calling api_listLeagues…');
+      // Time-bound the call so we surface "stuck" failures.
+      let done = false;
+      setTimeout(() => {
+        if (!done) showErr('api_listLeagues did not respond within 10s. Check the Apps Script Executions log.');
+      }, 10000);
       google.script.run
-        .withSuccessHandler(onLeagues)
-        .withFailureHandler(showErr)
+        .withSuccessHandler(r => { done = true; onLeagues(r); })
+        .withFailureHandler(e => { done = true; showErr('api_listLeagues failed: ' + (e && e.message || e)); })
         .api_listLeagues();
     }
 
     function onLeagues(resp) {
-      if (!resp.ok) return showErr(resp.error);
+      setStatus('onLeagues: got ' + (resp && JSON.stringify(resp).slice(0, 200)));
+      if (!resp || !resp.ok) return showErr((resp && resp.error) || 'No response');
       LEAGUES = resp.data || [];
       const sel = document.getElementById('leaguePicker');
       sel.innerHTML = LEAGUES.length
@@ -106,6 +123,7 @@
         : '<option value="">— no leagues yet — create one in admin —</option>';
       sel.onchange = () => loadLeague(sel.value);
       if (LEAGUES.length) loadLeague(LEAGUES[0].league_id);
+      setStatus(LEAGUES.length + ' league(s) loaded');
     }
 
     function loadLeague(league_id) {
