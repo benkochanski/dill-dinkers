@@ -174,6 +174,50 @@ function api_listTeams(league_id) {
   });
 }
 
+/* ----- Subs ----- */
+
+function api_recordSub(input) {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin', 'operator'], input && input.league_id);
+    return recordSubstitution_(input);
+  });
+}
+
+function api_listSubs(league_id) {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin', 'operator'], league_id);
+    return listSubstitutions_({ league_id });
+  });
+}
+
+/* ----- Bulk Email ----- */
+
+function api_bulkEmail(input) {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin'], input && input.league_id);
+    return bulkEmailLeague_(input);
+  });
+}
+
+/* ----- CSV Export ----- */
+
+function api_exportCsv(league_id, kind) {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin', 'operator'], league_id);
+    const csv = exportCsv_(league_id, kind);
+    const league = getLeagueById_(league_id);
+    const fname = (league ? league.name.replace(/[^a-z0-9]+/gi, '_') : 'export') +
+                  '_' + kind + '_' +
+                  Utilities.formatDate(new Date(), CONFIG.TIMEZONE, 'yyyyMMdd_HHmmss') +
+                  '.csv';
+    return { filename: fname, csv: csv };
+  });
+}
+
 /* ----------------- internal ----------------- */
 function wrap_(fn) {
   try {

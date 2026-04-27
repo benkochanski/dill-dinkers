@@ -45,6 +45,9 @@
     <button data-tab="leagues" class="active">Leagues</button>
     <button data-tab="registrations">Registrations</button>
     <button data-tab="roster">Roster</button>
+    <button data-tab="subs">Subs</button>
+    <button data-tab="email">Email</button>
+    <button data-tab="export">Export</button>
   </div>
 
   <!-- ============ LEAGUES TAB ============ -->
@@ -115,6 +118,75 @@
     </div>
   </div>
 
+  <!-- ============ SUBS TAB ============ -->
+  <div class="tabPanel" id="tab-subs">
+    <div class="card">
+      <h2>Record a substitution</h2>
+      <div class="grid">
+        <div><label>League</label><select id="subLeaguePicker"></select></div>
+        <div><label>Play date</label><input id="subDate" placeholder="Mar 12"></div>
+        <div><label>Week #</label><input id="subWeek" type="number" min="1" value="1"></div>
+        <div><label>Absent player</label><select id="subAbsent"></select></div>
+        <div><label>Substitute player</label><select id="subSubstitute"></select></div>
+        <div><label><input type="checkbox" id="subSendEmail"> Send email</label></div>
+      </div>
+      <div><label>Notes</label><input id="subNotes" placeholder="(optional)"></div>
+      <div class="row" style="margin-top:12px">
+        <button onclick="recordSub()">Record</button>
+        <span id="subMsg" class="muted"></span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Recent subs</h2>
+      <div id="subsList">Pick a league.</div>
+    </div>
+  </div>
+
+  <!-- ============ EMAIL TAB ============ -->
+  <div class="tabPanel" id="tab-email">
+    <div class="card">
+      <h2>Send bulk email to a league</h2>
+      <p class="muted">Placeholders: <code>{{full_name}}</code>, <code>{{first_name}}</code>, <code>{{league_name}}</code>. Each send is logged to <code>Email_Log</code>. Daily quota: ~100 (personal) / 1500 (Workspace).</p>
+      <div class="grid">
+        <div style="grid-column: span 2"><label>League</label><select id="emailLeaguePicker"></select></div>
+      </div>
+      <div><label>Subject</label><input id="emailSubject" placeholder="{{league_name}} — week 3 update"></div>
+      <div><label>Body</label><textarea id="emailBody" rows="8" style="width:100%; padding:8px; border:1px solid #ccc; border-radius:6px; font-family:inherit; font-size:14px">Hi {{first_name}},
+
+Quick update for {{league_name}}…
+
+— Dill Dinkers</textarea></div>
+      <div class="row" style="margin-top:12px">
+        <button class="secondary" onclick="bulkEmail(true)">Dry run (preview)</button>
+        <button onclick="bulkEmail(false)">Send</button>
+        <span id="emailMsg" class="muted"></span>
+      </div>
+      <pre id="emailPreview" style="background:#f4f4f4; padding:8px; border-radius:6px; font-size:12px; max-height:300px; overflow:auto; margin-top:12px"></pre>
+    </div>
+  </div>
+
+  <!-- ============ EXPORT TAB ============ -->
+  <div class="tabPanel" id="tab-export">
+    <div class="card">
+      <h2>Export CSV</h2>
+      <div class="grid">
+        <div style="grid-column: span 2"><label>League</label><select id="exportLeaguePicker"></select></div>
+        <div><label>What</label><select id="exportKind">
+          <option value="roster">Roster</option>
+          <option value="teams">Teams</option>
+          <option value="scores">Scores (every game)</option>
+          <option value="standings">Standings</option>
+          <option value="subs">Subs log</option>
+        </select></div>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <button onclick="downloadExport()">Download CSV</button>
+        <span id="exportMsg" class="muted"></span>
+      </div>
+    </div>
+  </div>
+
   <p id="error" class="err"></p>
 
   <script>
@@ -170,11 +242,14 @@
           ${rows}
         </table>`;
       }
-      // Roster picker uses the same list.
-      const rsel = document.getElementById('rosterLeaguePicker');
-      rsel.innerHTML = '<option value="">— select —</option>' +
-        LEAGUES.map(l => `<option value="${l.league_id}">${l.name}</option>`).join('');
-      rsel.onchange = loadRoster;
+      // Populate every league picker with the same list.
+      ['rosterLeaguePicker', 'subLeaguePicker', 'emailLeaguePicker', 'exportLeaguePicker'].forEach(id => {
+        const sel = document.getElementById(id);
+        sel.innerHTML = '<option value="">— select —</option>' +
+          LEAGUES.map(l => `<option value="${l.league_id}">${l.name} (${l.format_type})</option>`).join('');
+      });
+      document.getElementById('rosterLeaguePicker').onchange = loadRoster;
+      document.getElementById('subLeaguePicker').onchange = loadSubLeague;
     }
 
     function createLeague() {
@@ -324,6 +399,119 @@
       </tr>`).join('');
       document.getElementById('teamsList').innerHTML =
         `<table><tr><th>Team</th><th>P1</th><th>P2</th></tr>${rows}</table>`;
+    }
+
+    /* ----- Subs ----- */
+
+    function loadSubLeague() {
+      const league_id = document.getElementById('subLeaguePicker').value;
+      if (!league_id) return;
+      google.script.run
+        .withSuccessHandler(r => {
+          if (!r.ok) return showErr(r.error);
+          const opts = '<option value="">—</option>' +
+            (r.data || []).map(p => `<option value="${p.player_id}">${p.full_name} (${p.email || ''})</option>`).join('');
+          document.getElementById('subAbsent').innerHTML = opts;
+          document.getElementById('subSubstitute').innerHTML = opts;
+        })
+        .withFailureHandler(showErr)
+        .api_listRoster(league_id);
+      google.script.run
+        .withSuccessHandler(onSubsList).withFailureHandler(showErr)
+        .api_listSubs(league_id);
+    }
+
+    function onSubsList(resp) {
+      if (!resp.ok) return showErr(resp.error);
+      const list = (resp.data || []).slice().reverse();
+      const div = document.getElementById('subsList');
+      if (!list.length) { div.innerHTML = '<span class="muted">No subs recorded yet.</span>'; return; }
+      const rows = list.map(s => `<tr>
+        <td>${s.play_date || ''}</td>
+        <td>W${s.week_number || ''}</td>
+        <td>${s.absent_player_name || ''}</td>
+        <td>→ ${s.substitute_player_name || ''}</td>
+        <td>${s.email_sent === true || s.email_sent === 'TRUE' ? '<span class="pill ok">email ✓</span>' : ''}</td>
+        <td>${s.notes || ''}</td>
+        <td><span class="muted">${s.recorded_by || ''}</span></td>
+      </tr>`).join('');
+      div.innerHTML = `<table><tr><th>Date</th><th>Wk</th><th>Absent</th><th>Sub</th><th></th><th>Notes</th><th>By</th></tr>${rows}</table>`;
+    }
+
+    function recordSub() {
+      const input = {
+        league_id: document.getElementById('subLeaguePicker').value,
+        play_date: document.getElementById('subDate').value.trim(),
+        week_number: Number(document.getElementById('subWeek').value || 1),
+        absent_player_id: document.getElementById('subAbsent').value,
+        substitute_player_id: document.getElementById('subSubstitute').value,
+        notes: document.getElementById('subNotes').value.trim(),
+        send_email: document.getElementById('subSendEmail').checked,
+      };
+      if (!input.league_id || !input.absent_player_id || !input.substitute_player_id) {
+        setMsg('subMsg', 'Pick league + both players', 'err'); return;
+      }
+      setMsg('subMsg', 'Recording…');
+      google.script.run
+        .withSuccessHandler(r => {
+          if (!r.ok) { setMsg('subMsg', 'Error: ' + r.error, 'err'); return; }
+          let msg = 'Recorded ✓';
+          if (r.data.email_sent) msg += ' (email sent)';
+          else if (r.data.email_error) msg += ' (email error: ' + r.data.email_error + ')';
+          setMsg('subMsg', msg);
+          loadSubLeague();
+        })
+        .withFailureHandler(showErr)
+        .api_recordSub(input);
+    }
+
+    /* ----- Bulk Email ----- */
+
+    function bulkEmail(dryRun) {
+      const input = {
+        league_id: document.getElementById('emailLeaguePicker').value,
+        subject:   document.getElementById('emailSubject').value,
+        body:      document.getElementById('emailBody').value,
+        dry_run:   !!dryRun,
+      };
+      if (!input.league_id) { setMsg('emailMsg', 'Pick a league', 'err'); return; }
+      if (!input.subject || !input.body) { setMsg('emailMsg', 'Subject + body required', 'err'); return; }
+      if (!dryRun && !confirm('Send to all players in this league?')) return;
+      setMsg('emailMsg', dryRun ? 'Previewing…' : 'Sending…');
+      google.script.run
+        .withSuccessHandler(r => {
+          if (!r.ok) { setMsg('emailMsg', 'Error: ' + r.error, 'err'); return; }
+          const d = r.data;
+          const summary = `recipients: ${d.recipients}, sent: ${d.sent}, failed: ${d.failed}` +
+            (d.dry_run ? ' (dry run — nothing sent)' : '');
+          setMsg('emailMsg', summary);
+          document.getElementById('emailPreview').textContent =
+            'Sample (first 3):\n' + JSON.stringify(d.sample, null, 2) +
+            (d.errors && d.errors.length ? '\n\nErrors:\n' + d.errors.join('\n') : '');
+        })
+        .withFailureHandler(showErr)
+        .api_bulkEmail(input);
+    }
+
+    /* ----- Export ----- */
+
+    function downloadExport() {
+      const league_id = document.getElementById('exportLeaguePicker').value;
+      const kind      = document.getElementById('exportKind').value;
+      if (!league_id) { setMsg('exportMsg', 'Pick a league', 'err'); return; }
+      setMsg('exportMsg', 'Building…');
+      google.script.run
+        .withSuccessHandler(r => {
+          if (!r.ok) { setMsg('exportMsg', 'Error: ' + r.error, 'err'); return; }
+          const blob = new Blob([r.data.csv], { type: 'text/csv' });
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = r.data.filename;
+          document.body.appendChild(a); a.click(); a.remove();
+          setMsg('exportMsg', 'Downloaded ' + r.data.filename);
+        })
+        .withFailureHandler(showErr)
+        .api_exportCsv(league_id, kind);
     }
 
     init();
