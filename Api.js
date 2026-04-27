@@ -107,6 +107,22 @@ function api_createTeam(league_id, team_name, player_1_id, player_2_id) {
   });
 }
 
+function api_generateSchedule(league_id, opts) {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin'], league_id);
+    return generatePartnerSchedule_(league_id, opts || {});
+  });
+}
+
+function api_listScheduledMatches(league_id, week_number) {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin', 'operator'], league_id);
+    return listScheduledMatches_(league_id, week_number);
+  });
+}
+
 /* ----------------- internal ----------------- */
 function wrap_(fn) {
   try {

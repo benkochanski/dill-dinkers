@@ -1,0 +1,170 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Display — <?= appName ?></title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      margin: 0; padding: 24px;
+      background: #0a1628;
+      color: #fff;
+      min-height: 100vh;
+    }
+    h1 { margin: 0 0 4px; font-size: 36px; letter-spacing: 0.5px; }
+    h2 { margin: 0 0 8px; font-size: 24px; color: #9cf; }
+    .header { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 12px; margin-bottom: 24px; }
+    .meta { color: #9aa; font-size: 14px; }
+    .picker { color: #fff; }
+    .picker select { padding: 6px 10px; background: #1a2638; color: #fff; border: 1px solid #345; border-radius: 6px; font-size: 14px; }
+    .picker a { color: #9cf; margin-left: 12px; text-decoration: none; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border-bottom: 1px solid #234; padding: 8px 10px; text-align: left; }
+    th { background: #142035; color: #9cf; font-size: 14px; font-weight: 600; }
+    td { font-size: 18px; }
+    tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
+    .rank { width: 48px; font-weight: 700; color: #fc6; font-size: 22px; }
+    .pf { color: #9f9; }
+    .pa { color: #f99; }
+    .partner-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); margin-top: 16px; }
+    .team-card { background: #142035; border: 1px solid #234; border-radius: 8px; padding: 12px 14px; }
+    .team-card .name { font-size: 18px; font-weight: 700; }
+    .team-card .players { font-size: 13px; color: #9aa; margin: 2px 0 8px; }
+    .team-card .rec { font-size: 14px; color: #fc6; }
+    .team-card .pd { font-size: 13px; color: #9aa; margin-left: 8px; }
+    .err { color: #f99; }
+    .footer { margin-top: 32px; color: #678; font-size: 12px; text-align: center; }
+    @media (min-width: 1400px) { td { font-size: 22px; } h1 { font-size: 48px; } }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <h1 id="title">Display</h1>
+      <p class="meta" id="meta">Loading…</p>
+    </div>
+    <div class="picker">
+      <label>League: <select id="leaguePicker"><option>Loading…</option></select></label>
+      <a href="?page=home">Home</a>
+    </div>
+  </div>
+
+  <div id="content"></div>
+  <p id="error" class="err"></p>
+  <p class="footer">Auto-refreshes every 30 seconds. Last update: <span id="lastUpdate">—</span></p>
+
+  <script>
+    let LEAGUES = [], CURRENT_LEAGUE = null;
+    const REFRESH_MS = 30000;
+
+    function showErr(e) { document.getElementById('error').textContent = String(e && e.message || e); }
+
+    function init() {
+      if (typeof google === 'undefined' || !google.script || !google.script.run) {
+        showErr('google.script.run unavailable.'); return;
+      }
+      google.script.run
+        .withSuccessHandler(onLeagues).withFailureHandler(showErr)
+        .api_listLeagues();
+      setInterval(refreshContent, REFRESH_MS);
+    }
+
+    function onLeagues(resp) {
+      if (!resp.ok) return showErr(resp.error);
+      LEAGUES = resp.data || [];
+      const sel = document.getElementById('leaguePicker');
+      sel.innerHTML = LEAGUES.length
+        ? LEAGUES.map(l => `<option value="${l.league_id}">${l.name}</option>`).join('')
+        : '<option value="">— no leagues —</option>';
+      sel.onchange = () => loadLeague(sel.value);
+      // Allow ?leagueId=... to pre-select.
+      const qs = new URLSearchParams(window.location.search);
+      const preselect = qs.get('leagueId') || (LEAGUES[0] && LEAGUES[0].league_id);
+      if (preselect) {
+        sel.value = preselect;
+        loadLeague(preselect);
+      }
+    }
+
+    function loadLeague(league_id) {
+      if (!league_id) return;
+      google.script.run
+        .withSuccessHandler(onLeague).withFailureHandler(showErr)
+        .api_getLeague(league_id);
+    }
+
+    function onLeague(resp) {
+      if (!resp.ok) return showErr(resp.error);
+      CURRENT_LEAGUE = resp.data.league;
+      document.getElementById('title').textContent = CURRENT_LEAGUE.name;
+      document.getElementById('meta').textContent =
+        [CURRENT_LEAGUE.full_name, CURRENT_LEAGUE.day_of_week, CURRENT_LEAGUE.start_time, CURRENT_LEAGUE.season_label]
+          .filter(Boolean).join(' — ');
+      refreshContent();
+    }
+
+    function refreshContent() {
+      if (!CURRENT_LEAGUE) return;
+      google.script.run
+        .withSuccessHandler(onStandings).withFailureHandler(showErr)
+        .api_recomputeStandings(CURRENT_LEAGUE.league_id);
+    }
+
+    function onStandings(resp) {
+      if (!resp.ok) return showErr(resp.error);
+      const data = resp.data || [];
+      document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
+      const c = document.getElementById('content');
+      if (!data.length) { c.innerHTML = '<p class="meta">No completed games yet.</p>'; return; }
+      c.innerHTML = (CURRENT_LEAGUE.format_type === 'partner')
+        ? renderPartner(data)
+        : renderLadder(data);
+    }
+
+    function renderLadder(data) {
+      const rows = data.map(s => `<tr>
+        <td class="rank">${s.rank}</td>
+        <td>${s.full_name}<br><span class="meta">${s.level || ''}</span></td>
+        <td>${s.wins} / ${s.games_played}</td>
+        <td>${(s.win_pct * 100).toFixed(1)}%</td>
+        <td><span class="pf">${s.points}</span> / ${s.games_played * 11}</td>
+        <td>${(s.point_pct * 100).toFixed(1)}%</td>
+        <td><strong>${s.score.toFixed(1)}</strong></td>
+      </tr>`).join('');
+      return `<h2>Standings</h2>
+        <table>
+          <tr><th>#</th><th>Player</th><th>Wins</th><th>W%</th><th>Points</th><th>P%</th><th>Score</th></tr>
+          ${rows}
+        </table>`;
+    }
+
+    function renderPartner(data) {
+      const cards = data.map(s => `
+        <div class="team-card">
+          <div class="rank">${s.rank}</div>
+          <div class="name">${s.team_name}</div>
+          <div class="players">${s.player_1_name} & ${s.player_2_name}</div>
+          <div class="rec">${s.wins} - ${s.losses}<span class="pd">${s.point_diff > 0 ? '+' : ''}${s.point_diff} • GB ${s.games_back.toFixed(1)}</span></div>
+        </div>`).join('');
+      const tableRows = data.map(s => `<tr>
+        <td class="rank">${s.rank}</td>
+        <td><strong>${s.team_name}</strong><br><span class="meta">${s.player_1_name} & ${s.player_2_name}</span></td>
+        <td>${s.wins} - ${s.losses}</td>
+        <td>${s.games_back.toFixed(1)}</td>
+        <td>${s.point_diff > 0 ? '+' : ''}${s.point_diff}</td>
+        <td>${(s.point_pct * 100).toFixed(1)}%</td>
+      </tr>`).join('');
+      return `<div class="partner-grid">${cards}</div>
+        <h2 style="margin-top:32px">Standings</h2>
+        <table>
+          <tr><th>#</th><th>Team</th><th>W-L</th><th>GB</th><th>+/-</th><th>P%</th></tr>
+          ${tableRows}
+        </table>`;
+    }
+
+    init();
+  </script>
+</body>
+</html>

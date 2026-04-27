@@ -36,7 +36,14 @@ function renderOperator_(user, params)  {
     .setTitle(CONFIG.APP_NAME + ' — Operator')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1');
 }
-function renderDisplay_(user, params)   { return htmlStub_('Display',  user); }
+function renderDisplay_(user, params)   {
+  const t = HtmlService.createTemplateFromFile('Display');
+  t.user = user;
+  t.appName = CONFIG.APP_NAME;
+  return t.evaluate()
+    .setTitle(CONFIG.APP_NAME + ' — Display')
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+}
 function renderPlayer_(user, params)    { return htmlStub_('Player',   user); }
 
 function htmlStub_(label, user) {
