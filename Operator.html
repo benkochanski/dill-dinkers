@@ -26,6 +26,7 @@
     .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
     label { font-size: 12px; color: #555; display: block; }
     .nav a { color: #246; text-decoration: none; margin-right: 12px; }
+    .hidden { display: none !important; }
   </style>
 </head>
 <body>
@@ -44,30 +45,45 @@
         <select id="weekPicker"></select>
       </div>
       <button class="secondary" onclick="refreshAll()">Refresh</button>
+      <span id="formatPill" class="pill"></span>
     </div>
   </div>
 
   <div id="content" style="display:none">
     <div class="card">
       <h2>Enter a game</h2>
-      <div class="grid" id="gameForm">
+      <div class="grid">
         <div><label>Round</label><input id="f_round" type="number" min="1" value="1"></div>
-        <div><label>Group</label><input id="f_group" type="number" min="1" value="1"></div>
+        <div><label>Group / Match</label><input id="f_group" type="number" min="1" value="1"></div>
         <div><label>Game</label><input id="f_game" type="number" min="1" value="1"></div>
         <div><label>Court</label><input id="f_court" type="number" min="1" value="1"></div>
       </div>
-      <h2>Team 1</h2>
-      <div class="grid">
-        <div><label>P1</label><select id="f_t1p1"></select></div>
-        <div><label>P2</label><select id="f_t1p2"></select></div>
-        <div><label>Score</label><input id="f_s1" type="number" min="0" max="21"></div>
+
+      <div id="ladderFields">
+        <h2>Team 1</h2>
+        <div class="grid">
+          <div><label>P1</label><select id="f_t1p1"></select></div>
+          <div><label>P2</label><select id="f_t1p2"></select></div>
+          <div><label>Score</label><input id="f_s1_l" type="number" min="0" max="21"></div>
+        </div>
+        <h2>Team 2</h2>
+        <div class="grid">
+          <div><label>P1</label><select id="f_t2p1"></select></div>
+          <div><label>P2</label><select id="f_t2p2"></select></div>
+          <div><label>Score</label><input id="f_s2_l" type="number" min="0" max="21"></div>
+        </div>
       </div>
-      <h2>Team 2</h2>
-      <div class="grid">
-        <div><label>P1</label><select id="f_t2p1"></select></div>
-        <div><label>P2</label><select id="f_t2p2"></select></div>
-        <div><label>Score</label><input id="f_s2" type="number" min="0" max="21"></div>
+
+      <div id="partnerFields" class="hidden">
+        <h2>Match</h2>
+        <div class="grid">
+          <div><label>Team 1</label><select id="f_t1team"></select></div>
+          <div><label>Score</label><input id="f_s1_p" type="number" min="0" max="21"></div>
+          <div><label>Team 2</label><select id="f_t2team"></select></div>
+          <div><label>Score</label><input id="f_s2_p" type="number" min="0" max="21"></div>
+        </div>
       </div>
+
       <div class="row" style="margin-top:12px">
         <button onclick="submitGame()">Save game</button>
         <span id="saveMsg" class="muted"></span>
@@ -89,9 +105,11 @@
   <p id="status" class="muted" style="font-size:12px"></p>
 
   <script>
-    let LEAGUES = [], CURRENT_LEAGUE = null, ROSTER = [];
+    let LEAGUES = [], CURRENT_LEAGUE = null, ROSTER = [], TEAMS = [];
 
     function setStatus(s) { document.getElementById('status').textContent = s; }
+    function showErr(e) { document.getElementById('error').textContent = String(e && e.message || e); }
+    function isPartner() { return CURRENT_LEAGUE && CURRENT_LEAGUE.format_type === 'partner'; }
 
     function init() {
       setStatus('init: starting…');
@@ -102,7 +120,6 @@
         return;
       }
       setStatus('init: calling api_listLeagues…');
-      // Time-bound the call so we surface "stuck" failures.
       let done = false;
       setTimeout(() => {
         if (!done) showErr('api_listLeagues did not respond within 10s. Check the Apps Script Executions log.');
@@ -114,7 +131,6 @@
     }
 
     function onLeagues(resp) {
-      setStatus('onLeagues: got ' + (resp && JSON.stringify(resp).slice(0, 200)));
       if (!resp || !resp.ok) return showErr((resp && resp.error) || 'No response');
       LEAGUES = resp.data || [];
       const sel = document.getElementById('leaguePicker');
@@ -138,6 +154,9 @@
       if (!resp.ok) return showErr(resp.error);
       CURRENT_LEAGUE = resp.data.league;
       ROSTER = resp.data.roster || [];
+      TEAMS = resp.data.teams || [];
+
+      document.getElementById('formatPill').textContent = CURRENT_LEAGUE.format_type;
 
       const wsel = document.getElementById('weekPicker');
       const weeks = (resp.data.schedule || []).map(s => s.week_number);
@@ -146,11 +165,24 @@
         : '<option value="1">Week 1</option>';
       wsel.onchange = refreshGamesAndStandings;
 
-      ['f_t1p1','f_t1p2','f_t2p1','f_t2p2'].forEach(id => {
-        document.getElementById(id).innerHTML =
-          '<option value="">—</option>' +
+      // Show ladder vs partner inputs.
+      document.getElementById('ladderFields').classList.toggle('hidden', isPartner());
+      document.getElementById('partnerFields').classList.toggle('hidden', !isPartner());
+
+      // Populate dropdowns for the active format only.
+      if (isPartner()) {
+        const opts = '<option value="">—</option>' +
+          TEAMS.map(t => `<option value="${t.team_id}">${t.team_name}</option>`).join('');
+        document.getElementById('f_t1team').innerHTML = opts;
+        document.getElementById('f_t2team').innerHTML = opts;
+      } else {
+        const opts = '<option value="">—</option>' +
           ROSTER.map(p => `<option value="${p.player_id}">${p.full_name}</option>`).join('');
-      });
+        ['f_t1p1','f_t1p2','f_t2p1','f_t2p2'].forEach(id => {
+          document.getElementById(id).innerHTML = opts;
+        });
+      }
+
       document.getElementById('content').style.display = '';
       refreshGamesAndStandings();
     }
@@ -163,12 +195,10 @@
       if (!CURRENT_LEAGUE) return;
       const week = document.getElementById('weekPicker').value;
       google.script.run
-        .withSuccessHandler(onGames)
-        .withFailureHandler(showErr)
+        .withSuccessHandler(onGames).withFailureHandler(showErr)
         .api_listGames(CURRENT_LEAGUE.league_id, week);
       google.script.run
-        .withSuccessHandler(onStandings)
-        .withFailureHandler(showErr)
+        .withSuccessHandler(onStandings).withFailureHandler(showErr)
         .api_recomputeStandings(CURRENT_LEAGUE.league_id);
     }
 
@@ -176,24 +206,44 @@
       if (!resp.ok) return showErr(resp.error);
       const games = (resp.data || []).slice().reverse();
       if (!games.length) { document.getElementById('gamesList').innerHTML = '<span class="muted">No games yet</span>'; return; }
-      const byId = Object.fromEntries(ROSTER.map(p => [p.player_id, p.full_name]));
-      const rows = games.map(g => `
-        <tr class="${g.winner === 1 ? 'win' : ''}">
+      const playerById = Object.fromEntries(ROSTER.map(p => [p.player_id, p.full_name]));
+      const teamById = Object.fromEntries(TEAMS.map(t => [t.team_id, t.team_name]));
+
+      const rows = games.map(g => {
+        const t1 = isPartner()
+          ? (teamById[g.t1_team_id] || '?')
+          : (playerById[g.t1_player_1_id] || '?') + ' & ' + (playerById[g.t1_player_2_id] || '?');
+        const t2 = isPartner()
+          ? (teamById[g.t2_team_id] || '?')
+          : (playerById[g.t2_player_1_id] || '?') + ' & ' + (playerById[g.t2_player_2_id] || '?');
+        return `<tr class="${g.winner === 1 ? 'win' : ''}">
           <td>R${g.round_number || '—'}/G${g.game_in_match || '—'}</td>
-          <td>${(byId[g.t1_player_1_id]||'?')+' & '+(byId[g.t1_player_2_id]||'?')}</td>
-          <td>${g.t1_score}</td>
-          <td>${(byId[g.t2_player_1_id]||'?')+' & '+(byId[g.t2_player_2_id]||'?')}</td>
-          <td>${g.t2_score}</td>
+          <td>${t1}</td><td>${g.t1_score}</td>
+          <td>${t2}</td><td>${g.t2_score}</td>
           <td><span class="pill">${g.status}</span></td>
-        </tr>`).join('');
+        </tr>`;
+      }).join('');
       document.getElementById('gamesList').innerHTML =
         '<table><tr><th></th><th>Team 1</th><th></th><th>Team 2</th><th></th><th></th></tr>' + rows + '</table>';
     }
 
     function onStandings(resp) {
       if (!resp.ok) return showErr(resp.error);
-      const rows = (resp.data || []).map(s => `
-        <tr>
+      const data = resp.data || [];
+      if (!data.length) { document.getElementById('standings').innerHTML = '<span class="muted">No completed games yet</span>'; return; }
+      let html;
+      if (isPartner()) {
+        const rows = data.map(s => `<tr>
+          <td>${s.rank}</td>
+          <td><strong>${s.team_name}</strong><br><small class="muted">${s.player_1_name} & ${s.player_2_name}</small></td>
+          <td>${s.wins} - ${s.losses}</td>
+          <td>${s.games_back.toFixed(1)}</td>
+          <td>${s.point_diff > 0 ? '+' : ''}${s.point_diff}</td>
+          <td>${(s.point_pct * 100).toFixed(1)}%</td>
+        </tr>`).join('');
+        html = '<table><tr><th>#</th><th>Team</th><th>W-L</th><th>GB</th><th>+/-</th><th>P%</th></tr>' + rows + '</table>';
+      } else {
+        const rows = data.map(s => `<tr>
           <td>${s.rank}</td>
           <td>${s.full_name}</td>
           <td>${s.wins} / ${s.games_played}</td>
@@ -202,44 +252,58 @@
           <td>${(s.point_pct * 100).toFixed(1)}%</td>
           <td><strong>${s.score.toFixed(1)}</strong></td>
         </tr>`).join('');
-      document.getElementById('standings').innerHTML = rows
-        ? '<table><tr><th>#</th><th>Player</th><th>Wins</th><th>W%</th><th>Points</th><th>P%</th><th>Score</th></tr>' + rows + '</table>'
-        : '<span class="muted">No completed games yet</span>';
+        html = '<table><tr><th>#</th><th>Player</th><th>Wins</th><th>W%</th><th>Points</th><th>P%</th><th>Score</th></tr>' + rows + '</table>';
+      }
+      document.getElementById('standings').innerHTML = html;
     }
 
     function submitGame() {
       const msg = document.getElementById('saveMsg');
       msg.textContent = 'Saving…'; msg.className = 'muted';
-      const g = {
-        league_id:   CURRENT_LEAGUE.league_id,
-        week_number: Number(document.getElementById('weekPicker').value || 1),
+
+      const base = {
+        league_id:     CURRENT_LEAGUE.league_id,
+        week_number:   Number(document.getElementById('weekPicker').value || 1),
         round_number:  Number(document.getElementById('f_round').value || 0),
+        match_number:  Number(document.getElementById('f_group').value || 0),
         group_number:  Number(document.getElementById('f_group').value || 0),
         game_in_match: Number(document.getElementById('f_game').value || 0),
         court_number:  Number(document.getElementById('f_court').value || 0),
-        t1_player_1_id: document.getElementById('f_t1p1').value,
-        t1_player_2_id: document.getElementById('f_t1p2').value,
-        t2_player_1_id: document.getElementById('f_t2p1').value,
-        t2_player_2_id: document.getElementById('f_t2p2').value,
-        t1_score: document.getElementById('f_s1').value,
-        t2_score: document.getElementById('f_s2').value,
       };
+
+      let g;
+      if (isPartner()) {
+        g = Object.assign(base, {
+          t1_team_id: document.getElementById('f_t1team').value,
+          t2_team_id: document.getElementById('f_t2team').value,
+          t1_score: document.getElementById('f_s1_p').value,
+          t2_score: document.getElementById('f_s2_p').value,
+        });
+      } else {
+        g = Object.assign(base, {
+          t1_player_1_id: document.getElementById('f_t1p1').value,
+          t1_player_2_id: document.getElementById('f_t1p2').value,
+          t2_player_1_id: document.getElementById('f_t2p1').value,
+          t2_player_2_id: document.getElementById('f_t2p2').value,
+          t1_score: document.getElementById('f_s1_l').value,
+          t2_score: document.getElementById('f_s2_l').value,
+        });
+      }
+
       google.script.run
         .withSuccessHandler(r => {
           if (!r.ok) { msg.textContent = 'Error: ' + r.error; msg.className = 'err'; return; }
           msg.textContent = 'Saved ✓'; msg.className = 'muted';
-          ['f_s1','f_s2'].forEach(id => document.getElementById(id).value = '');
-          // bump game number
+          // Clear scores, bump game number.
+          ['f_s1_l','f_s2_l','f_s1_p','f_s2_p'].forEach(id => {
+            const el = document.getElementById(id); if (el) el.value = '';
+          });
           const gn = document.getElementById('f_game');
           gn.value = Number(gn.value || 0) + 1;
           refreshGamesAndStandings();
         })
         .withFailureHandler(showErr)
         .api_saveGame(g);
-    }
-
-    function showErr(e) {
-      document.getElementById('error').textContent = String(e && e.message || e);
     }
 
     init();

@@ -208,7 +208,86 @@ function seedBonusConfigStandard_(league_id, num_groups) {
 /*  PARTNER (Day 3)                                                   */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Partner format:
+ *   - games are team-vs-team (1 game per matchup)
+ *   - each team plays multiple opponents per week (typically 6)
+ *   - standings: aggregate W-L across all games, tiebreaker = +/- (points
+ *     scored - points allowed), then point-pct as final tiebreak
+ *   - GB (games behind) = (leader_wins - my_wins + my_losses - leader_losses) / 2
+ *
+ * Returns one row per team, sorted leader-first.
+ */
 function computePartnerStandings_(league_id) {
-  // Filled in on Day 3.
-  return [];
+  const games = listGames_({ league_id }).filter(g => g.status === 'complete');
+  const teams = getObjects_('Teams').filter(t => t.league_id === league_id);
+  const players = getObjects_('Players');
+  const playerById = {};
+  players.forEach(p => { playerById[p.player_id] = p; });
+
+  const stats = {};
+  teams.forEach(t => {
+    stats[t.team_id] = newTeamStats_(t, playerById);
+  });
+
+  games.forEach(g => {
+    if (!g.t1_team_id || !g.t2_team_id) return;
+    const s1 = Number(g.t1_score), s2 = Number(g.t2_score);
+    if (Number.isNaN(s1) || Number.isNaN(s2)) return;
+    if (!stats[g.t1_team_id]) stats[g.t1_team_id] = newTeamStats_({ team_id: g.t1_team_id, league_id, team_name: '(unknown)' }, playerById);
+    if (!stats[g.t2_team_id]) stats[g.t2_team_id] = newTeamStats_({ team_id: g.t2_team_id, league_id, team_name: '(unknown)' }, playerById);
+    creditTeam_(stats[g.t1_team_id], s1, s2, g.week_number);
+    creditTeam_(stats[g.t2_team_id], s2, s1, g.week_number);
+  });
+
+  const out = Object.keys(stats).map(tid => {
+    const s = stats[tid];
+    s.point_diff = s.points_for - s.points_against;
+    const total_pts = s.points_for + s.points_against;
+    s.point_pct = total_pts ? s.points_for / total_pts : 0;
+    s.weeks_played = Object.keys(s.weeks).length;
+    return s;
+  });
+
+  // Sort by wins desc, +/- desc, point_pct desc.
+  out.sort((a, b) => {
+    if (b.wins !== a.wins) return b.wins - a.wins;
+    if (b.point_diff !== a.point_diff) return b.point_diff - a.point_diff;
+    return b.point_pct - a.point_pct;
+  });
+
+  if (!out.length) return [];
+
+  const leader = out[0];
+  out.forEach((s, i) => {
+    s.rank = i + 1;
+    s.games_back = ((leader.wins - s.wins) + (s.losses - leader.losses)) / 2;
+  });
+  return out;
+}
+
+function newTeamStats_(team, playerById) {
+  const p1 = playerById[team.player_1_id];
+  const p2 = playerById[team.player_2_id];
+  return {
+    team_id:        team.team_id,
+    team_name:      team.team_name || '(unnamed)',
+    player_1_name:  p1 ? p1.full_name : '',
+    player_2_name:  p2 ? p2.full_name : '',
+    games_played:   0,
+    wins:           0,
+    losses:         0,
+    points_for:     0,
+    points_against: 0,
+    weeks:          {},
+  };
+}
+
+function creditTeam_(s, my_score, their_score, week_number) {
+  s.games_played += 1;
+  s.points_for += my_score;
+  s.points_against += their_score;
+  if (my_score > their_score) s.wins += 1;
+  else if (my_score < their_score) s.losses += 1;
+  if (week_number !== '' && week_number != null) s.weeks[String(week_number)] = true;
 }

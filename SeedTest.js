@@ -109,6 +109,100 @@ function seedTestLadder() {
   };
 }
 
+/**
+ * Seed a tiny partner-format test league.
+ *
+ * 4 teams, 1 week, each team plays the 3 other opponents → 6 games total.
+ * Idempotent: skips game seed if any games already exist for the league.
+ */
+function seedTestPartner() {
+  const TEST_NAME = 'TEST Partners';
+  let league = listLeagues_().find(l => l.name === TEST_NAME);
+
+  if (!league) {
+    league = createLeague_({
+      name: TEST_NAME,
+      full_name: 'TEST Partners League',
+      format_type: 'partner',
+      day_of_week: 'Wednesday',
+      start_time: '5p - 7p',
+      level: 'Levels 4-6',
+      season_label: 'Mar/Apr 2026',
+      status: 'active',
+      weeks: [
+        { week_starts: 'Mar 02', week_ends: 'Mar 08', play_date: 'Mar 04' },
+      ],
+    });
+  }
+
+  const playerSeeds = [
+    { full_name: 'Sue Daigle',         email: 'sue.test@example.com',   level: 'Level 5' },
+    { full_name: 'Jennifer Murnane',   email: 'jmurnane.test@example.com', level: 'Level 5' },
+    { full_name: 'Kate King',          email: 'kate.test@example.com',  level: 'Level 5' },
+    { full_name: 'Alison Bush',        email: 'alison.test@example.com', level: 'Level 5' },
+    { full_name: 'Paula Smyth',        email: 'paula.test@example.com', level: 'Level 5' },
+    { full_name: 'Leeann Cerpovicz',   email: 'leeann.test@example.com', level: 'Level 5' },
+    { full_name: 'Lindsay Yanke',      email: 'lindsay.test@example.com', level: 'Level 5' },
+    { full_name: 'Jessie Kaminski',    email: 'jessie.test@example.com', level: 'Level 5' },
+  ];
+  const playerIds = playerSeeds.map(p => upsertPlayer_(p).player_id);
+
+  // 4 teams of 2.
+  const teamDefs = [
+    { name: "Dinkin Pinktini's",  p1: 0, p2: 1 },
+    { name: 'Smash Sisters',      p1: 2, p2: 3 },
+    { name: 'Court Chaos',        p1: 4, p2: 5 },
+    { name: 'Mama Bears',         p1: 6, p2: 7 },
+  ];
+  const existingTeams = listTeams_(league.league_id);
+  const teamIds = teamDefs.map(td => {
+    const existing = existingTeams.find(t => t.team_name === td.name);
+    if (existing) return existing.team_id;
+    return createTeam_(league.league_id, td.name, playerIds[td.p1], playerIds[td.p2]);
+  });
+
+  if (listGames_({ league_id: league.league_id }).length) {
+    return { league_id: league.league_id, teams: teamIds.length, games: listGames_({ league_id: league.league_id }).length };
+  }
+
+  // 6 games — every team plays the 3 others (round-robin).
+  // Scores chosen so Dinkin > Smash > Court > Mama in standings.
+  const G = (round, court, t1, t2, s1, s2) => saveGame_({
+    league_id: league.league_id,
+    week_number: 1,
+    round_number: round,
+    match_number: round,
+    game_in_match: 1,
+    court_number: court,
+    play_date: 'Mar 04',
+    t1_team_id: teamIds[t1],
+    t2_team_id: teamIds[t2],
+    t1_score: s1, t2_score: s2,
+  });
+
+  G(1, 1, 0, 1, 11, 5);  // Dinkin beats Smash
+  G(1, 2, 2, 3, 11, 7);  // Court beats Mama
+  G(2, 1, 0, 2, 11, 8);  // Dinkin beats Court
+  G(2, 2, 1, 3, 11, 6);  // Smash beats Mama
+  G(3, 1, 0, 3, 11, 4);  // Dinkin beats Mama
+  G(3, 2, 1, 2, 11, 9);  // Smash beats Court
+
+  return {
+    league_id: league.league_id,
+    teams: teamIds.length,
+    games: listGames_({ league_id: league.league_id }).length,
+  };
+}
+
+/** Quick sanity check: log partner standings. */
+function debugPartnerStandings() {
+  const league = listLeagues_().find(l => l.name === 'TEST Partners');
+  if (!league) { Logger.log('Run seedTestPartner() first.'); return; }
+  const s = recomputeStandings_(league.league_id);
+  s.forEach(row => Logger.log(JSON.stringify(row)));
+  return s;
+}
+
 /** Quick sanity check: log standings for the test league. */
 function debugStandings() {
   const league = listLeagues_().find(l => l.name === 'TEST Ladder');
