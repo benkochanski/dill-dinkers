@@ -1,0 +1,8 @@
+{
+  "rules": {
+    "tournaments": {
+      ".read": true,
+      ".write": true
+    }
+  }
+}
