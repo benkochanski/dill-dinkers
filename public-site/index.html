@@ -182,6 +182,43 @@ const shortDate = (s) => {
 
 const rankCls = (r) => r === 1 ? 'rank-cell rank-1' : (r === 2 || r === 3) ? 'rank-cell rank-2' : 'rank-cell';
 
+const DAY_ABBREV = { Mon:'Monday', Tue:'Tuesday', Wed:'Wednesday', Thu:'Thursday', Fri:'Friday', Sat:'Saturday', Sun:'Sunday' };
+
+// Strip the day prefix ("Mon ", "Sat AM "), the trailing parenthesized text
+// ("(Levels 4-6)", "(Team Level 12 Cap)") and the trailing word "League".
+function cleanName(name) {
+  let n = String(name || '');
+  n = n.replace(/\s*\([^)]*\)\s*$/, '');
+  n = n.replace(/^(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\b\s*(?:AM|PM)?\s+/i, '');
+  n = n.replace(/\s+League\s*$/i, '');
+  return n.trim();
+}
+
+// Pull a day name out of the league record. Falls back to parsing the leading
+// day abbreviation in the name when day_of_week isn't populated.
+function leagueDay(l) {
+  if (l.day_of_week) return l.day_of_week;
+  const m = String(l.name || '').match(/^(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\b/i);
+  if (!m) return '';
+  const k = m[1].charAt(0).toUpperCase() + m[1].slice(1, 3).toLowerCase();
+  return DAY_ABBREV[k] || '';
+}
+
+// Pull a time hint. Uses start_time, otherwise looks for an AM/PM suffix on
+// the day prefix in the name (e.g. "Sat AM Coed Social…").
+function leagueTime(l) {
+  if (l.start_time) return l.start_time;
+  const m = String(l.name || '').match(/^(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s+(AM|PM)\b/i);
+  return m ? m[1].toUpperCase() : '';
+}
+
+function leagueWhen(l) {
+  const day = leagueDay(l);
+  const time = leagueTime(l);
+  if (day && time) return day + ' · ' + time;
+  return day || time || '';
+}
+
 function shell(body) {
   return `
     <div class="topbar">
@@ -200,14 +237,16 @@ function leagueHeader(league, currentTab) {
     { name: 'Match Results', tab: 'results' },
     ...(league.format_type === 'partner' ? [{ name: 'Teams', tab: 'teams' }] : [])
   ];
+  const cleaned = cleanName(league.full_name || league.name);
+  const when = leagueWhen(league);
   return `
     <div class="league-header"><div class="league-header-inner">
-      <div class="crumb"><a href="#/">All Leagues</a> / ${esc(league.name)}</div>
-      <h1>${esc(league.full_name || league.name)}</h1>
+      <div class="crumb"><a href="#/">All Leagues</a> / ${esc(cleaned)}</div>
+      <h1>${esc(cleaned)}</h1>
       <div class="meta-row">
         <span><span class="label">Format</span> <span class="badge ${league.format_type}">${league.format_type}</span></span>
         ${league.level ? `<span><span class="label">Level</span> ${esc(league.level)}</span>` : ''}
-        ${league.day_of_week ? `<span><span class="label">Schedule</span> ${esc(league.day_of_week)}${league.start_time ? ' · ' + esc(league.start_time) : ''}</span>` : ''}
+        ${when ? `<span><span class="label">Schedule</span> ${esc(when)}</span>` : ''}
         ${league.season_label ? `<span><span class="label">Season</span> ${esc(league.season_label)}</span>` : ''}
         ${league.current_week && league.weeks_count ? `<span><span class="label">Week</span> ${league.current_week} of ${league.weeks_count}</span>` : ''}
       </div>
@@ -229,16 +268,19 @@ async function viewLeagues() {
   const active = leagues.filter(l => l.status === 'active');
   const past = leagues.filter(l => l.status !== 'active');
 
-  const card = (l) => `
+  const card = (l) => {
+    const when = leagueWhen(l);
+    return `
     <a class="league-card" href="#/${esc(l.slug)}">
-      <div class="day">${esc(l.day_of_week || '')}${l.start_time ? ' · ' + esc(l.start_time) : ''}</div>
-      <h3>${esc(l.name)}</h3>
+      <h3>${esc(cleanName(l.name))}</h3>
       <div class="meta">
         <span class="badge ${l.format_type}">${l.format_type}</span>
-        ${l.level ? `<span>${esc(l.level)}</span>` : ''}
+        ${when ? `<span class="dot">·</span><span>${esc(when)}</span>` : ''}
+        ${l.level ? `<span class="dot">·</span><span>${esc(l.level)}</span>` : ''}
         ${l.current_week && l.weeks_count ? `<span class="dot">·</span><span>Week ${l.current_week} / ${l.weeks_count}</span>` : ''}
       </div>
     </a>`;
+  };
 
   const body = `
     <div class="hero"><div class="hero-inner">
