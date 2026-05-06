@@ -277,7 +277,6 @@ async function viewLeagues() {
       <div class="meta">
         <span class="badge ${l.format_type}">${l.format_type}</span>
         ${l.level ? `<span class="dot">·</span><span>${esc(l.level)}</span>` : ''}
-        ${l.current_week && l.weeks_count ? `<span class="dot">·</span><span>Week ${l.current_week} / ${l.weeks_count}</span>` : ''}
       </div>
     </a>`;
   };

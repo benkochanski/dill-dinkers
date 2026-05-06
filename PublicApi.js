@@ -28,9 +28,22 @@ function publicJsonRouter_(params) {
 
 /* ========================= leagues ========================= */
 
+// Defunct leagues that should never appear on the public site, even if their
+// status field still says "active". Match against the start of `name`.
+const DEFUNCT_LEAGUE_PREFIXES_ = [
+  'Club Match',
+  'Age 60+ Coed Social',
+];
+
+function isDefunctLeague_(l) {
+  const name = String(l.name || '').toLowerCase();
+  return DEFUNCT_LEAGUE_PREFIXES_.some(p => name.startsWith(p.toLowerCase()));
+}
+
 function publicListLeagues_() {
   const leagues = listLeagues_()
-    .filter(l => l.status !== 'archived' && l.status !== 'draft');
+    .filter(l => l.status !== 'archived' && l.status !== 'draft')
+    .filter(l => !isDefunctLeague_(l));
   return leagues.map(l => publicLeagueSummary_(l));
 }
 
@@ -51,20 +64,43 @@ function publicLeagueSummary_(l) {
       : (w.play_date ? new Date(w.play_date) : null);
     if (d && d <= today) currentWeek = Number(w.week_number);
   });
+  // Day + time are derived from cr_event_start (the actual scheduled
+  // CourtReserve event datetime). The legacy day_of_week / start_time text
+  // fields are used as fallbacks only — operators don't always populate them.
   return {
     league_id:    l.league_id,
     slug:         leagueSlug_(l),
     name:         l.name,
     full_name:    l.full_name,
     format_type:  l.format_type,
-    day_of_week:  l.day_of_week,
-    start_time:   l.start_time,
+    day_of_week:  dayFromCrStart_(l.cr_event_start) || l.day_of_week || '',
+    start_time:   timeFromCrStart_(l.cr_event_start) || l.start_time || '',
     level:        l.level,
     season_label: l.season_label,
     status:       l.status,
     weeks_count:  Number(l.weeks_count) || weeks.length || 0,
     current_week: currentWeek,
   };
+}
+
+function dayFromCrStart_(d) {
+  const dt = parseCrDate_(d);
+  if (!dt) return '';
+  return ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][dt.getDay()];
+}
+
+function timeFromCrStart_(d) {
+  const dt = parseCrDate_(d);
+  if (!dt) return '';
+  const tz = (typeof CONFIG !== 'undefined' && CONFIG.TIMEZONE) || Session.getScriptTimeZone();
+  return Utilities.formatDate(dt, tz, 'h:mm a');
+}
+
+function parseCrDate_(d) {
+  if (!d) return null;
+  if (d instanceof Date) return isNaN(d.getTime()) ? null : d;
+  const dt = new Date(d);
+  return isNaN(dt.getTime()) ? null : dt;
 }
 
 function leagueSlug_(l) {
