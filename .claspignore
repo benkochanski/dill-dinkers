@@ -5,6 +5,21 @@
 **/.clasp.json
 **/.clasprc.json
 **/README.md
+**/CLAUDE.md
 **/node_modules/**
 **/reference/**
 **/.DS_Store
+# Public site (SvelteKit on Cloudflare Pages) — not Apps Script code
+public-site/**
+# Design mockups
+mockups/**
+# Logo source folder + any zips
+Logo Files/**
+*.zip
+# Binary source assets — inlined into Logo.html as base64, not pushed directly
+**/*.jpg
+**/*.jpeg
+**/*.png
+**/*.gif
+**/*.webp
+**/*.ico

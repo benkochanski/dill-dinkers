@@ -23,11 +23,12 @@ const SCHEMA = {
   },
 
   Leagues: {
-    notes: 'League registry. format_type in {ladder, partner}.',
+    notes: 'League registry. format_type in {ladder, partner}. cr_event_id links to a CourtReserve event when populated from /eventcalendar/eventlist.',
     columns: [
       'league_id', 'name', 'full_name', 'format_type', 'day_of_week',
       'start_time', 'level', 'season_label', 'weeks_count', 'num_groups',
       'bonus_starts_week', 'status', 'created_at', 'created_by',
+      'cr_event_id', 'cr_category_id', 'cr_event_start', 'cr_event_end',
     ],
   },
 
@@ -70,22 +71,22 @@ const SCHEMA = {
   },
 
   Session_Groups: {
-    notes: 'Ladder-only: which group a player is in for a given week.',
+    notes: 'Ladder-only: which group a player is in for a given week + half. half in {1,2}; half 1 seeded from season standings, half 2 from the halftime mix. Empty half = legacy data, treated as half 1.',
     columns: [
       'session_group_id', 'league_id', 'week_number', 'group_number',
-      'player_id', 'starting_slot', 'created_at',
+      'player_id', 'starting_slot', 'created_at', 'half',
     ],
   },
 
   Games: {
-    notes: 'The source of truth — every game played. status in {open, complete, voided}.',
+    notes: 'The source of truth — every game played. status in {open, complete, voided}. half in {1,2} for ladder session games; empty for other game types.',
     columns: [
       'game_id', 'league_id', 'week_number', 'round_number', 'group_number',
       'match_number', 'game_in_match', 'court_number', 'play_date',
       't1_team_id', 't1_player_1_id', 't1_player_2_id',
       't2_team_id', 't2_player_1_id', 't2_player_2_id',
       't1_score', 't2_score', 'winner', 'status',
-      'entered_by', 'entered_at', 'updated_at', 'notes',
+      'entered_by', 'entered_at', 'updated_at', 'notes', 'half',
     ],
   },
 
@@ -131,6 +132,80 @@ const SCHEMA = {
     ],
   },
 
+  CR_Sync_Log: {
+    notes: 'CourtReserve API call/sync history. status in {ok, error, rate_limited}.',
+    columns: [
+      'sync_id', 'started_at', 'finished_at', 'actor_email', 'kind',
+      'method', 'path', 'http_status', 'count', 'status', 'message',
+    ],
+  },
+
+  CR_Registrations: {
+    notes: 'Staging table for CourtReserve event registrations. Pulled from /api/v1/eventregistrationreport/listactive. Filter and bulk-assign rows to a league via the Integrations tab. Dedup key: (cr_member_id|email) + cr_event_id + signed_up_on_date.',
+    columns: [
+      'cr_reg_id', 'imported_at',
+      'cr_event_id', 'event_name',
+      'cr_category_id', 'category_name',
+      'cr_event_date_id', 'event_start', 'event_end',
+      'registration_type',
+      'is_team_event', 'cr_member_id',
+      'first_name', 'last_name', 'email', 'phone',
+      'partners_json',
+      'price_to_pay', 'paid_amount',
+      'unsub_marketing_email', 'unsub_marketing_text',
+      'courts_json', 'user_defined_fields_json', 'raw_json',
+      'signed_up_on', 'cancelled_on', 'status',
+      'assigned_league_id', 'assigned_team_id', 'assigned_player_id', 'assigned_at',
+    ],
+  },
+
+  CR_Members: {
+    notes: 'CourtReserve member directory. Pulled from the members API. Dedup key: cr_member_id (OrganizationMemberId). MembershipNumber bridges to CR_Attendance.member_number.',
+    columns: [
+      'cr_member_id', 'membership_number', 'imported_at',
+      'first_name', 'last_name', 'email', 'phone', 'gender',
+      'date_of_birth',
+      'membership_type', 'membership_type_id', 'membership_status',
+      'membership_assignment_type',
+      'membership_start', 'membership_end',
+      'family_id', 'family_role', 'allow_child_login',
+      'address', 'city', 'state', 'zip',
+      'unsub_marketing_email', 'unsub_marketing_push',
+      'unsub_marketing_text', 'unsub_org_text',
+      'external_id', 'udf_json', 'raw_json',
+    ],
+  },
+
+  Player_DUPR_Overrides: {
+    notes: 'Per-player DUPR ID, keyed by cr_member_id or email. Survives CR re-pulls.',
+    columns: ['key', 'cr_member_id', 'email', 'dupr_id', 'updated_at', 'updated_by'],
+  },
+
+  Team_Name_Overrides: {
+    notes: 'Custom team names per CR registration. Keyed by cr_reg_id.',
+    columns: ['cr_reg_id', 'team_name', 'updated_at', 'updated_by'],
+  },
+
+  Team_Pairings: {
+    notes: 'Manual team pairings — two players (by CR member_number) make a team in a league. Used for partner-format leagues built from attendance.',
+    columns: ['pairing_id', 'league_id', 'p1_member_id', 'p2_member_id', 'team_name', 'created_at', 'created_by'],
+  },
+
+  CR_Attendance: {
+    notes: 'CourtReserve check-in / no-show records. Pulled from /api/v1/attendancereport/checkin. Dedup key: member_number + event_name + reservation_start.',
+    columns: [
+      'attendance_id', 'imported_at',
+      'member_number', 'first_name', 'last_name',
+      'event_name',
+      'check_in_status',
+      'check_in_type', 'checkin_datetime', 'checked_in_by',
+      'registration_type',
+      'reservation_start', 'reservation_end', 'reservation_display',
+      'registered_on_display',
+      'is_guest', 'type',
+    ],
+  },
+
 };
 
 const TABLE_ORDER = [
@@ -139,4 +214,6 @@ const TABLE_ORDER = [
   'Players', 'Rosters', 'Teams', 'Session_Groups',
   'Games', 'Substitutions',
   'DUPR', 'Email_Log', 'Audit_Log', 'Bonus_Config',
+  'CR_Sync_Log', 'CR_Registrations', 'CR_Attendance', 'CR_Members',
+  'Player_DUPR_Overrides', 'Team_Name_Overrides', 'Team_Pairings',
 ];

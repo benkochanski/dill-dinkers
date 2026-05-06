@@ -1,0 +1,1563 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>League Admin — <?= appName ?></title>
+  <?!= include_('Styles') ?>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 16px; max-width: 1100px; margin-inline: auto; }
+    h1 { margin: 0 0 4px; font-size: 22px; }
+    h2 { font-size: 16px; margin: 16px 0 8px; }
+    .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; }
+    .league-meta {
+      padding: 12px 16px; border-radius: 8px; background: var(--bg-subtle);
+      border: 1px solid var(--border); margin: 0 0 12px;
+      display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;
+    }
+    .league-meta .name { font-weight: 700; font-size: 15px; }
+    .league-meta .sub { color: var(--text-muted); font-size: 13px; }
+    .back-link { color: var(--text-muted); font-size: 13px; text-decoration: none; }
+    .back-link:hover { color: var(--brand-orange); }
+
+    /* Sub-tab nav */
+    .subtabs { display: flex; gap: 2px; margin: 0 0 16px; border-bottom: 2px solid var(--border); }
+    .subtabs a {
+      padding: 8px 16px; cursor: pointer; text-decoration: none;
+      color: var(--text-muted); font-weight: 500; font-size: 14px;
+      border-bottom: 2px solid transparent; margin-bottom: -2px;
+    }
+    .subtabs a:hover { color: var(--brand-orange); }
+    .subtabs a.active { color: var(--brand-orange); border-bottom-color: var(--brand-orange); }
+
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    /* Drag-and-drop pairing UI */
+    .pair-layout {
+      display: grid;
+      grid-template-columns: minmax(240px, 1fr) 2fr;
+      gap: 16px;
+      margin-top: 12px;
+    }
+    @media (max-width: 720px) { .pair-layout { grid-template-columns: 1fr; } }
+    .pool-panel, .buckets-panel {
+      border: 1px solid var(--border); border-radius: 8px;
+      background: var(--bg-card); padding: 10px;
+    }
+    .pool-panel.drag-over { border-color: var(--brand-orange); background: var(--brand-orange-soft); }
+    .pool-header { font-size: 12px; font-weight: 700; text-transform: uppercase;
+                   color: var(--text-muted); letter-spacing: 0.04em; margin: 0 0 8px; padding: 0 4px; }
+    .player-pool { display: flex; flex-wrap: wrap; gap: 6px; min-height: 40px; }
+    .player-card {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 6px 10px; border-radius: 14px; cursor: grab;
+      background: var(--bg-subtle); border: 1px solid var(--border);
+      font-size: 13px; user-select: none; transition: transform 0.08s, box-shadow 0.08s;
+    }
+    .player-card:hover { border-color: var(--brand-orange); box-shadow: 0 1px 4px rgba(245,130,32,0.15); }
+    .player-card.dragging { opacity: 0.45; cursor: grabbing; }
+    .player-card .pname { font-weight: 600; }
+    .player-card .pdupr { color: var(--text-muted); font-size: 11px; }
+
+    .bucket-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 8px;
+    }
+    .bucket {
+      border: 2px dashed var(--border); border-radius: 8px;
+      padding: 8px 10px; min-height: 92px;
+      display: flex; flex-direction: column; gap: 4px;
+      transition: border-color 0.1s, background 0.1s;
+    }
+    .bucket.drag-over { border-color: var(--brand-orange); background: var(--brand-orange-soft); }
+    .bucket.full { border-style: solid; border-color: var(--brand-green-dark); background: var(--brand-green-soft); }
+    .bucket-header {
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 11px; font-weight: 700; color: var(--text-muted);
+      text-transform: uppercase; letter-spacing: 0.04em;
+    }
+    .bucket-header .num { color: var(--brand-orange); }
+    .bucket-name {
+      width: 100%; padding: 2px 4px; font-size: 13px; font-weight: 600;
+      border: 1px solid transparent; border-radius: 3px; background: transparent;
+    }
+    .bucket-name:hover, .bucket-name:focus { border-color: var(--border); background: white; }
+    .bucket-empty { color: var(--text-muted); font-size: 12px; font-style: italic; padding: 4px 0; }
+    .bucket .player-card { cursor: grab; }
+
+    /* Players panel */
+    .players-table { width: 100%; }
+    .players-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); font-size: 13px; }
+    .players-table th { padding: 8px 10px; font-size: 11px; text-transform: uppercase; color: var(--text-muted); border-bottom: 2px solid var(--border); text-align: left; font-weight: 700; letter-spacing: 0.04em; }
+    .players-table .small { color: var(--text-muted); font-size: 12px; }
+    .players-table .pill { font-size: 11px; padding: 2px 8px; border-radius: 4px; }
+    .editable { background: transparent; border: 1px solid transparent; padding: 3px 6px; border-radius: 4px; font: inherit; width: 100%; }
+    .editable:hover { border-color: var(--border); }
+    .editable:focus { border-color: var(--brand-orange); outline: none; background: white; }
+    .dupr-missing { color: var(--error); font-style: italic; }
+    .team-group { background: var(--bg-subtle); }
+    .team-name-input { font-weight: 700; }
+
+    /* Schedule */
+    .sched-controls { padding: 10px 12px; background: var(--bg-subtle); border-radius: 8px; margin-bottom: 12px; }
+    details summary { cursor: pointer; padding: 6px 0; }
+    .sched-week { margin-bottom: 8px; padding: 8px 12px; background: var(--bg-subtle); border-radius: 6px; }
+    .matchup { font-size: 12px; padding: 3px 0; }
+
+    .err { color: var(--error); }
+    .muted { color: var(--text-muted); }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="app-header">
+    <?!= include_('Logo') ?>
+    <span class="who">Signed in as <code><?= user.email ?></code> · <?= user.roles.join(', ') || 'no roles' ?></span>
+  </div>
+  <?!= include_('Nav') ?>
+
+  <a class="back-link" id="backLink" href="#" onclick="goAllLeagues(event)">← All leagues</a>
+  <h1 id="leagueTitle">Loading…</h1>
+  <div class="league-meta" id="leagueMeta">
+    <div>
+      <div class="name" id="metaName">—</div>
+      <div class="sub" id="metaSub"></div>
+    </div>
+    <div>
+      <span id="metaPill" class="pill"></span>
+    </div>
+  </div>
+
+  <div class="subtabs" id="subtabs">
+    <a data-tab="players">Players</a>
+    <a data-tab="schedule">Schedule</a>
+    <a data-tab="standings">Standings</a>
+    <a data-tab="scores">Scores</a>
+  </div>
+
+  <p id="error" class="err"></p>
+
+  <!-- ========== PLAYERS ========== -->
+  <div class="panel" id="panel-players">
+    <div class="row" style="justify-content: space-between; margin-bottom: 8px; align-items:center">
+      <div class="row" style="gap:10px; align-items:center">
+        <span class="muted" id="rosterCount">—</span>
+        <span id="regTypeFilterWrap" style="display:none; font-size:12px">
+          · <label for="regTypeFilter">Type:</label>
+          <select id="regTypeFilter" onchange="renderPlayers()" style="font-size:12px"></select>
+        </span>
+      </div>
+      <div class="row" style="gap:6px">
+        <button class="secondary" onclick="describeCRFields()" title="Show CR field names + sample row to find the registration-type field">Inspect CR</button>
+        <button class="secondary" onclick="loadPlayers()">Reload</button>
+      </div>
+    </div>
+    <pre id="crInspectOut" class="hidden" style="background:var(--bg-subtle); border:1px solid var(--border); border-radius:6px; padding:10px; font-size:11px; max-height:380px; overflow:auto; margin:0 0 12px"></pre>
+    <p class="muted" style="font-size:12px;margin-top:0">
+      Roster comes from <code>CR_Attendance</code> filtered to <code>registration_type = "Full Event"</code> for this league's event.
+      To populate: <strong>Admin → Integrations → Pull ALL attendance</strong>.
+      DUPR IDs save to a small overrides table — they survive future CR re-pulls.
+    </p>
+    <div id="playersContent">Loading…</div>
+  </div>
+
+  <!-- ========== SCHEDULE ========== -->
+  <div class="panel" id="panel-schedule">
+    <div class="sched-controls" id="schedControls">
+      <p class="muted" style="margin: 0 0 8px; font-size: 13px">
+        <strong>V2:</strong> 8 rounds/week, each team plays 6 + 2 byes (default).
+        Pair counts balanced ±1 across the season. Re-generating replaces the schedule
+        but does not affect played game records.
+      </p>
+      <div class="row">
+        <div><label style="font-size:12px">Algorithm</label><br>
+          <select id="schedAlgo" onchange="onSchedAlgoChange()">
+            <option value="v2">V2 — bye-aware (default)</option>
+            <option value="v1">V1 — circle round-robin (legacy)</option>
+          </select>
+        </div>
+        <div><label style="font-size:12px">Rounds/week</label><br>
+          <input id="schedRounds" type="number" min="1" max="20" value="8" style="width:70px">
+        </div>
+        <div id="schedGamesWrap"><label style="font-size:12px">Games/team/week</label><br>
+          <input id="schedGames" type="number" min="1" max="20" value="6" style="width:70px">
+        </div>
+        <button onclick="generateSchedule()">Generate</button>
+        <button class="secondary" onclick="loadSchedule()">Refresh</button>
+        <span id="schedMsg" class="muted"></span>
+      </div>
+    </div>
+    <div class="row" style="margin: 16px 0 8px; gap: 8px; align-items: center">
+      <strong style="font-size: 14px">Views:</strong>
+      <button class="secondary tiny" onclick="loadSchedule()">By round</button>
+      <button class="secondary tiny" onclick="loadTeamSeasonSchedule()">By team</button>
+      <button class="secondary tiny" onclick="loadPairHeatmap()">Pair heat map</button>
+    </div>
+    <div id="scheduleContent">Loading…</div>
+  </div>
+
+  <!-- ========== STANDINGS ========== -->
+  <div class="panel" id="panel-standings">
+    <div class="row" style="justify-content: space-between; margin-bottom: 8px">
+      <span class="muted" id="standingsCount">—</span>
+      <button class="secondary" onclick="loadStandings()">Refresh</button>
+    </div>
+    <div id="standingsContent">Loading…</div>
+  </div>
+
+  <!-- ========== SCORES ========== -->
+  <div class="panel" id="panel-scores">
+    <p class="muted" style="font-size:13px; margin: 0 0 12px">
+      Score entry is the same as the Operator page. Click the link below to enter scores for tonight's session.
+    </p>
+    <div class="row">
+      <button onclick="openOperator()">Open Operator (score entry) →</button>
+    </div>
+    <div style="margin-top:24px">
+      <h2>Recent games this league</h2>
+      <div id="recentGamesContent">Loading…</div>
+    </div>
+  </div>
+
+  <script>
+    const LEAGUE_ID = <?!= JSON.stringify(leagueId || '') ?>;
+    const INITIAL_TAB = <?!= JSON.stringify(subTab || 'players') ?>;
+
+    let LEAGUE = null;
+    let ROSTER = [];
+    let TEAMS  = [];
+    let LEAGUE_SCHEDULE = [];   // League_Schedule rows (for ladder attendance date picker)
+    let SCHEDULE_MATCHES = [];
+    let DUPR_ISSUES = [];
+
+    function showErr(e) { document.getElementById('error').textContent = String(e && e.message || e); }
+    function escapeHtml(s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, c =>
+        ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    let CACHED_APP_URL = null;
+    function withAppUrl_(cb) {
+      if (CACHED_APP_URL) { cb(CACHED_APP_URL); return; }
+      google.script.run
+        .withSuccessHandler(u => { CACHED_APP_URL = u; cb(u); })
+        .withFailureHandler(err => alert('Could not resolve app URL: ' + err))
+        .getAppUrl();
+    }
+    function goAllLeagues(e) {
+      if (e) e.preventDefault();
+      withAppUrl_(u => { window.top.location.href = u + '?page=admin'; });
+    }
+    function openOperator() {
+      withAppUrl_(u => { window.top.location.href = u + '?page=operator'; });
+    }
+
+    function init() {
+      if (!LEAGUE_ID) {
+        showErr('No league_id in URL. Use ?page=league&lid=<league_id> (Apps Script reserves "id").');
+        document.getElementById('leagueTitle').textContent = '(no league)';
+        return;
+      }
+      // Wire sub-tabs first so URL hash works.
+      document.querySelectorAll('#subtabs a').forEach(a => {
+        a.addEventListener('click', e => {
+          e.preventDefault();
+          switchTab(a.getAttribute('data-tab'));
+        });
+      });
+      switchTab(INITIAL_TAB);
+      google.script.run
+        .withSuccessHandler(onLeague).withFailureHandler(showErr)
+        .api_getLeague(LEAGUE_ID);
+    }
+
+    function onLeague(resp) {
+      if (!resp.ok) {
+        showErr(resp.error + ' (looked up league_id: ' + LEAGUE_ID + ')');
+        document.getElementById('leagueTitle').textContent = 'Not found';
+        return;
+      }
+      LEAGUE = resp.data.league;
+      ROSTER = resp.data.roster || [];
+      TEAMS  = resp.data.teams  || [];
+      LEAGUE_SCHEDULE = resp.data.schedule || [];
+      // Header
+      document.getElementById('leagueTitle').textContent = LEAGUE.name;
+      document.getElementById('metaName').textContent = LEAGUE.full_name || LEAGUE.name;
+      document.getElementById('metaSub').textContent =
+        [LEAGUE.day_of_week, LEAGUE.start_time, LEAGUE.level, LEAGUE.season_label]
+          .filter(Boolean).join(' · ');
+      const pill = document.getElementById('metaPill');
+      pill.textContent = LEAGUE.format_type + ' · ' + LEAGUE.status;
+      pill.className = 'pill ' + (LEAGUE.status === 'active' ? 'ok' : 'warn');
+
+      // Render the currently active tab now that data is loaded.
+      // Players tab loads from CR_Registrations directly via api_listLeaguePlayers
+      // — no materialization step.
+      renderActiveTab();
+    }
+
+    function switchTab(tab) {
+      const valid = ['players', 'schedule', 'standings', 'scores'];
+      if (valid.indexOf(tab) === -1) tab = 'players';
+      document.querySelectorAll('#subtabs a').forEach(a => {
+        a.classList.toggle('active', a.getAttribute('data-tab') === tab);
+      });
+      document.querySelectorAll('.panel').forEach(p => {
+        p.classList.toggle('active', p.id === 'panel-' + tab);
+      });
+      // Update URL without reloading. Apps Script reserves `?id=` so use `lid`.
+      const params = new URLSearchParams(window.location.search);
+      params.set('page', 'league');
+      params.set('lid', LEAGUE_ID);
+      params.delete('id');
+      params.set('tab', tab);
+      try { history.replaceState(null, '', '?' + params.toString()); } catch (e) {}
+      if (LEAGUE) renderActiveTab();
+    }
+
+    function activeTab() {
+      const a = document.querySelector('#subtabs a.active');
+      return a ? a.getAttribute('data-tab') : 'players';
+    }
+
+    function renderActiveTab() {
+      const t = activeTab();
+      if (t === 'players')   loadPlayers();
+      if (t === 'schedule')  loadSchedule();
+      if (t === 'standings') loadStandings();
+      if (t === 'scores')    loadRecentGames();
+    }
+
+    /* ====================================================================
+       PLAYERS TAB — pure filter view of CR_Registrations.
+       No materialization, no Players/Rosters/Teams writes. DUPR + team-name
+       edits go to the Player_DUPR_Overrides / Team_Name_Overrides tables.
+       ==================================================================== */
+
+    let LEAGUE_PLAYERS = [];      // entries from api_listLeaguePlayers
+    let PLAYERS_DIAG   = null;    // diagnostics for no-match cases
+    let REG_TYPES_SEEN = [];      // [{type, count}] seen across all rows
+
+    function loadPlayers() {
+      if (!LEAGUE) return;
+      const el = document.getElementById('playersContent');
+      el.innerHTML = '<span class="muted">Loading…</span>';
+      if (LEAGUE.format_type !== 'partner') {
+        loadLadderPlayers();
+        return;
+      }
+      google.script.run
+        .withSuccessHandler(r => {
+          if (!r || !r.ok) {
+            const msg = (r && r.error) || 'No response from server';
+            el.innerHTML = '<p class="err" style="padding:16px">Error loading players: ' + escapeHtml(msg) + '</p>';
+            showErr(msg);
+            return;
+          }
+          const payload = r.data || {};
+          LEAGUE_PLAYERS = payload.rows || [];
+          PLAYERS_DIAG   = payload._no_match ? payload : null;
+          REG_TYPES_SEEN = payload.registration_types || [];
+          // Populate the filter dropdown with the types we saw.
+          const wrap = document.getElementById('regTypeFilterWrap');
+          const sel  = document.getElementById('regTypeFilter');
+          if (REG_TYPES_SEEN.length > 1) {
+            const total = REG_TYPES_SEEN.reduce((a, t) => a + t.count, 0);
+            const prev  = sel.value;
+            sel.innerHTML = '<option value="">all (' + total + ')</option>' +
+              REG_TYPES_SEEN.map(t =>
+                '<option value="' + escapeHtml(t.type) + '">' + escapeHtml(t.type) + ' (' + t.count + ')</option>'
+              ).join('');
+            const fullEventOpt = REG_TYPES_SEEN.find(t => /full|season|event/i.test(t.type) && !/drop/i.test(t.type));
+            if (prev && Array.from(sel.options).some(o => o.value === prev)) sel.value = prev;
+            else if (fullEventOpt) sel.value = fullEventOpt.type;
+            wrap.style.display = '';
+          } else {
+            wrap.style.display = 'none';
+            sel.innerHTML = '';
+          }
+          renderPlayers();
+        })
+        .withFailureHandler(err => {
+          const msg = (err && err.message) || String(err);
+          el.innerHTML = '<p class="err" style="padding:16px">Error loading players: ' + escapeHtml(msg) + '</p>';
+          showErr(msg);
+        })
+        .api_listLeaguePlayers(LEAGUE_ID);
+    }
+
+    function renderPlayers() {
+      try { return _renderPlayersImpl(); }
+      catch (err) {
+        const el = document.getElementById('playersContent');
+        if (el) {
+          el.innerHTML = '<pre class="err" style="padding:12px;white-space:pre-wrap;font-size:12px">render error: ' +
+            escapeHtml(String(err && err.message || err)) + '\n\n' +
+            escapeHtml(String(err && err.stack || '')) + '</pre>';
+        }
+        console.error(err);
+      }
+    }
+    function _renderPlayersImpl() {
+      const el = document.getElementById('playersContent');
+      const sel = document.getElementById('regTypeFilter');
+      const filter = sel ? sel.value : '';
+      const regs = filter
+        ? LEAGUE_PLAYERS.filter(r => (r.registration_type || '') === filter)
+        : LEAGUE_PLAYERS;
+
+      const totalRegs    = regs.length;
+      const totalPlayers = regs.reduce((acc, r) => acc + 1 + (r.partner_name ? 1 : 0), 0);
+      const filterNote   = filter ? ' (filtered to "' + filter + '")' : '';
+      document.getElementById('rosterCount').textContent =
+        totalRegs + ' registration' + (totalRegs === 1 ? '' : 's') + ' · ' +
+        totalPlayers + ' player' + (totalPlayers === 1 ? '' : 's') + filterNote;
+
+      if (!regs.length) {
+        const D = PLAYERS_DIAG || {};
+        let html = '<div style="padding:20px; background:var(--bg-subtle); border-radius:8px">' +
+          '<p style="margin:0 0 8px"><strong>No CourtReserve attendance records match this league.</strong></p>' +
+          '<p class="muted" style="font-size:13px;margin:0 0 12px">Looking for league name: <code>' + escapeHtml(LEAGUE.name) + '</code></p>';
+
+        // Attendance breakdown (the new primary source).
+        html += '<p class="muted" style="font-size:13px;margin:8px 0 4px">' +
+          '<strong>CR_Attendance:</strong> ' + (D.attendance_total || 0) + ' rows total.</p>';
+        if (D.attendance_types && D.attendance_types.length) {
+          html += '<p class="muted" style="font-size:12px;margin:0 0 4px">Registration types:</p>';
+          html += '<ul style="margin:0 0 8px;font-size:12px;font-family:monospace">' +
+            D.attendance_types.map(t => '<li>(' + t.count + ') ' + escapeHtml(t.type) + '</li>').join('') +
+            '</ul>';
+        }
+        if (D.attendance_event_names && D.attendance_event_names.length) {
+          html += '<p class="muted" style="font-size:12px;margin:6px 0 4px">Top event names:</p>' +
+            '<ul style="margin:0 0 12px;font-size:12px;font-family:monospace; max-height:240px; overflow:auto; background:white; padding:6px 22px; border-radius:4px">' +
+            D.attendance_event_names.map(e =>
+              '<li>(' + e.count + ') ' + escapeHtml(e.event_name) + '</li>'
+            ).join('') +
+            '</ul>';
+        } else {
+          html += '<p class="muted" style="font-size:12px;margin:0 0 12px">' +
+            '0 attendance rows. Pull via <strong>Admin → Integrations → Pull ALL attendance</strong>.</p>';
+        }
+
+        // Registrations fallback diagnostic.
+        if (D.event_names_seen && D.event_names_seen.length) {
+          html += '<details style="margin-top:8px"><summary class="muted" style="font-size:12px;cursor:pointer">CR_Registrations fallback (' + (D.total_rows || 0) + ' rows)</summary>' +
+            '<ul style="margin:6px 0 0;font-size:12px;font-family:monospace; max-height:200px; overflow:auto; background:white; padding:6px 22px; border-radius:4px">' +
+            D.event_names_seen.map(e => '<li>(' + e.count + ') ' + escapeHtml(e.event_name) + '</li>').join('') +
+            '</ul></details>';
+        }
+        html += '<p class="muted" style="font-size:12px;margin:12px 0 0">' +
+          'If one of the attendance event names above is right but doesn\'t match the league name, ' +
+          'rename the league in the Sheet\'s Leagues tab.</p>';
+        html += '</div>';
+        el.innerHTML = html;
+        return;
+      }
+
+      // Build paired teams + unpaired pool from the registration entries.
+      const seenPairings = {};
+      const teams = [];      // existing pairings: { pairing_id, team_name, p1, p2 }
+      const unpaired = [];
+
+      const byMember = {};
+      regs.forEach(r => { byMember[r.registrant_member_id] = r; });
+
+      regs.forEach(r => {
+        if (r.pairing_id) {
+          if (seenPairings[r.pairing_id]) return;
+          seenPairings[r.pairing_id] = true;
+          const partner = r.partner_member_id ? byMember[r.partner_member_id] : null;
+          // For simplicity, store both as registrant-shaped entries.
+          const a = r;
+          const b = partner || {
+            registrant_name: r.partner_name, registrant_member_id: r.partner_member_id,
+            registrant_dupr_id: r.partner_dupr_id, registrant_email: '',
+          };
+          const aSmaller = String(a.registrant_member_id).localeCompare(String(b.registrant_member_id || '')) <= 0;
+          teams.push({
+            pairing_id: r.pairing_id,
+            team_name:  r.team_name,
+            p1:         aSmaller ? a : b,
+            p2:         aSmaller ? b : a,
+          });
+        } else {
+          unpaired.push(r);
+        }
+      });
+
+      teams.sort((x, y) => String(x.team_name || '').localeCompare(String(y.team_name || '')));
+      unpaired.sort((x, y) =>
+        String(x.registrant_last || x.registrant_name || '').localeCompare(String(y.registrant_last || y.registrant_name || '')));
+
+      // Total bucket count: ceil(totalActive / 2). Existing pairings take the
+      // first M buckets; remaining buckets are empty drop targets.
+      const totalActive  = unpaired.length + (teams.length * 2);
+      const totalBuckets = Math.max(teams.length, Math.ceil(totalActive / 2));
+
+      // ===== Render =====
+      function playerCardHtml(p, paired) {
+        const mid = escapeHtml(p.registrant_member_id);
+        const name = escapeHtml(p.registrant_name || '?');
+        const dupr = p.registrant_dupr_id ? '<span class="pdupr">' + escapeHtml(p.registrant_dupr_id) + '</span>' : '';
+        return `<div class="player-card" draggable="true" data-mid="${mid}" data-name="${name}" data-paired="${paired ? '1' : '0'}">
+          <span class="pname">${name}</span>${dupr}
+        </div>`;
+      }
+
+      let html = `<div class="pair-layout">
+        <div class="pool-panel" id="poolPanel">
+          <p class="pool-header">Players (${unpaired.length})</p>
+          <p class="muted" style="font-size:11px;margin:0 0 8px;padding:0 4px">Drag a name into a team bucket. Drag back here to unpair.</p>
+          <div class="player-pool" id="playerPool">
+            ${unpaired.map(p => playerCardHtml(p, false)).join('') || '<span class="muted" style="font-size:12px;padding:8px">All paired ✓</span>'}
+          </div>
+        </div>
+        <div class="buckets-panel">
+          <p class="pool-header">Teams (${teams.length} of ${totalBuckets})</p>
+          <div class="bucket-grid" id="bucketGrid">`;
+
+      // Filled buckets (paired teams)
+      teams.forEach((t, i) => {
+        html += `<div class="bucket full" data-bucket="${i + 1}" data-pairing-id="${escapeHtml(t.pairing_id)}">
+          <div class="bucket-header"><span class="num">#${i + 1}</span><span>2 / 2</span></div>
+          <input class="bucket-name" value="${escapeHtml(t.team_name)}"
+                 onblur="renamePairing('${escapeHtml(t.pairing_id)}', this.value)"
+                 onkeydown="if(event.key==='Enter')this.blur()">
+          ${playerCardHtml(t.p1, true)}
+          ${playerCardHtml(t.p2, true)}
+        </div>`;
+      });
+      // Empty buckets
+      for (let i = teams.length; i < totalBuckets; i++) {
+        html += `<div class="bucket" data-bucket="${i + 1}" data-pairing-id="">
+          <div class="bucket-header"><span class="num">#${i + 1}</span><span>0 / 2</span></div>
+          <div class="bucket-empty">drop two players here</div>
+        </div>`;
+      }
+
+      html += `</div></div></div>`;
+      el.innerHTML = html;
+      wireDragAndDrop();
+    }
+
+    // Client-side: track which bucket has a "pending" partial drop (1 player
+    // not yet committed). Stored as { bucketEl, memberId }.
+    let PENDING_BUCKET = null;
+
+    function wireDragAndDrop() {
+      const cards = document.querySelectorAll('#playersContent .player-card');
+      cards.forEach(c => {
+        c.addEventListener('dragstart', onCardDragStart);
+        c.addEventListener('dragend',   onCardDragEnd);
+      });
+      const buckets = document.querySelectorAll('#playersContent .bucket');
+      buckets.forEach(b => {
+        b.addEventListener('dragover',  onDropZoneDragOver);
+        b.addEventListener('dragleave', onDropZoneDragLeave);
+        b.addEventListener('drop',      onBucketDrop);
+      });
+      const pool = document.getElementById('poolPanel');
+      if (pool) {
+        pool.addEventListener('dragover',  onDropZoneDragOver);
+        pool.addEventListener('dragleave', onDropZoneDragLeave);
+        pool.addEventListener('drop',      onPoolDrop);
+      }
+    }
+
+    function onCardDragStart(e) {
+      const card = e.currentTarget;
+      card.classList.add('dragging');
+      const payload = JSON.stringify({
+        mid:        card.dataset.mid,
+        paired:     card.dataset.paired === '1',
+        sourceBucket: card.closest('.bucket')?.dataset.bucket || null,
+        sourcePairing: card.closest('.bucket')?.dataset.pairingId || '',
+      });
+      e.dataTransfer.setData('application/json', payload);
+      e.dataTransfer.setData('text/plain', card.dataset.mid);
+      e.dataTransfer.effectAllowed = 'move';
+    }
+    function onCardDragEnd(e) {
+      e.currentTarget.classList.remove('dragging');
+    }
+
+    function onDropZoneDragOver(e) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      e.currentTarget.classList.add('drag-over');
+    }
+    function onDropZoneDragLeave(e) {
+      e.currentTarget.classList.remove('drag-over');
+    }
+
+    function readDropPayload(e) {
+      try { return JSON.parse(e.dataTransfer.getData('application/json') || '{}'); }
+      catch (err) { return { mid: e.dataTransfer.getData('text/plain') }; }
+    }
+
+    function onBucketDrop(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      const bucket = e.currentTarget;
+      bucket.classList.remove('drag-over');
+      const data = readDropPayload(e);
+      if (!data.mid) return;
+
+      // Source: pool (no source bucket) OR another bucket.
+      // If source is a different bucket, first remove from there.
+      if (data.sourcePairing) {
+        // Player was part of an existing pairing → delete that pairing first.
+        google.script.run
+          .withSuccessHandler(() => continueBucketDrop(bucket, data.mid))
+          .withFailureHandler(() => continueBucketDrop(bucket, data.mid))
+          .api_deleteTeamPairing(data.sourcePairing);
+      } else {
+        continueBucketDrop(bucket, data.mid);
+      }
+    }
+
+    function continueBucketDrop(bucket, mid) {
+      // If bucket has a pairing already, unpair it first (replacement).
+      const existingPairingId = bucket.dataset.pairingId;
+      if (existingPairingId) {
+        google.script.run
+          .withSuccessHandler(() => placeIntoBucket(bucket, mid))
+          .withFailureHandler(() => placeIntoBucket(bucket, mid))
+          .api_deleteTeamPairing(existingPairingId);
+        return;
+      }
+      placeIntoBucket(bucket, mid);
+    }
+
+    function placeIntoBucket(bucket, mid) {
+      const card = document.querySelector(`#playersContent .player-card[data-mid="${CSS.escape(mid)}"]`);
+      if (!card) return;
+
+      // If the bucket already has 1 pending player, drop completes the pair.
+      if (PENDING_BUCKET && PENDING_BUCKET.bucketEl === bucket) {
+        const otherMid = PENDING_BUCKET.memberId;
+        if (otherMid === mid) { PENDING_BUCKET = null; return; }
+        PENDING_BUCKET = null;
+        // Move the card visually now (optimistic) so there's no flicker.
+        const empty = bucket.querySelector('.bucket-empty'); if (empty) empty.remove();
+        bucket.appendChild(card);
+        google.script.run
+          .withSuccessHandler(r => {
+            if (!r || !r.ok) {
+              // Rollback on error.
+              const pool = document.getElementById('playerPool');
+              if (pool) pool.appendChild(card);
+              alert('Pair failed: ' + (r && r.error || 'unknown error'));
+              return;
+            }
+            const p = r.data;
+            // Mark bucket as full and wire pairing_id + team name.
+            bucket.classList.add('full');
+            bucket.dataset.pairingId = p.pairing_id;
+            const headerRight = bucket.querySelector('.bucket-header span:last-child');
+            if (headerRight) headerRight.textContent = '2 / 2';
+            // Insert team-name input if not already present.
+            let nameInput = bucket.querySelector('.bucket-name');
+            if (!nameInput) {
+              nameInput = document.createElement('input');
+              nameInput.className = 'bucket-name';
+              nameInput.value = p.team_name || '';
+              nameInput.addEventListener('blur',   () => renamePairing(p.pairing_id, nameInput.value));
+              nameInput.addEventListener('keydown', e => { if (e.key === 'Enter') nameInput.blur(); });
+              bucket.insertBefore(nameInput, bucket.querySelector('.player-card'));
+            } else {
+              nameInput.value = p.team_name || nameInput.value;
+            }
+            // Mark both cards as paired (so dragging them is treated as paired).
+            const cards = bucket.querySelectorAll('.player-card');
+            cards.forEach(c => { c.dataset.paired = '1'; });
+            // Update the player-pool count.
+            updatePoolHeader();
+            updateBucketHeader();
+            // Refresh state so subsequent renders reflect the pairing.
+            const pAirReg = LEAGUE_PLAYERS.find(r => r.registrant_member_id === otherMid);
+            const pBirReg = LEAGUE_PLAYERS.find(r => r.registrant_member_id === mid);
+            if (pAirReg) { pAirReg.pairing_id = p.pairing_id; pAirReg.team_name = p.team_name || ''; pAirReg.partner_member_id = mid; pAirReg.partner_name = pBirReg ? pBirReg.registrant_name : ''; }
+            if (pBirReg) { pBirReg.pairing_id = p.pairing_id; pBirReg.team_name = p.team_name || ''; pBirReg.partner_member_id = otherMid; pBirReg.partner_name = pAirReg ? pAirReg.registrant_name : ''; }
+          })
+          .withFailureHandler(e => {
+            const pool = document.getElementById('playerPool');
+            if (pool) pool.appendChild(card);
+            alert('Pair failed: ' + (e && e.message || e));
+          })
+          .api_createTeamPairing({
+            league_id: LEAGUE_ID,
+            p1_member_id: otherMid,
+            p2_member_id: mid,
+            team_name:    '',
+          });
+        return;
+      }
+      // Otherwise this is the first player in the bucket — set pending.
+      PENDING_BUCKET = { bucketEl: bucket, memberId: mid };
+      const empty = bucket.querySelector('.bucket-empty');
+      if (empty) empty.remove();
+      bucket.appendChild(card);
+      card.dataset.paired = '0';
+      const header = bucket.querySelector('.bucket-header span:last-child');
+      if (header) header.textContent = '1 / 2';
+      updatePoolHeader();
+    }
+
+    function onPoolDrop(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      const pool = e.currentTarget;
+      pool.classList.remove('drag-over');
+      const data = readDropPayload(e);
+      if (!data.mid) return;
+
+      const card = document.querySelector(`#playersContent .player-card[data-mid="${CSS.escape(data.mid)}"]`);
+      if (!card) return;
+
+      // Delete the source pairing on server (if any), then move cards back locally.
+      const finishMoveBack = () => {
+        const playerPool = document.getElementById('playerPool');
+        if (playerPool) playerPool.appendChild(card);
+        card.dataset.paired = '0';
+        // If the source bucket is now empty, restore "drop two players here" placeholder.
+        if (data.sourceBucket) {
+          const srcBucket = document.querySelector(`#playersContent .bucket[data-bucket="${data.sourceBucket}"]`);
+          if (srcBucket) {
+            // Move any remaining card in that bucket back to the pool too.
+            const remaining = srcBucket.querySelectorAll('.player-card');
+            remaining.forEach(c => {
+              if (playerPool) playerPool.appendChild(c);
+              c.dataset.paired = '0';
+            });
+            // Remove the team-name input if present.
+            const nameInput = srcBucket.querySelector('.bucket-name');
+            if (nameInput) nameInput.remove();
+            srcBucket.dataset.pairingId = '';
+            srcBucket.classList.remove('full');
+            const headerRight = srcBucket.querySelector('.bucket-header span:last-child');
+            if (headerRight) headerRight.textContent = '0 / 2';
+            if (!srcBucket.querySelector('.bucket-empty')) {
+              const placeholder = document.createElement('div');
+              placeholder.className = 'bucket-empty';
+              placeholder.textContent = 'drop two players here';
+              srcBucket.appendChild(placeholder);
+            }
+            // Update LEAGUE_PLAYERS state for any unpaired members.
+            remaining.forEach(c => {
+              const m = c.dataset.mid;
+              const reg = LEAGUE_PLAYERS.find(r => r.registrant_member_id === m);
+              if (reg) { reg.pairing_id = ''; reg.team_name = ''; reg.partner_member_id = ''; reg.partner_name = ''; }
+            });
+            const movedReg = LEAGUE_PLAYERS.find(r => r.registrant_member_id === data.mid);
+            if (movedReg) { movedReg.pairing_id = ''; movedReg.team_name = ''; movedReg.partner_member_id = ''; movedReg.partner_name = ''; }
+          }
+        }
+        updatePoolHeader();
+        updateBucketHeader();
+      };
+
+      if (data.sourcePairing) {
+        google.script.run
+          .withSuccessHandler(() => finishMoveBack())
+          .withFailureHandler(() => finishMoveBack())
+          .api_deleteTeamPairing(data.sourcePairing);
+        return;
+      }
+      // Pending-first-drop case: just move back, no server call.
+      if (PENDING_BUCKET && PENDING_BUCKET.memberId === data.mid) {
+        PENDING_BUCKET = null;
+        finishMoveBack();
+        return;
+      }
+      // Already in pool somehow — no-op.
+    }
+
+    /** Update "Players (N)" header by counting cards currently in the pool. */
+    function updatePoolHeader() {
+      const pool = document.getElementById('playerPool');
+      if (!pool) return;
+      const n = pool.querySelectorAll('.player-card').length;
+      const h = document.querySelector('#playersContent .pool-panel .pool-header');
+      if (h) h.textContent = 'Players (' + n + ')';
+      if (n === 0 && !pool.querySelector('.muted')) {
+        pool.innerHTML = '<span class="muted" style="font-size:12px;padding:8px">All paired ✓</span>';
+      } else if (n > 0) {
+        // Remove the "all paired" placeholder if it's there.
+        const placeholder = pool.querySelector('span.muted');
+        if (placeholder && pool.querySelectorAll('.player-card').length) {
+          // Only remove if it's the all-paired placeholder, not a real card.
+          if (/all paired/i.test(placeholder.textContent)) placeholder.remove();
+        }
+      }
+    }
+
+    /** Update "Teams (M of K)" header by counting full buckets. */
+    function updateBucketHeader() {
+      const grid = document.getElementById('bucketGrid');
+      if (!grid) return;
+      const total = grid.querySelectorAll('.bucket').length;
+      const full  = grid.querySelectorAll('.bucket.full').length;
+      const h = document.querySelector('#playersContent .buckets-panel .pool-header');
+      if (h) h.textContent = 'Teams (' + full + ' of ' + total + ')';
+    }
+
+    function createPairing() {
+      const p1 = document.getElementById('pairP1').value;
+      const p2 = document.getElementById('pairP2').value;
+      const name = document.getElementById('pairTeamName').value.trim();
+      const msg = document.getElementById('pairMsg');
+      function setMsg(t, cls) { msg.textContent = t; msg.className = cls || 'muted'; }
+      if (!p1 || !p2)  { setMsg('Pick both players', 'err'); return; }
+      if (p1 === p2)   { setMsg('Players must differ', 'err'); return; }
+      setMsg('Pairing…');
+      google.script.run
+        .withSuccessHandler(r => {
+          if (!r.ok) { setMsg('Error: ' + r.error, 'err'); return; }
+          setMsg('Paired ✓');
+          loadPlayers();
+        })
+        .withFailureHandler(e => setMsg(String(e && e.message || e), 'err'))
+        .api_createTeamPairing({
+          league_id: LEAGUE_ID,
+          p1_member_id: p1,
+          p2_member_id: p2,
+          team_name: name,
+        });
+    }
+
+    function renamePairing(pairing_id, newName) {
+      const trimmed = (newName || '').trim();
+      if (!trimmed) return;
+      google.script.run
+        .withSuccessHandler(r => { if (!r.ok) loadPlayers(); })
+        .withFailureHandler(() => {})
+        .api_renameTeamPairing(pairing_id, trimmed);
+    }
+
+    function unpairTeam(pairing_id) {
+      // Find the bucket and move its cards back to the pool. Used by drag-out
+      // and (legacy) Unpair button. No full reload.
+      const bucket = document.querySelector(
+        `#playersContent .bucket[data-pairing-id="${CSS.escape(pairing_id)}"]`);
+      const playerPool = document.getElementById('playerPool');
+      const finish = () => {
+        if (bucket && playerPool) {
+          bucket.querySelectorAll('.player-card').forEach(c => {
+            playerPool.appendChild(c);
+            c.dataset.paired = '0';
+            const m = c.dataset.mid;
+            const reg = LEAGUE_PLAYERS.find(r => r.registrant_member_id === m);
+            if (reg) { reg.pairing_id = ''; reg.team_name = ''; reg.partner_member_id = ''; reg.partner_name = ''; }
+          });
+          const nameInput = bucket.querySelector('.bucket-name');
+          if (nameInput) nameInput.remove();
+          bucket.dataset.pairingId = '';
+          bucket.classList.remove('full');
+          const headerRight = bucket.querySelector('.bucket-header span:last-child');
+          if (headerRight) headerRight.textContent = '0 / 2';
+          if (!bucket.querySelector('.bucket-empty')) {
+            const placeholder = document.createElement('div');
+            placeholder.className = 'bucket-empty';
+            placeholder.textContent = 'drop two players here';
+            bucket.appendChild(placeholder);
+          }
+        }
+        updatePoolHeader();
+        updateBucketHeader();
+      };
+      google.script.run
+        .withSuccessHandler(() => finish())
+        .withFailureHandler(() => finish())
+        .api_deleteTeamPairing(pairing_id);
+    }
+
+    function saveTeamName(cr_reg_id, newName) {
+      const reg = LEAGUE_PLAYERS.find(r => r.cr_reg_id === cr_reg_id);
+      if (!reg) return;
+      const trimmed = (newName || '').trim();
+      if (reg.team_name === trimmed) return;
+      google.script.run
+        .withSuccessHandler(r => {
+          if (!r.ok) return;
+          reg.team_name = trimmed || reg.team_name;
+          reg.team_name_overridden = !!trimmed;
+        })
+        .withFailureHandler(() => {})
+        .api_setTeamNameOverride(cr_reg_id, trimmed);
+    }
+
+    /** Inspect both CR_Attendance and CR_Registrations from the server's POV. */
+    function describeCRFields() {
+      const out = document.getElementById('crInspectOut');
+      out.classList.remove('hidden');
+      out.textContent = 'Inspecting…';
+      google.script.run
+        .withSuccessHandler(r => {
+          if (!r.ok) { out.textContent = 'Error: ' + r.error; return; }
+          const d = r.data || {};
+          let txt = '';
+
+          // Attendance (primary).
+          const att = d.attendance || {};
+          txt += '═════ CR_Attendance (server view) ═════\n';
+          txt += 'total_rows: ' + (att.total_rows == null ? 'undefined' : att.total_rows) + '\n';
+          if (att.read_error) txt += 'read_error: ' + att.read_error + '\n';
+          if (att.sheet_headers) {
+            txt += 'sheet_headers: ' + att.sheet_headers.join(', ') + '\n';
+          }
+          if (att.registration_types && att.registration_types.length) {
+            txt += '\nDistinct registration_type values:\n';
+            att.registration_types.forEach(t => { txt += '  ' + JSON.stringify(t.type) + ': ' + t.count + '\n'; });
+          }
+          if (att.top_event_names && att.top_event_names.length) {
+            txt += '\nTop event_name values (top ' + att.top_event_names.length + '):\n';
+            att.top_event_names.forEach(e => { txt += '  (' + e.count + ') ' + e.event_name + '\n'; });
+          }
+          if (att.sample_row) {
+            txt += '\nSample row:\n' + JSON.stringify(att.sample_row, null, 2) + '\n';
+          }
+
+          // Registrations (legacy, optional).
+          const reg = d.registrations || (d.distinct_field_names ? d : null);
+          if (reg) {
+            txt += '\n\n═════ CR_Registrations (legacy) ═════\n';
+            txt += 'total_rows: ' + (reg.total_rows == null ? 'undefined' : reg.total_rows) + '\n';
+            txt += 'rows_with_raw_json: ' + (reg.rows_with_raw_json || 0) + '\n';
+          }
+
+          out.textContent = txt;
+        })
+        .withFailureHandler(e => { out.textContent = 'Error: ' + (e && e.message || e); })
+        .api_describeCRRegistrationFields();
+    }
+
+    function saveDuprOverride(member_id, email, newDupr) {
+      const trimmed = (newDupr || '').trim();
+      const input = { dupr_id: trimmed };
+      if (member_id) input.cr_member_id = member_id;
+      if (email)     input.email = email;
+      if (!member_id && !email) return;
+      google.script.run
+        .withSuccessHandler(r => {
+          if (!r.ok) return;
+          // Update local cache.
+          LEAGUE_PLAYERS.forEach(reg => {
+            if (member_id && reg.registrant_member_id === member_id) reg.registrant_dupr_id = trimmed;
+            if (member_id && reg.partner_member_id    === member_id) reg.partner_dupr_id    = trimmed;
+            if (email && (reg.registrant_email || '').toLowerCase() === email.toLowerCase()) {
+              reg.registrant_dupr_id = trimmed;
+            }
+          });
+        })
+        .withFailureHandler(() => {})
+        .api_setPlayerDuprOverride(input);
+    }
+
+    /* ====================================================================
+       LADDER PLAYERS TAB — CR-attendance-driven, no pairings.
+       ==================================================================== */
+
+    let LADDER_ATTENDANCE_DATE = '';   // currently selected attendance overlay date
+    let LADDER_ATTENDANCE_DATA = null; // last api_crGetNoShowsForDate response
+    let LADDER_SESSION_DATES = [];     // [{date, event_name, count}] from CR_Attendance
+
+    function loadLadderPlayers() {
+      const el = document.getElementById('playersContent');
+      el.innerHTML = '<span class="muted">Loading…</span>';
+      // Kick off both fetches in parallel — the date list comes from
+      // CR_Attendance directly so it works even when League_Schedule is empty.
+      let playersResp = null, datesResp = null, both = false;
+      const tryRender = () => {
+        if (!playersResp || !datesResp) return;
+        if (!playersResp.ok) {
+          const msg = playersResp.error || 'No response from server';
+          el.innerHTML = '<p class="err" style="padding:16px">Error loading players: ' + escapeHtml(msg) + '</p>';
+          showErr(msg);
+          return;
+        }
+        const payload = playersResp.data || {};
+        LEAGUE_PLAYERS = payload.rows || [];
+        PLAYERS_DIAG   = payload._no_match ? payload : null;
+        LADDER_SESSION_DATES = (datesResp.ok && datesResp.data) ? datesResp.data : [];
+        renderLadderPlayers();
+      };
+      google.script.run
+        .withSuccessHandler(r => { playersResp = r || { ok: false, error: 'no response' }; tryRender(); })
+        .withFailureHandler(err => {
+          playersResp = { ok: false, error: (err && err.message) || String(err) };
+          tryRender();
+        })
+        .api_listLeaguePlayers(LEAGUE_ID);
+      google.script.run
+        .withSuccessHandler(r => { datesResp = r || { ok: false }; tryRender(); })
+        .withFailureHandler(() => { datesResp = { ok: false }; tryRender(); })
+        .api_getLadderSessionDates(LEAGUE_ID);
+    }
+
+    function renderLadderPlayers() {
+      const el = document.getElementById('playersContent');
+      const regs = LEAGUE_PLAYERS;
+
+      // Build a roster lookup so we can mark who's already in Rosters.
+      // ROSTER is loaded by the main league fetch.
+      const rosterByMember = {};
+      (ROSTER || []).forEach(p => {
+        if (p.club_member_id) rosterByMember[String(p.club_member_id).trim()] = p;
+      });
+
+      // Attendance overlay lookup (when a date is selected).
+      const att = LADDER_ATTENDANCE_DATA || {};
+      const noShowSet = new Set(att.no_show_player_ids || []);
+      const subSet    = new Set(att.sub_player_ids || []);
+      const externalSubs = att.external_subs || [];
+
+      const totalRegs = regs.length;
+      const totalRoster = (ROSTER || []).length;
+      const onRoster  = regs.filter(r => rosterByMember[String(r.registrant_member_id).trim()]).length;
+      const stale = totalRoster - onRoster;
+      let countText = totalRegs + ' attendee' + (totalRegs === 1 ? '' : 's') +
+        ' · ' + totalRoster + ' on roster';
+      if (stale > 0) countText += ` (⚠ ${stale} not in attendance — Reset to clean up)`;
+      document.getElementById('rosterCount').textContent = countText;
+
+      // Merge dates from League_Schedule (planned) and CR_Attendance (actual).
+      // De-duplicate, sort chronologically, label attendance-only dates with
+      // the row count so the operator knows which sessions actually happened.
+      const dateMap = {};
+      (LEAGUE_SCHEDULE || []).forEach(s => {
+        const d = String(s.play_date || '').slice(0, 10);
+        if (d) dateMap[d] = { date: d, source: 'schedule', count: 0 };
+      });
+      (LADDER_SESSION_DATES || []).forEach(s => {
+        const d = s.date;
+        if (!d) return;
+        if (dateMap[d]) { dateMap[d].source = 'both'; dateMap[d].count = s.count; }
+        else dateMap[d] = { date: d, source: 'attendance', count: s.count };
+      });
+      const allDates = Object.keys(dateMap).sort().map(k => dateMap[k]);
+      const dateOptions = ['<option value="">— off —</option>'].concat(
+        allDates.map(d => {
+          const tag = d.source === 'attendance' ? ` (${d.count} att.)` :
+                      d.source === 'both'       ? ` (${d.count} att.)` : '';
+          return `<option value="${d.date}"${d.date === LADDER_ATTENDANCE_DATE ? ' selected' : ''}>${escapeHtml(d.date + tag)}</option>`;
+        }));
+
+      // No-match diagnostic.
+      if (!regs.length) {
+        const D = PLAYERS_DIAG || {};
+        let html = '<div style="padding:20px; background:var(--bg-subtle); border-radius:8px">' +
+          '<p style="margin:0 0 8px"><strong>No CourtReserve attendance records match this league.</strong></p>' +
+          '<p class="muted" style="font-size:13px;margin:0 0 12px">Looking for league name: <code>' + escapeHtml(LEAGUE.name) + '</code></p>';
+        if (D.attendance_total != null) {
+          html += '<p class="muted" style="font-size:13px">CR_Attendance: ' + D.attendance_total + ' rows total.</p>';
+        }
+        if (D.attendance_event_names && D.attendance_event_names.length) {
+          html += '<p class="muted" style="font-size:12px;margin:6px 0 4px">Top event names in attendance:</p>' +
+            '<ul style="margin:0;font-size:12px;font-family:monospace;max-height:240px;overflow:auto;background:white;padding:6px 22px;border-radius:4px">' +
+            D.attendance_event_names.map(e =>
+              '<li>(' + e.count + ') ' + escapeHtml(e.event_name) + '</li>').join('') +
+            '</ul>';
+        }
+        html += '<p class="muted" style="font-size:12px;margin:12px 0 0">' +
+          'To populate: Admin → Integrations → Pull ALL attendance.</p>' +
+          '</div>';
+        el.innerHTML = html;
+        return;
+      }
+
+      // Toolbar: sync + reset buttons + date picker.
+      let html = `<div class="ladder-toolbar" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px;padding:10px 14px;background:var(--bg-subtle);border-radius:8px">
+        <button class="btn" onclick="syncLadderRoster()">Sync roster from attendance</button>
+        <button class="btn danger" onclick="resetLadderRoster()" title="Wipe this league's roster and rebuild from current attendance — use to clean up stale entries from a previous sync">Reset roster</button>
+        <span id="ladderSyncMsg" class="muted" style="font-size:12px"></span>
+        <span style="flex:1"></span>
+        <label style="font-size:12px;color:var(--text-muted);display:flex;gap:6px;align-items:center;margin:0">
+          Attendance for date:
+          <select onchange="setLadderAttendanceDate(this.value)">${dateOptions.join('')}</select>
+        </label>
+      </div>`;
+
+      // Sort by name (rostered first).
+      const sorted = regs.slice().sort((a, b) => {
+        const ar = rosterByMember[String(a.registrant_member_id).trim()] ? 0 : 1;
+        const br = rosterByMember[String(b.registrant_member_id).trim()] ? 0 : 1;
+        if (ar !== br) return ar - br;
+        return String(a.registrant_name || '').localeCompare(String(b.registrant_name || ''));
+      });
+
+      // Render player cards.
+      const cards = sorted.map(r => {
+        const mid = String(r.registrant_member_id).trim();
+        const rosterPlayer = rosterByMember[mid];
+        const onRosterPill = rosterPlayer
+          ? '<span class="pill ok">on roster</span>'
+          : '<span class="pill warn">not yet</span>';
+
+        let attPill = '';
+        if (LADDER_ATTENDANCE_DATE && rosterPlayer) {
+          const pid = rosterPlayer.player_id;
+          if (noShowSet.has(pid)) attPill = '<span class="pill" style="background:#fee;color:#c33">no-show</span>';
+          else if (subSet.has(pid)) attPill = '<span class="pill" style="background:#fef3c7;color:#92400e">subbing in</span>';
+        }
+
+        const dupr = r.registrant_dupr_id || '';
+        return `<div class="ladder-card" style="padding:8px 12px;border:1px solid var(--border);border-radius:6px;display:grid;grid-template-columns:1fr auto auto auto;gap:10px;align-items:center">
+          <div>
+            <div style="font-weight:600">${escapeHtml(r.registrant_name || '?')}</div>
+            <div class="muted" style="font-size:11px">CR #${escapeHtml(mid)}${r.level ? ' · ' + escapeHtml(r.level) : ''}</div>
+          </div>
+          <input type="text" placeholder="DUPR ID" value="${escapeHtml(dupr)}" style="width:90px;font-size:12px;padding:4px 6px"
+                 onblur="saveDuprOverride('${escapeHtml(mid)}', '', this.value)">
+          ${attPill}
+          ${onRosterPill}
+        </div>`;
+      }).join('');
+
+      html += `<div style="display:grid;gap:6px">${cards}</div>`;
+
+      // External subs — players not on the roster who appeared in attendance as subs.
+      if (LADDER_ATTENDANCE_DATE && externalSubs.length) {
+        const extCards = externalSubs.map(s => `<div style="padding:6px 10px;border:1px dashed var(--border);border-radius:6px;font-size:13px">
+          <strong>${escapeHtml(s.full_name)}</strong>
+          <span class="muted" style="font-size:11px">CR #${escapeHtml(s.member_number || '')}</span>
+          ${s.is_temp ? '<span class="pill warn" style="margin-left:6px">temp</span>' : ''}
+        </div>`).join('');
+        html += `<div style="margin-top:18px">
+          <p class="pool-header" style="margin:0 0 6px">External subs (${externalSubs.length})</p>
+          <p class="muted" style="font-size:11px;margin:0 0 8px">Players from outside this roster who appeared as subs on ${escapeHtml(LADDER_ATTENDANCE_DATE)}.</p>
+          <div style="display:grid;gap:6px">${extCards}</div>
+        </div>`;
+      }
+
+      el.innerHTML = html;
+    }
+
+    function syncLadderRoster() {
+      const msg = document.getElementById('ladderSyncMsg');
+      if (msg) { msg.textContent = 'Syncing…'; msg.className = 'muted'; }
+      google.script.run
+        .withSuccessHandler(r => {
+          if (!r.ok) {
+            if (msg) { msg.textContent = 'Error: ' + r.error; msg.className = 'err'; }
+            return;
+          }
+          const d = r.data || {};
+          const note = `+${d.players_added} player(s), +${d.rosters_added} roster row(s) (of ${d.total_attendees} attendees) ✓`;
+          if (msg) { msg.textContent = note; msg.className = 'muted'; }
+          // Reload league (to refresh ROSTER) then re-render.
+          google.script.run
+            .withSuccessHandler(rr => {
+              if (rr.ok) {
+                ROSTER = rr.data.roster || [];
+                LEAGUE_SCHEDULE = rr.data.schedule || LEAGUE_SCHEDULE;
+                renderLadderPlayers();
+              }
+            })
+            .withFailureHandler(showErr)
+            .api_getLeague(LEAGUE_ID);
+        })
+        .withFailureHandler(e => {
+          if (msg) { msg.textContent = 'Error: ' + (e && e.message || e); msg.className = 'err'; }
+        })
+        .api_syncLadderRosterFromAttendance(LEAGUE_ID);
+    }
+
+    function resetLadderRoster() {
+      const totalRoster = (ROSTER || []).length;
+      const ok = confirm(
+        `This will DELETE all ${totalRoster} roster row${totalRoster === 1 ? '' : 's'} for this league ` +
+        `and rebuild from current CR_Attendance. Players themselves are kept (they may belong to other leagues). ` +
+        `\n\nProceed?`
+      );
+      if (!ok) return;
+      const msg = document.getElementById('ladderSyncMsg');
+      if (msg) { msg.textContent = 'Resetting…'; msg.className = 'muted'; }
+      google.script.run
+        .withSuccessHandler(r => {
+          if (!r.ok) {
+            if (msg) { msg.textContent = 'Error: ' + r.error; msg.className = 'err'; }
+            return;
+          }
+          const d = r.data || {};
+          const note = `Dropped ${d.rosters_dropped} stale, added ${d.rosters_added} from ${d.total_attendees} attendees ✓`;
+          if (msg) { msg.textContent = note; msg.className = 'muted'; }
+          google.script.run
+            .withSuccessHandler(rr => {
+              if (rr.ok) {
+                ROSTER = rr.data.roster || [];
+                LEAGUE_SCHEDULE = rr.data.schedule || LEAGUE_SCHEDULE;
+                renderLadderPlayers();
+              }
+            })
+            .withFailureHandler(showErr)
+            .api_getLeague(LEAGUE_ID);
+        })
+        .withFailureHandler(e => {
+          if (msg) { msg.textContent = 'Error: ' + (e && e.message || e); msg.className = 'err'; }
+        })
+        .api_resetLadderRosterFromAttendance(LEAGUE_ID);
+    }
+
+    function setLadderAttendanceDate(date) {
+      LADDER_ATTENDANCE_DATE = date || '';
+      if (!LADDER_ATTENDANCE_DATE) {
+        LADDER_ATTENDANCE_DATA = null;
+        renderLadderPlayers();
+        return;
+      }
+      google.script.run
+        .withSuccessHandler(r => {
+          if (!r.ok) { showErr(r.error); return; }
+          LADDER_ATTENDANCE_DATA = r.data || {};
+          renderLadderPlayers();
+        })
+        .withFailureHandler(showErr)
+        .api_crGetNoShowsForDate(LEAGUE_ID, LADDER_ATTENDANCE_DATE);
+    }
+
+    /* ====================================================================
+       SCHEDULE TAB
+       ==================================================================== */
+
+    function onSchedAlgoChange() {
+      const algo = document.getElementById('schedAlgo').value;
+      document.getElementById('schedGamesWrap').style.display = (algo === 'v2') ? '' : 'none';
+      const r = document.getElementById('schedRounds');
+      if (algo === 'v2' && r.value === '6') r.value = '8';
+      if (algo === 'v1' && r.value === '8') r.value = '6';
+    }
+
+    function generateSchedule() {
+      if (!LEAGUE) return;
+      if (LEAGUE.format_type !== 'partner') {
+        alert('Schedule generation is partner-format only. This is a ladder league.');
+        return;
+      }
+      const algo   = document.getElementById('schedAlgo').value;
+      const rounds = Number(document.getElementById('schedRounds').value) || (algo === 'v2' ? 8 : 6);
+      setSchedMsg('Generating…');
+      const onResp = r => {
+        if (!r.ok) { setSchedMsg('Error: ' + r.error, 'err'); return; }
+        const d = r.data;
+        let msg = `Generated ${d.total_matches} matches across ${d.weeks_seen} weeks ✓`;
+        if (algo === 'v2') {
+          msg += d.balanced
+            ? ` · balanced ±1 (${d.pair_count_min}–${d.pair_count_max})`
+            : ` · unbalanced (${d.pair_count_min}–${d.pair_count_max})`;
+          if (d.warnings && d.warnings.length) msg += ' · ⚠ ' + d.warnings[0];
+        }
+        setSchedMsg(msg);
+        loadSchedule();
+      };
+      if (algo === 'v2') {
+        const games = Number(document.getElementById('schedGames').value) || 6;
+        google.script.run.withSuccessHandler(onResp)
+          .withFailureHandler(e => setSchedMsg('Error: ' + (e && e.message || e), 'err'))
+          .api_generateScheduleV2(LEAGUE_ID, { rounds_per_week: rounds, games_per_team_per_week: games });
+      } else {
+        google.script.run.withSuccessHandler(onResp)
+          .withFailureHandler(e => setSchedMsg('Error: ' + (e && e.message || e), 'err'))
+          .api_generateSchedule(LEAGUE_ID, { rounds_per_week: rounds });
+      }
+    }
+
+    function setSchedMsg(t, cls) {
+      const el = document.getElementById('schedMsg');
+      el.textContent = t;
+      el.className = cls || 'muted';
+    }
+
+    function loadSchedule() {
+      if (!LEAGUE) return;
+      if (LEAGUE.format_type !== 'partner') {
+        document.getElementById('scheduleContent').innerHTML =
+          '<p class="muted">Schedule generation only applies to partner-format leagues.</p>';
+        return;
+      }
+      document.getElementById('scheduleContent').innerHTML = '<span class="muted">Loading…</span>';
+      google.script.run
+        .withSuccessHandler(r => {
+          if (!r.ok) { showErr(r.error); return; }
+          SCHEDULE_MATCHES = r.data || [];
+          renderSchedule();
+        })
+        .withFailureHandler(showErr)
+        .api_listScheduledMatches(LEAGUE_ID, null);
+    }
+
+    function renderSchedule() {
+      const el = document.getElementById('scheduleContent');
+      if (!SCHEDULE_MATCHES.length) {
+        el.innerHTML = '<p class="muted">No schedule yet — click <strong>Generate</strong> above.</p>';
+        return;
+      }
+      const teamById = {};
+      TEAMS.forEach(t => { teamById[t.team_id] = t; });
+
+      // Group by week, then by round.
+      const byWeek = {};
+      SCHEDULE_MATCHES.forEach(m => {
+        const w = Number(m.week_number);
+        if (!byWeek[w]) byWeek[w] = [];
+        byWeek[w].push(m);
+      });
+      const weeks = Object.keys(byWeek).map(Number).sort((a, b) => a - b);
+      const playedTotal = SCHEDULE_MATCHES.filter(m => m.game_id).length;
+
+      let html = `<p class="muted" style="font-size:13px">${SCHEDULE_MATCHES.length} matches across ${weeks.length} weeks · ${playedTotal} played</p>`;
+
+      html += weeks.map(wn => {
+        const ms = byWeek[wn].sort((a, b) =>
+          Number(a.game_number) - Number(b.game_number) || Number(a.court_number) - Number(b.court_number));
+        const pd = ms[0] && ms[0].play_date ? String(ms[0].play_date).slice(0, 10) : '';
+        const played = ms.filter(m => m.game_id).length;
+
+        // Group by round
+        const byRound = {};
+        ms.forEach(m => { const r = Number(m.game_number); if (!byRound[r]) byRound[r] = []; byRound[r].push(m); });
+        const rNums = Object.keys(byRound).map(Number).sort((a, b) => a - b);
+
+        const rounds = rNums.map(rn => {
+          const matches = byRound[rn].map(m => {
+            const t1 = teamById[m.t1_team_id]; const t2 = teamById[m.t2_team_id];
+            const playedMark = m.game_id ? '<span style="color:var(--brand-green-dark)">✓</span> ' : '';
+            return `<span class="matchup">
+              <span class="muted">C${m.court_number}:</span> ${playedMark}
+              <strong>${escapeHtml(t1 ? t1.team_name : '?')}</strong> vs
+              <strong>${escapeHtml(t2 ? t2.team_name : '?')}</strong>
+            </span>`;
+          }).join(' &nbsp;|&nbsp; ');
+          return `<div style="margin:4px 0"><span class="muted" style="font-weight:700">R${rn}</span> &nbsp; ${matches}</div>`;
+        }).join('');
+
+        return `<details class="sched-week"${wn === weeks[0] ? ' open' : ''}>
+          <summary>
+            <strong>Week ${wn}</strong>${pd ? ' &mdash; ' + pd : ''}
+            <span class="pill ${played === ms.length ? 'ok' : ''}" style="margin-left:8px">${played}/${ms.length} played</span>
+          </summary>
+          ${rounds}
+        </details>`;
+      }).join('');
+
+      el.innerHTML = html;
+    }
+
+    /* -- Per-team season schedule view -- */
+    function loadTeamSeasonSchedule() {
+      if (!LEAGUE) return;
+      if (LEAGUE.format_type !== 'partner') {
+        document.getElementById('scheduleContent').innerHTML =
+          '<p class="muted">By-team season schedule is partner-only.</p>';
+        return;
+      }
+      document.getElementById('scheduleContent').innerHTML = '<span class="muted">Loading…</span>';
+      google.script.run
+        .withSuccessHandler(r => {
+          if (!r.ok) { showErr(r.error); return; }
+          renderTeamSeasonSchedule(r.data || {});
+        })
+        .withFailureHandler(showErr)
+        .api_getPartnerTeamSeasonSchedule(LEAGUE_ID);
+    }
+    function renderTeamSeasonSchedule(data) {
+      const el = document.getElementById('scheduleContent');
+      const teams = data.teams || [];
+      if (!teams.length) {
+        el.innerHTML = '<p class="muted">No teams yet.</p>';
+        return;
+      }
+      const cards = teams.map(t => {
+        const rows = (t.schedule || [])
+          .slice()
+          .sort((a, b) => a.week - b.week || a.round - b.round)
+          .map(s => {
+            let assignment;
+            if (s.kind === 'bye') {
+              assignment = '<span class="muted">Bye</span>';
+            } else if (s.is_played) {
+              const result = s.won
+                ? `<span style="color:var(--brand-green-dark);font-weight:700">✓ Beat</span>`
+                : `<span style="color:var(--error);font-weight:700">✗ Lost to</span>`;
+              const score = `${s.my_score}-${s.opp_score}`;
+              assignment = `${result} ${escapeHtml(s.opponent_name)} <span class="muted">· Court ${s.court} · ${score}</span>`;
+            } else {
+              assignment = `<span class="muted">Court ${s.court}</span> vs ${escapeHtml(s.opponent_name)}`;
+            }
+            return `<tr>
+              <td><strong>W${s.week}</strong></td>
+              <td>R${s.round}</td>
+              <td>${assignment}</td>
+            </tr>`;
+          }).join('');
+        return `<details class="sched-week" open>
+          <summary><strong>${escapeHtml(t.team_name)}</strong> <span class="muted small">${(t.schedule || []).length} rows</span></summary>
+          <table class="players-table" style="margin-top:6px">
+            <thead><tr><th style="width:60px">Week</th><th style="width:60px">Round</th><th>Assignment</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </details>`;
+      }).join('');
+      el.innerHTML =
+        `<p class="muted" style="font-size:13px">${teams.length} teams · ${data.weeks ? data.weeks.length : 0} weeks · ${data.rounds_per_week || 0} rounds/week</p>` +
+        cards;
+    }
+
+    /* -- Pair heat map -- */
+    function loadPairHeatmap() {
+      if (!LEAGUE) return;
+      if (LEAGUE.format_type !== 'partner') {
+        document.getElementById('scheduleContent').innerHTML =
+          '<p class="muted">Pair heat map is partner-only.</p>';
+        return;
+      }
+      document.getElementById('scheduleContent').innerHTML = '<span class="muted">Loading…</span>';
+      google.script.run
+        .withSuccessHandler(r => {
+          if (!r.ok) { showErr(r.error); return; }
+          renderPairHeatmap(r.data || {});
+        })
+        .withFailureHandler(showErr)
+        .api_getPartnerPairHeatmap(LEAGUE_ID);
+    }
+    function renderPairHeatmap(data) {
+      const el = document.getElementById('scheduleContent');
+      const teams = data.teams || [];
+      const counts = data.counts || [];
+      const max = data.max_count || 1;
+      if (!teams.length) { el.innerHTML = '<p class="muted">No teams yet.</p>'; return; }
+      const headerCells = ['<th></th>'].concat(teams.map((t, i) =>
+        `<th class="small" style="writing-mode:vertical-rl;transform:rotate(180deg);padding:6px 4px">${escapeHtml(t.team_name)}</th>`));
+      const rows = teams.map((t, i) => {
+        const cells = [
+          `<th class="small" style="text-align:left;white-space:nowrap;padding-right:8px">${escapeHtml(t.team_name)}</th>`
+        ];
+        for (let j = 0; j < teams.length; j++) {
+          if (i === j) {
+            cells.push('<td style="background:#eee">—</td>');
+            continue;
+          }
+          const c = counts[i] && counts[i][j] || 0;
+          const pct = max > 0 ? c / max : 0;
+          // Orange shade scaling with count (higher count = more saturated)
+          const alpha = Math.min(1, 0.12 + pct * 0.78);
+          const bg = `rgba(245,130,32,${alpha.toFixed(2)})`;
+          const color = pct > 0.55 ? '#fff' : '#333';
+          cells.push(`<td style="text-align:center;background:${bg};color:${color};font-weight:600">${c || ''}</td>`);
+        }
+        return `<tr>${cells.join('')}</tr>`;
+      }).join('');
+      el.innerHTML = `
+        <p class="muted" style="font-size:13px">${data.total_matches || 0} total matches · max ${max}× between any pair</p>
+        <div style="overflow:auto">
+          <table class="players-table" style="font-size:12px">
+            <thead><tr>${headerCells.join('')}</tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>`;
+    }
+
+    /* ====================================================================
+       STANDINGS TAB
+       ==================================================================== */
+
+    function loadStandings() {
+      if (!LEAGUE) return;
+      document.getElementById('standingsContent').innerHTML = '<span class="muted">Loading…</span>';
+      google.script.run
+        .withSuccessHandler(onStandings)
+        .withFailureHandler(showErr)
+        .api_recomputeStandings(LEAGUE_ID);
+    }
+
+    function onStandings(resp) {
+      if (!resp.ok) return showErr(resp.error);
+      const data = resp.data || [];
+      const el = document.getElementById('standingsContent');
+      document.getElementById('standingsCount').textContent =
+        data.length + ' ' + (LEAGUE.format_type === 'partner' ? 'team' : 'player') + (data.length === 1 ? '' : 's');
+      if (!data.length) { el.innerHTML = '<p class="muted">No completed games yet.</p>'; return; }
+
+      if (LEAGUE.format_type === 'partner') {
+        const rows = data.map(s => `<tr>
+          <td>${s.rank}</td>
+          <td><strong>${escapeHtml(s.team_name)}</strong><br>
+              <span class="small">${escapeHtml(s.player_1_name)} & ${escapeHtml(s.player_2_name)}</span></td>
+          <td>${s.wins} – ${s.losses}</td>
+          <td>${s.games_back > 0 ? s.games_back.toFixed(1) : '—'}</td>
+          <td>${s.point_diff > 0 ? '+' : ''}${s.point_diff}</td>
+          <td>${(s.point_pct * 100).toFixed(1)}%</td>
+        </tr>`).join('');
+        el.innerHTML = `<table class="players-table"><thead><tr>
+          <th>#</th><th>Team</th><th>W–L</th><th>GB</th><th>+/−</th><th>P%</th>
+        </tr></thead><tbody>${rows}</tbody></table>`;
+      } else {
+        const rows = data.map(s => `<tr>
+          <td>${s.rank}</td>
+          <td><strong>${escapeHtml(s.full_name)}</strong> <span class="small">${escapeHtml(s.level || '')}</span></td>
+          <td>${s.wins} – ${s.losses}</td>
+          <td>${(s.win_pct * 100).toFixed(1)}%</td>
+          <td>${(s.point_pct * 100).toFixed(1)}%</td>
+          <td>${s.score.toFixed(1)}</td>
+        </tr>`).join('');
+        el.innerHTML = `<table class="players-table"><thead><tr>
+          <th>#</th><th>Player</th><th>W–L</th><th>W%</th><th>P%</th><th>Score</th>
+        </tr></thead><tbody>${rows}</tbody></table>`;
+      }
+    }
+
+    /* ====================================================================
+       SCORES TAB (just shows recent games + link to Operator)
+       ==================================================================== */
+
+    function loadRecentGames() {
+      if (!LEAGUE) return;
+      document.getElementById('recentGamesContent').innerHTML = '<span class="muted">Loading…</span>';
+      google.script.run
+        .withSuccessHandler(r => {
+          if (!r.ok) return showErr(r.error);
+          renderRecentGames(r.data || []);
+        })
+        .withFailureHandler(showErr)
+        .api_listGames(LEAGUE_ID);
+    }
+
+    function renderRecentGames(games) {
+      const el = document.getElementById('recentGamesContent');
+      games = games.slice().reverse().slice(0, 50);
+      if (!games.length) { el.innerHTML = '<p class="muted">No games yet.</p>'; return; }
+      const teamById = {};
+      TEAMS.forEach(t => { teamById[t.team_id] = t; });
+      const playerById = {};
+      ROSTER.forEach(p => { playerById[p.player_id] = p; });
+
+      const rows = games.map(g => {
+        const date = g.play_date ? String(g.play_date).slice(0, 10) : '—';
+        const t1Label = g.t1_team_id ? (teamById[g.t1_team_id] || {}).team_name :
+          [(playerById[g.t1_player_1_id] || {}).full_name, (playerById[g.t1_player_2_id] || {}).full_name].filter(Boolean).join(' & ');
+        const t2Label = g.t2_team_id ? (teamById[g.t2_team_id] || {}).team_name :
+          [(playerById[g.t2_player_1_id] || {}).full_name, (playerById[g.t2_player_2_id] || {}).full_name].filter(Boolean).join(' & ');
+        return `<tr>
+          <td class="small">W${g.week_number} · ${date}</td>
+          <td>${escapeHtml(t1Label || '?')}</td>
+          <td><strong>${g.t1_score} – ${g.t2_score}</strong></td>
+          <td>${escapeHtml(t2Label || '?')}</td>
+          <td><span class="pill ${g.status === 'complete' ? 'ok' : ''}">${g.status}</span></td>
+        </tr>`;
+      }).join('');
+      el.innerHTML = `<table class="players-table">
+        <thead><tr><th>When</th><th>Team 1</th><th>Score</th><th>Team 2</th><th></th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+    }
+
+    init();
+  </script>
+</body>
+</html>

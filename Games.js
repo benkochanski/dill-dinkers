@@ -62,6 +62,7 @@ function saveGame_(g) {
     game_id:        game_id,
     league_id:      g.league_id,
     week_number:    g.week_number,
+    half:           g.half == null || g.half === '' ? '' : Number(g.half),
     round_number:   g.round_number   || '',
     group_number:   g.group_number   || '',
     match_number:   g.match_number   || '',
@@ -85,6 +86,7 @@ function saveGame_(g) {
   };
 
   appendObjects_('Games', [row]);
+  bumpLeagueVersion_(g.league_id);
   audit_('game_save', 'game', game_id, null, { score: row.t1_score + '-' + row.t2_score, winner });
   return row;
 }
@@ -105,6 +107,7 @@ function updateGame_(game_id, patch) {
     }
     g.updated_at = nowStamp_();
   });
+  bumpLeagueVersion_(before.league_id);
   audit_('game_update', 'game', game_id, before, patch);
   return getObjects_('Games').find(g => g.game_id === game_id);
 }
@@ -117,6 +120,7 @@ function voidGame_(game_id, reason) {
     g.notes = (g.notes ? g.notes + ' | ' : '') + 'voided: ' + (reason || '');
     g.updated_at = nowStamp_();
   });
+  bumpLeagueVersion_(before.league_id);
   audit_('game_void', 'game', game_id, before.status, 'voided');
 }
 

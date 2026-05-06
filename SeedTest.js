@@ -203,6 +203,170 @@ function debugPartnerStandings() {
   return s;
 }
 
+/**
+ * Seed a 13-team partner-format league + run the V2 scheduler against it.
+ * Idempotent — re-running reuses the existing league and teams.
+ *
+ * Run `seedTestPartner13()` from the Apps Script editor, then check the log
+ * for the per-round bye distribution and a sample of generated matches.
+ */
+function seedTestPartner13() {
+  const TEST_NAME = 'TEST Partners 13';
+  let league = listLeagues_().find(l => l.name === TEST_NAME);
+  if (!league) {
+    league = createLeague_({
+      name: TEST_NAME,
+      full_name: 'TEST Partners — 13 teams',
+      format_type: 'partner',
+      day_of_week: 'Tuesday',
+      start_time: '6p - 9p',
+      level: 'Levels 4-6',
+      season_label: 'Mar/Apr 2026',
+      status: 'active',
+      weeks: [
+        { week_starts: 'Mar 02', week_ends: 'Mar 08', play_date: 'Mar 03' },
+        { week_starts: 'Mar 09', week_ends: 'Mar 15', play_date: 'Mar 10' },
+        { week_starts: 'Mar 16', week_ends: 'Mar 22', play_date: 'Mar 17' },
+        { week_starts: 'Mar 23', week_ends: 'Mar 29', play_date: 'Mar 24' },
+        { week_starts: 'Mar 30', week_ends: 'Apr 05', play_date: 'Mar 31' },
+        { week_starts: 'Apr 06', week_ends: 'Apr 12', play_date: 'Apr 07' },
+      ],
+    });
+  }
+
+  // 26 players → 13 teams of 2
+  const playerSeeds = [];
+  for (let i = 1; i <= 26; i++) {
+    playerSeeds.push({
+      full_name: 'Test Player ' + i,
+      email:     'tp' + i + '.test@example.com',
+      level:     'Level 5',
+    });
+  }
+  const playerIds = playerSeeds.map(p => upsertPlayer_(p).player_id);
+
+  const existingTeams = listTeams_(league.league_id);
+  for (let t = 0; t < 13; t++) {
+    const teamName = 'Team ' + String.fromCharCode(65 + t);  // Team A..M
+    if (!existingTeams.find(et => et.team_name === teamName)) {
+      createTeam_(league.league_id, teamName, playerIds[t * 2], playerIds[t * 2 + 1]);
+    }
+  }
+
+  const result = generatePartnerScheduleV2_(league.league_id, {
+    rounds_per_week: 8,
+    games_per_team_per_week: 6,
+  });
+
+  Logger.log('League: %s (%s)', league.name, league.league_id);
+  Logger.log('Teams: %s', result.teams);
+  Logger.log('Bye distribution per round: [%s] (min=%s, max=%s)',
+    result.byes_per_round.join(', '), result.bye_count_min, result.bye_count_max);
+  Logger.log('Total matches: %s across %s weeks', result.total_matches, result.weeks_seen);
+  Logger.log('Pair balance: min=%s max=%s balanced=%s',
+    result.pair_count_min, result.pair_count_max, result.balanced);
+  if (result.warnings && result.warnings.length) {
+    Logger.log('Warnings:');
+    result.warnings.forEach(w => Logger.log('  - %s', w));
+  }
+  Logger.log('Sample matches:');
+  result.sample.forEach(m => Logger.log('  W%s R%s C%s: %s vs %s',
+    m.week_number, m.game_number, m.court_number, m.t1_team_id, m.t2_team_id));
+
+  // Per-round play counts for week 1, sanity check.
+  const weeks = getLeagueSchedule_(league.league_id);
+  const w1 = weeks[0];
+  const w1Matches = getObjects_('Match_Schedule')
+    .filter(m => m.league_id === league.league_id && Number(m.week_number) === Number(w1.week_number));
+  const perRound = {};
+  w1Matches.forEach(m => {
+    const r = Number(m.game_number);
+    perRound[r] = (perRound[r] || 0) + 1;
+  });
+  Logger.log('Week 1 games per round: %s', JSON.stringify(perRound));
+
+  return result;
+}
+
+/**
+ * One-shot: rename every team in the Intermediate Mixed Partners League to a
+ * randomly-shuffled pickleball-themed name. Run once from the Apps Script
+ * editor — pick this function, click Run, and refresh the league admin.
+ *
+ * Pass a different league name as `leagueName` to use elsewhere.
+ */
+function renamePartnerTeamsToPickleball(leagueName) {
+  leagueName = leagueName || 'Intermediate Mixed Partners League (Team Level 12 Cap)';
+  const league = listLeagues_().find(l => l.name === leagueName);
+  if (!league) throw new Error('League not found: ' + leagueName);
+  if (league.format_type !== 'partner') throw new Error('Partner-format only.');
+
+  const teams = listTeams_(league.league_id);
+  if (!teams.length) throw new Error('No teams in league: ' + leagueName);
+
+  const PICKLEBALL_NAMES = [
+    "Dinkin' Donuts",
+    "The Lob Mob",
+    "Smash Brothers",
+    "Volley Llamas",
+    "Net Assets",
+    "Spin Doctors",
+    "Kitchen Bandits",
+    "Court Jesters",
+    "Erne Wreckers",
+    "Dill With It",
+    "Banger Bunch",
+    "Lob City",
+    "Paddle Pushers",
+    "Pickle Posse",
+    "Third Shot Drops",
+    "Ace Holes",
+    "Sour Power",
+    "Soft Hands",
+    "Rally Cats",
+    "Brine Time",
+  ];
+  if (teams.length > PICKLEBALL_NAMES.length) {
+    throw new Error('Need more names — have ' + PICKLEBALL_NAMES.length +
+      ', league has ' + teams.length + ' teams.');
+  }
+
+  // Shuffle (Fisher-Yates).
+  const pool = PICKLEBALL_NAMES.slice();
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const t = pool[i]; pool[i] = pool[j]; pool[j] = t;
+  }
+  const picked = pool.slice(0, teams.length);
+
+  // Map old team_name → new team_name for matching in Team_Pairings.
+  const log = [];
+  const renameByOld = {};
+  teams.forEach((t, i) => {
+    const oldName = t.team_name;
+    const newName = picked[i];
+    renameTeam_(t.team_id, newName);
+    renameByOld[oldName] = newName;
+    log.push(oldName + '  →  ' + newName);
+  });
+  // Also rename in Team_Pairings so the LeagueAdmin Players tab and any
+  // pairing-driven flows pick up the new names. Match by team_name +
+  // league_id since Team_Pairings has its own primary key.
+  const pairings = getObjects_('Team_Pairings').filter(p => p.league_id === league.league_id);
+  pairings.forEach(p => {
+    const newName = renameByOld[p.team_name];
+    if (newName && newName !== p.team_name) {
+      updateWhere_('Team_Pairings',
+        x => x.pairing_id === p.pairing_id,
+        x => { x.team_name = newName; });
+    }
+  });
+  cacheBust_('league:' + league.league_id + ':full');
+  Logger.log('Renamed %s teams in %s:\n  %s',
+    teams.length, leagueName, log.join('\n  '));
+  return { league_id: league.league_id, renamed: teams.length, mapping: log };
+}
+
 /** Quick sanity check: log standings for the test league. */
 function debugStandings() {
   const league = listLeagues_().find(l => l.name === 'TEST Ladder');

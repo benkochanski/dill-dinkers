@@ -4,42 +4,37 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Admin — <?= appName ?></title>
+  <?!= include_('Styles') ?>
   <style>
     * { box-sizing: border-box; }
-    body { font-family: system-ui, -apple-system, sans-serif; margin: 0; padding: 16px; max-width: 1100px; margin-inline: auto; color: #222; }
+    body { margin: 0; padding: 16px; max-width: 1100px; margin-inline: auto; }
     h1 { margin: 0 0 4px; font-size: 22px; }
     h2 { font-size: 16px; margin: 24px 0 8px; }
-    .nav a { color: #246; text-decoration: none; margin-right: 12px; }
     .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
     .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; }
-    select, input { padding: 8px 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; width: 100%; }
-    button { padding: 8px 14px; background: #2c5; color: #fff; border: none; border-radius: 6px; font-size: 14px; cursor: pointer; }
-    button.danger { background: #c44; }
-    button.danger:hover { background: #a22; }
-    button.secondary { background: #888; }
-    button:hover { background: #1a4; }
-    label { font-size: 12px; color: #555; display: block; }
-    table { border-collapse: collapse; width: 100%; font-size: 13px; }
-    th, td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; vertical-align: top; }
-    th { background: #f4f4f4; }
-    .pill { display: inline-block; padding: 1px 6px; border-radius: 10px; background: #e8f0fe; color: #1a3; font-size: 11px; }
-    .pill.warn { background: #fff3cd; color: #856; }
-    .pill.ok { background: #d4edda; color: #155724; }
-    .err { color: #c00; }
-    .muted { color: #888; }
-    .card { border: 1px solid #ddd; border-radius: 8px; padding: 12px 16px; margin: 12px 0; }
+    select, input { width: 100%; }
     .tabs { display: flex; gap: 4px; margin: 12px 0; flex-wrap: wrap; }
-    .tabs button { background: #eef; color: #246; border: 1px solid #ccd; padding: 6px 12px; }
-    .tabs button.active { background: #246; color: #fff; }
+    .tabs button {
+      background: var(--bg-subtle);
+      color: var(--brand-black);
+      border: 1px solid var(--border);
+      padding: 6px 14px;
+      font-weight: 500;
+    }
+    .tabs button:hover { background: var(--brand-orange-soft); border-color: var(--brand-orange); color: var(--brand-orange-dark); }
+    .tabs button.active { background: var(--brand-orange); color: #fff; border-color: var(--brand-orange); }
     .tabPanel { display: none; }
     .tabPanel.active { display: block; }
     details summary { cursor: pointer; padding: 6px 0; }
   </style>
 </head>
 <body>
-  <p class="nav"><a href="?page=home">← Home</a></p>
+  <div class="app-header">
+    <?!= include_('Logo') ?>
+    <span class="who">Signed in as <code><?= user.email ?></code> · <?= user.roles.join(', ') || 'no roles' ?></span>
+  </div>
+  <?!= include_('Nav') ?>
   <h1>Admin</h1>
-  <p class="muted">Signed in as <?= user.email ?> — <?= user.roles.join(', ') || 'no roles' ?></p>
 
   <div class="tabs">
     <button data-tab="leagues" class="active">Leagues</button>
@@ -48,38 +43,17 @@
     <button data-tab="email">Email</button>
     <button data-tab="export">Export</button>
     <button data-tab="roles">Roles</button>
+    <button data-tab="integrations">Integrations</button>
     <button data-tab="audit">Audit</button>
   </div>
 
   <!-- ============ LEAGUES TAB ============ -->
   <div class="tabPanel active" id="tab-leagues">
     <div class="card">
-      <h2>Create league</h2>
-      <div class="grid">
-        <div><label>Short name</label><input id="newName" placeholder="Mon Intermediate Coed Ladder"></div>
-        <div><label>Full name</label><input id="newFullName" placeholder="…League (Levels 4-6)"></div>
-        <div><label>Format</label><select id="newFormat">
-          <option value="ladder">ladder</option>
-          <option value="partner">partner</option>
-        </select></div>
-        <div><label>Day</label><select id="newDay">
-          <option>Monday</option><option>Tuesday</option><option>Wednesday</option>
-          <option>Thursday</option><option>Friday</option><option>Saturday</option><option>Sunday</option>
-        </select></div>
-        <div><label>Time</label><input id="newTime" placeholder="8:15p - 10p"></div>
-        <div><label>Level</label><input id="newLevel" placeholder="Levels 4-6"></div>
-        <div><label>Season</label><input id="newSeason" placeholder="Mar/Apr 2026"></div>
-        <div><label>Weeks</label><input id="newWeeks" type="number" value="8" min="1" max="20"></div>
-        <div><label># Groups (ladder)</label><input id="newGroups" type="number" value="6" min="1" max="20"></div>
-      </div>
-      <div class="row" style="margin-top:12px">
-        <button onclick="createLeague()">Create</button>
-        <span id="createMsg" class="muted"></span>
-      </div>
-    </div>
-
-    <div class="card">
       <h2>Existing leagues</h2>
+      <p class="muted" style="font-size:12px;margin:0 0 8px">
+        Leagues are populated from CourtReserve via <strong>Integrations → Pull league events</strong>. Edit individual leagues from the league admin page.
+      </p>
       <div id="leagueList">Loading…</div>
     </div>
   </div>
@@ -119,8 +93,26 @@ Jennifer Murnane, jen@example.com, , Level 5, , Dinkin Pinktini's"></textarea>
 
       <h2>Current roster</h2>
       <div id="rosterList">Pick a league.</div>
+
       <h2>Teams (partner only)</h2>
+      <div id="teamsHelp" class="muted" style="font-size:13px; margin-bottom:8px">
+        Each team has a name (editable) and 2 players from the roster. Both players must have a DUPR ID
+        before you can run a DUPR export. Click <em>Edit</em> to rename or swap players.
+      </div>
       <div id="teamsList"></div>
+
+      <details style="margin-top:12px">
+        <summary style="cursor:pointer; font-weight:600">+ Create new team manually</summary>
+        <div class="grid" style="margin-top:10px">
+          <div><label>Team name</label><input id="newTeamName"></div>
+          <div><label>Player 1</label><select id="newTeamP1"></select></div>
+          <div><label>Player 2</label><select id="newTeamP2"></select></div>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <button onclick="createTeamManually()">Create team</button>
+          <span id="newTeamMsg" class="muted"></span>
+        </div>
+      </details>
     </div>
   </div>
 
@@ -178,18 +170,30 @@ Quick update for {{league_name}}…
       <h2>Export CSV</h2>
       <div class="grid">
         <div style="grid-column: span 2"><label>League</label><select id="exportLeaguePicker"></select></div>
-        <div><label>What</label><select id="exportKind">
+        <div><label>What</label><select id="exportKind" onchange="onExportKindChange()">
           <option value="roster">Roster</option>
           <option value="teams">Teams</option>
           <option value="scores">Scores (every game)</option>
           <option value="standings">Standings</option>
           <option value="subs">Subs log</option>
+          <option value="dupr">DUPR (all completed games)</option>
+          <option value="dupr_week">DUPR (single week)</option>
         </select></div>
+        <div id="exportWeekWrap" class="hidden"><label>Week #</label><input id="exportWeek" type="number" min="1" value="1"></div>
+        <div id="exportEventLabelWrap" class="hidden" style="grid-column:span 2">
+          <label>Event label (DUPR)</label>
+          <input id="exportEventLabel" placeholder="auto: '<league name> — Week <n>'">
+        </div>
       </div>
       <div class="row" style="margin-top:12px">
         <button onclick="downloadExport()">Download CSV</button>
         <span id="exportMsg" class="muted"></span>
       </div>
+      <p class="muted" style="font-size:12px;margin-top:10px">
+        DUPR exports follow the official DUPR upload template (matchType=D, scoreType=SIDEOUT,
+        names blank, only DUPR IDs populated). Teams must have valid DUPR IDs for both players —
+        check the <strong>Roster</strong> tab to fix any missing IDs.
+      </p>
     </div>
   </div>
 
@@ -216,6 +220,190 @@ Quick update for {{league_name}}…
     <div class="card">
       <h2>Active roles</h2>
       <div id="rolesList">Loading…</div>
+    </div>
+  </div>
+
+  <!-- ============ INTEGRATIONS TAB ============ -->
+  <div class="tabPanel" id="tab-integrations">
+    <div class="card">
+      <h2>CourtReserve API</h2>
+      <p class="muted">
+        Credentials are stored in Apps Script Properties (not the Sheet). To get them,
+        in CourtReserve go to <code>Settings → Additional Features → Integrations</code>
+        and enable the API. Requires a Scale or Enterprise plan.
+        Docs: <a href="https://api.courtreserve.com/swagger/ui/index" target="_blank">api.courtreserve.com/swagger</a>.
+      </p>
+
+      <div id="crStatus" class="muted" style="margin:8px 0">Loading…</div>
+
+      <div class="grid">
+        <div><label>Mode</label><select id="crMode">
+          <option value="org">Organization</option>
+          <option value="enterprise">Enterprise</option>
+        </select></div>
+        <div><label>Org ID (org mode only)</label><input id="crOrgId" placeholder="e.g. 12345"></div>
+        <div><label>Base URL</label><input id="crBaseUrl" placeholder="https://api.courtreserve.com"></div>
+        <div><label>API username</label><input id="crUsername" autocomplete="off"></div>
+        <div><label>API password</label><input id="crPassword" type="password" autocomplete="new-password" placeholder="(leave blank to keep current)"></div>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <button onclick="crSave()">Save credentials</button>
+        <button class="secondary" onclick="crTest()">Test connection</button>
+        <button class="danger" onclick="crClear()">Clear</button>
+        <span id="crMsg" class="muted"></span>
+      </div>
+
+      <div id="crPingResult" style="margin-top:12px"></div>
+    </div>
+
+    <div class="card">
+      <h2>1. Pull league events from CourtReserve</h2>
+      <p class="muted">Hits <code>/api/v1/eventcalendar/eventlist</code> filtered to the League category. Creates a <code>Leagues</code> row for each event with <code>cr_event_id</code> set. <strong>Run this first</strong> — attendance pulls use Leagues to know which events to keep.</p>
+      <div class="grid">
+        <div><label>Start date</label><input id="crEventsStart" type="date"></div>
+        <div><label>End date</label><input id="crEventsEnd" type="date"></div>
+        <div><label>Category ID</label><input id="crEventsCatId" value="48794" placeholder="48794 = League"></div>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <button onclick="crPullLeagueEvents()">Pull league events</button>
+        <span id="crEventsMsg" class="muted"></span>
+      </div>
+    </div>
+
+    <details class="card" style="padding:0; background:transparent; border:none">
+      <summary style="cursor:pointer; padding:12px 16px; background:var(--bg-subtle); border:1px solid var(--border); border-radius:8px; font-weight:600">
+        Advanced — manual CR registration pull / staging inspector
+        <span class="muted" style="font-weight:400; font-size:12px; margin-left:8px">
+          (rarely needed since attendance is the primary source)
+        </span>
+      </summary>
+
+    <div class="card">
+      <h2>Pull registrations from CourtReserve</h2>
+      <p class="muted">Pulls event registrations into the <code>CR_Registrations</code> table. Re-running is idempotent: existing rows update in place (status, partners) and assignments are preserved. Normally happens automatically when you visit a league admin page if the cache is stale.</p>
+      <div class="grid">
+        <div><label>Start date</label><input id="crPullStart" type="date"></div>
+        <div><label>End date</label><input id="crPullEnd" type="date"></div>
+        <div><label>Event Category ID(s)</label><input id="crPullCatId" value="48794" placeholder='blank = all categories'></div>
+        <div><label><input type="checkbox" id="crPullIncludeCancelled" style="width:auto;margin-right:6px">Include cancellations</label></div>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <button onclick="crRunPull()">Pull from CourtReserve</button>
+        <button class="danger" onclick="crClearAndPull()">Clear staging &amp; re-pull</button>
+        <button class="secondary" onclick="crSyncLeagues()">Sync leagues from staging</button>
+        <span id="crPullMsg" class="muted"></span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Staged registrations</h2>
+      <p class="muted">Filter the staging table client-side, then bulk-assign filtered rows to a league. Already-assigned rows are skipped by Assign.</p>
+      <div class="grid">
+        <div><label>Search (name / email / event)</label><input id="crStageSearch" oninput="crRenderStaged()" placeholder="substring match"></div>
+        <div><label>Category</label><select id="crStageCategory" onchange="crRenderStaged()"><option value="">all</option></select></div>
+        <div><label>Event</label><select id="crStageEvent" onchange="crRenderStaged()"><option value="">all</option></select></div>
+        <div><label>Status</label><select id="crStageStatus" onchange="crRenderStaged()">
+          <option value="">all</option>
+          <option value="active">active</option>
+          <option value="cancelled">cancelled</option>
+        </select></div>
+        <div><label>Assignment</label><select id="crStageAssigned" onchange="crRenderStaged()">
+          <option value="">all</option>
+          <option value="unassigned">unassigned</option>
+          <option value="assigned">assigned</option>
+        </select></div>
+        <div><label>Assign filtered to league</label><select id="crStageAssignLeague"><option value="">— pick —</option></select></div>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <button class="secondary" onclick="crLoadStaged()">Refresh</button>
+        <button onclick="crAutoAssignAll()" title="Assign every unassigned row to the league matching its event name">Auto-assign by event →</button>
+        <button onclick="crAssignFiltered()">Assign filtered →</button>
+        <button class="danger" onclick="crUnassignFiltered()">Unassign filtered</button>
+        <span id="crStageMsg" class="muted"></span>
+      </div>
+      <div id="crStageStats" class="muted" style="margin-top:8px;font-size:12px"></div>
+      <div id="crStageTable" style="margin-top:8px"></div>
+    </div>
+    </details>
+
+    <div class="card">
+      <h2>Attendance / No-shows</h2>
+      <p class="muted">Pulls check-in data from <code>/api/v1/attendancereport/checkin</code>, filtered to events that appear in the registrations staging table. No-shows are rows where <strong>Check-in status ≠ Checked In</strong>.</p>
+      <div class="grid">
+        <div><label>Start date</label><input id="crAttStart" type="date"></div>
+        <div><label>End date</label><input id="crAttEnd" type="date"></div>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <button onclick="crPullAttendance()">Pull no-shows / subs</button>
+        <button onclick="crPullAllAttendance()" title="Pull every attendance record (full event + drop in + checked in + no-show). Required to populate league rosters from attendance.">Pull ALL attendance (full event + drop ins)</button>
+        <button class="danger" onclick="crClearAndPullAttendance()">Clear &amp; re-pull no-shows</button>
+        <span id="crAttMsg" class="muted"></span>
+      </div>
+      <div class="row" style="margin-top:10px;gap:8px;align-items:center">
+        <label style="white-space:nowrap;font-weight:500">Filter:</label>
+        <input id="crAttSearch" oninput="crRenderAttendance()" placeholder="name / event" style="flex:1;min-width:140px">
+        <button class="secondary" onclick="crLoadAttendance()">Refresh</button>
+      </div>
+      <div id="crAttStats" class="muted" style="margin-top:6px;font-size:12px"></div>
+      <div id="crAttTable" style="margin-top:8px;overflow-x:auto"></div>
+    </div>
+
+    <div class="card">
+      <h2>Members</h2>
+      <p class="muted">Pulls the full member directory (paginated). Captures <strong>MembershipNumber</strong> alongside OrganizationMemberId — the key that links registrations to attendance records. Use the API Explorer below to find the correct path for your account, then paste it here.</p>
+      <div class="row" style="margin-top:10px;gap:8px;align-items:center">
+        <div style="flex:1;min-width:260px">
+          <label>Endpoint path</label>
+          <input id="crMembersPath" placeholder="/api/v1/memberreport/list" value="/api/v1/memberreport/list" style="width:100%">
+        </div>
+      </div>
+      <div class="row" style="margin-top:8px;gap:6px;flex-wrap:wrap">
+        <span class="muted" style="font-size:12px">Try in Explorer:</span>
+        <button class="secondary" onclick="crTryMemberPath('/api/v1/memberreport/list')">memberreport/list</button>
+        <button class="secondary" onclick="crTryMemberPath('/api/v1/member/get')">member/get</button>
+        <button class="secondary" onclick="crTryMemberPath('/api/v1/members/get')">members/get</button>
+        <button class="secondary" onclick="crTryMemberPath('/api/v1/organizationmember/list')">organizationmember/list</button>
+      </div>
+      <div class="row" style="margin-top:10px;gap:8px;align-items:center">
+        <button onclick="crPullMembers()">Pull all members</button>
+        <button class="danger" onclick="crClearAndPullMembers()">Clear &amp; re-pull</button>
+        <span id="crMembersMsg" class="muted"></span>
+      </div>
+      <div class="row" style="margin-top:10px;gap:8px;align-items:center">
+        <input id="crMembersSearch" oninput="crRenderMembers()" placeholder="name / email / member #" style="flex:1;min-width:180px">
+        <button class="secondary" onclick="crLoadMembers()">Refresh</button>
+      </div>
+      <div id="crMembersStats" class="muted" style="margin-top:6px;font-size:12px"></div>
+      <div id="crMembersTable" style="margin-top:8px;overflow-x:auto;max-height:400px;overflow-y:auto"></div>
+    </div>
+
+    <div class="card">
+      <h2>API explorer</h2>
+      <p class="muted">GET against any CourtReserve path so we can discover the registration schema. Paths can be relative (<code>/Organization/12438/Events</code>) or full URLs. Try the suggested paths below — whichever returns 200 is the one we'll wire up for sync.</p>
+      <div class="row">
+        <div style="flex:1; min-width:300px"><label>Path</label><input id="crExplorePath" placeholder="/Organization/12438/Events"></div>
+        <div style="flex:1; min-width:240px"><label>Query (key=value&amp;key=value)</label><input id="crExploreQuery" placeholder="status=approved&amp;page=1"></div>
+        <button onclick="crExplore()">GET</button>
+      </div>
+      <div class="row" style="margin-top:8px; gap:6px; flex-wrap:wrap">
+        <span class="muted" style="font-size:12px">Try:</span>
+        <button class="secondary" onclick="crTryWithDates('/api/v1/eventregistrationreport/listactive')">Registrations (active)</button>
+        <button class="secondary" onclick="crTryWithDates('/api/v1/eventregistrationreport/listcancelled')">Registrations (cancelled)</button>
+        <button class="secondary" onclick="crTryWithDates('/api/v1/eventregistrationreport/listwaitlist')">Registrations (waitlist)</button>
+        <button class="secondary" onclick="crTryWithDates('/api/v1/eventcalendar/eventlist')">Event list</button>
+        <button class="secondary" onclick="crTry('/api/v1/eventcalendar/categories')">Event categories</button>
+        <button class="secondary" onclick="crTry('/api/v1/member/get')">Members</button>
+        <button class="secondary" onclick="crTry('/api/v1/membershiptype/get')">Membership types</button>
+        <button class="secondary" onclick="crTryWithDates('/api/v1/reservationreport/whoisheretoday')">Who's here today</button>
+      </div>
+      <p class="muted" style="font-size:12px;margin-top:6px">Endpoints with <em>(dates)</em> require a date range — buttons above auto-apply the start/end dates from the Import card.</p>
+      <div id="crExploreResult" style="margin-top:12px"></div>
+    </div>
+
+    <div class="card">
+      <h2>Recent CourtReserve calls</h2>
+      <button class="secondary" onclick="loadCrLog()">Refresh</button>
+      <div id="crLogList" style="margin-top:12px" class="muted">Click Refresh to load.</div>
     </div>
   </div>
 
@@ -255,6 +443,7 @@ Quick update for {{league_name}}…
       });
       // Lazy-load on first switch.
       if (name === 'audit') loadAudit();
+      if (name === 'integrations') { loadCrStatus(); crEnsureDefaultDates(); crEnsureAttDates(); crLoadStaged(); crLoadAttendance(); }
     }
 
     /* ----- Leagues ----- */
@@ -265,30 +454,54 @@ Quick update for {{league_name}}…
         .api_listLeagues();
     }
 
+    function escapeHtml(s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, c =>
+        ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    const DAY_ORDER = { 'Monday': 1, 'Tuesday': 2, 'Wednesday': 3, 'Thursday': 4,
+                        'Friday': 5, 'Saturday': 6, 'Sunday': 7 };
+    /** Sort: by day-of-week (Mon→Sun), then start_time, then name. */
+    function sortLeaguesChronologically(list) {
+      return list.slice().sort((a, b) => {
+        const da = DAY_ORDER[a.day_of_week] || 99;
+        const db = DAY_ORDER[b.day_of_week] || 99;
+        if (da !== db) return da - db;
+        const ta = (a.start_time || '').toLowerCase();
+        const tb = (b.start_time || '').toLowerCase();
+        if (ta !== tb) return ta < tb ? -1 : 1;
+        return (a.name || '').localeCompare(b.name || '');
+      });
+    }
+
     function onLeagues(resp) {
       if (!resp.ok) return showErr(resp.error);
-      LEAGUES = resp.data || [];
+      LEAGUES = sortLeaguesChronologically(resp.data || []);
       const div = document.getElementById('leagueList');
       if (!LEAGUES.length) { div.innerHTML = '<span class="muted">None yet — create one above.</span>'; }
       else {
-        const rows = LEAGUES.map(l => `<tr>
-          <td><strong>${l.name}</strong><br><span class="muted">${l.full_name || ''}</span></td>
+        const rows = LEAGUES.map(l => `<tr style="cursor:pointer" onclick="openLeagueAdmin('${l.league_id}')" title="Open league admin">
+          <td><strong>${escapeHtml(l.name)}</strong><br><span class="muted">${escapeHtml(l.full_name || '')}</span></td>
           <td><span class="pill">${l.format_type}</span></td>
-          <td>${l.day_of_week} ${l.start_time || ''}</td>
-          <td>${l.level || ''}</td>
-          <td>${l.season_label || ''}</td>
+          <td>${escapeHtml(l.day_of_week)} ${escapeHtml(l.start_time || '')}</td>
+          <td>${escapeHtml(l.level || '')}</td>
+          <td>${escapeHtml(l.season_label || '')}</td>
           <td>${l.weeks_count || ''}w / ${l.num_groups || '—'}g</td>
           <td><span class="pill ${l.status === 'active' ? 'ok' : 'warn'}">${l.status}</span></td>
-          <td><code style="font-size:11px">${l.league_id}</code></td>
+          <td><span class="cta" style="color:var(--brand-orange-dark);font-weight:600">Open →</span></td>
         </tr>`).join('');
-        div.innerHTML = `<table>
-          <tr><th>Name</th><th>Format</th><th>When</th><th>Level</th><th>Season</th><th>W/G</th><th>Status</th><th>ID</th></tr>
+        div.innerHTML = `<p class="muted" style="font-size:13px;margin:0 0 8px">
+            Click a league to open its admin page (Players, Schedule, Standings, Scores).
+          </p>
+          <table>
+          <tr><th>Name</th><th>Format</th><th>When</th><th>Level</th><th>Season</th><th>W/G</th><th>Status</th><th></th></tr>
           ${rows}
         </table>`;
       }
       // Populate every league picker with the same list.
-      ['rosterLeaguePicker', 'subLeaguePicker', 'emailLeaguePicker', 'exportLeaguePicker'].forEach(id => {
+      ['rosterLeaguePicker', 'subLeaguePicker', 'emailLeaguePicker', 'exportLeaguePicker', 'crStageAssignLeague'].forEach(id => {
         const sel = document.getElementById(id);
+        if (!sel) return;
         sel.innerHTML = '<option value="">— select —</option>' +
           LEAGUES.map(l => `<option value="${l.league_id}">${l.name} (${l.format_type})</option>`).join('');
       });
@@ -296,39 +509,278 @@ Quick update for {{league_name}}…
       document.getElementById('subLeaguePicker').onchange = loadSubLeague;
     }
 
-    function createLeague() {
-      const input = {
-        name: document.getElementById('newName').value.trim(),
-        full_name: document.getElementById('newFullName').value.trim(),
-        format_type: document.getElementById('newFormat').value,
-        day_of_week: document.getElementById('newDay').value,
-        start_time: document.getElementById('newTime').value.trim(),
-        level: document.getElementById('newLevel').value.trim(),
-        season_label: document.getElementById('newSeason').value.trim(),
-        weeks: Number(document.getElementById('newWeeks').value) || 8,
-        num_groups: Number(document.getElementById('newGroups').value) || 0,
-        bonus_starts_week: 3,
-        status: 'active',
+    /* ----- Per-league admin navigation ----- */
+
+    let CACHED_APP_URL = null;
+    function openLeagueAdmin(league_id) {
+      // Apps Script reserves `?id=` — use `?lid=` instead.
+      const navigate = appUrl => {
+        const url = appUrl + '?page=league&lid=' + encodeURIComponent(league_id);
+        window.top.location.href = url;
       };
-      if (!input.name) { setMsg('createMsg', 'Need a name', 'err'); return; }
-      setMsg('createMsg', 'Creating…');
+      // Prefer the URL the user is already on (document.referrer === top URL
+      // from inside the HtmlService iframe) so /dev pages stay on /dev and
+      // /exec stays on /exec. Server fallback if referrer isn't set.
+      const ref = document.referrer || '';
+      const m = ref.match(/^(.+\/macros\/(?:s\/[^/]+|[^/]+)\/(?:dev|exec))/);
+      if (m && m[1]) { navigate(m[1]); return; }
+      if (CACHED_APP_URL) { navigate(CACHED_APP_URL); return; }
+      google.script.run
+        .withSuccessHandler(u => { CACHED_APP_URL = u; navigate(u); })
+        .withFailureHandler(e => alert('Could not resolve app URL: ' + e))
+        .getAppUrl();
+    }
+
+    /* ----- Partner Team Setup (one-click from CourtReserve) ----- */
+
+    function setupTeamsFromCR(league_id, league_name) {
+      const ok = confirm(
+        `Pull CourtReserve registrations and create teams for "${league_name}"?\n\n` +
+        `Defaults to the league's own scheduled dates (±14 days padding) when available, ` +
+        `otherwise a 90-day window centered on today. ` +
+        `Idempotent — safe to re-run as new registrations arrive.\n\n` +
+        `Proceed?`
+      );
+      if (!ok) return;
+
+      const btns = document.querySelectorAll('button[onclick*="setupTeamsFromCR(\'' + league_id + '\'"]');
+      const btn = btns[0];
+      const origText = btn ? btn.textContent : null;
+      if (btn) { btn.textContent = 'Pulling…'; btn.disabled = true; }
+
+      let done = false;
+      // Soft progress hints — CR pulls can take 30+ sec on wide windows.
+      const hint30 = setTimeout(() => {
+        if (!done && btn) btn.textContent = 'Pulling… (30s)';
+      }, 30000);
+      const hint60 = setTimeout(() => {
+        if (!done && btn) btn.textContent = 'Still working… (60s)';
+      }, 60000);
+      const hint120 = setTimeout(() => {
+        if (!done && btn) {
+          btn.textContent = origText;
+          btn.disabled = false;
+          alert(
+            'CourtReserve pull is taking longer than 2 minutes — likely due to a wide ' +
+            'date range or rate limiting. Check Admin → Integrations → "Recent CourtReserve calls" ' +
+            'for the latest sync log entry.'
+          );
+        }
+      }, 120000);
+
+      const finish = () => {
+        done = true;
+        clearTimeout(hint30); clearTimeout(hint60); clearTimeout(hint120);
+        if (btn) { btn.textContent = origText; btn.disabled = false; }
+      };
+
       google.script.run
         .withSuccessHandler(r => {
-          if (!r.ok) { setMsg('createMsg', 'Error: ' + r.error, 'err'); return; }
-          setMsg('createMsg', 'Created ' + r.data.name + ' ✓');
+          finish();
+          if (!r || !r.ok) { alert('Error: ' + (r && r.error ? r.error : 'no response')); return; }
+          const d = r.data;
+          const lines = [
+            `Setup complete for "${league_name}":`,
+            ``,
+            `• Pulled ${d.regs_pulled} registrations (${d.regs_added} new, ${d.regs_updated} updated)`,
+            `• Matched ${d.regs_matched} to this league`,
+            `• Assigned ${d.assigned}, skipped ${d.skipped}`,
+            `• Total teams now: ${d.teams_total}`,
+            `• Date range: ${d.date_range}`,
+            d.matched_event_names && d.matched_event_names.length
+              ? `• Matched event(s): ${d.matched_event_names.join(', ')}`
+              : '',
+            d.regs_matched === 0
+              ? `\n⚠ No registrations matched. Possible causes:\n` +
+                `  - The league name doesn't match any event_name in CourtReserve\n` +
+                `  - The date range missed the registration dates\n` +
+                `  - Already assigned to a different league previously\n` +
+                `Check Admin → Integrations → Staged registrations to inspect raw data.`
+              : '',
+            d.errors && d.errors.length
+              ? `\n⚠ ${d.errors.length} errors:\n  ${d.errors.slice(0, 5).join('\n  ')}`
+              : '',
+          ].filter(Boolean).join('\n');
+          alert(lines);
           refreshLeagues();
+          if (document.getElementById('rosterLeaguePicker').value === league_id) loadRoster();
+        })
+        .withFailureHandler(e => {
+          finish();
+          alert('Server error: ' + (e && e.message ? e.message : String(e)));
+        })
+        .api_setupTeamsFromCR(league_id, {});
+    }
+
+    /* ----- Partner Schedule ----- */
+
+    let SCHED_LEAGUE_ID = null;
+    let SCHED_TEAMS = {};  // team_id → team object
+
+    function manageSchedule(league_id) {
+      SCHED_LEAGUE_ID = league_id;
+      const league = LEAGUES.find(l => l.league_id === league_id);
+      document.getElementById('scheduleLeagueName').textContent = league ? league.name : league_id;
+      document.getElementById('scheduleCard').classList.remove('hidden');
+      document.getElementById('scheduleCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      setMsg('schedMsg', '');
+
+      // Load teams so we can show names in the schedule view.
+      google.script.run
+        .withSuccessHandler(r => {
+          if (!r.ok) return;
+          SCHED_TEAMS = {};
+          (r.data || []).forEach(t => { SCHED_TEAMS[t.team_id] = t; });
+          loadSchedule();
         })
         .withFailureHandler(showErr)
-        .api_createLeague(input);
+        .api_listTeams(league_id);
+    }
+
+    function onSchedAlgoChange() {
+      const algo = document.getElementById('schedAlgorithm').value;
+      document.getElementById('schedGamesPerTeamWrap').style.display = (algo === 'v2') ? '' : 'none';
+      // Sensible defaults per algorithm.
+      const rpw = document.getElementById('schedRoundsPerWeek');
+      if (algo === 'v2') { if (rpw.value === '6') rpw.value = '8'; }
+      else { if (rpw.value === '8') rpw.value = '6'; }
+    }
+
+    function generateSchedule() {
+      if (!SCHED_LEAGUE_ID) return;
+      const algo   = document.getElementById('schedAlgorithm').value;
+      const rounds = Number(document.getElementById('schedRoundsPerWeek').value) || (algo === 'v2' ? 8 : 6);
+      setMsg('schedMsg', 'Generating…');
+
+      const onResp = r => {
+        if (!r.ok) { setMsg('schedMsg', 'Error: ' + r.error, 'err'); return; }
+        const d = r.data;
+        let msg = `Generated ${d.total_matches} matches across ${d.weeks_seen} weeks ✓`;
+        if (algo === 'v2') {
+          const balText = d.balanced ? `balanced ±1 (range ${d.pair_count_min}–${d.pair_count_max})`
+                                     : `unbalanced (range ${d.pair_count_min}–${d.pair_count_max})`;
+          msg += ` · ${balText}`;
+          if (d.warnings && d.warnings.length) {
+            msg += ' · ⚠ ' + d.warnings[0];
+          }
+        }
+        setMsg('schedMsg', msg);
+        loadSchedule();
+      };
+
+      if (algo === 'v2') {
+        const games = Number(document.getElementById('schedGamesPerTeam').value) || 6;
+        google.script.run
+          .withSuccessHandler(onResp)
+          .withFailureHandler(e => setMsg('schedMsg', String(e && e.message || e), 'err'))
+          .api_generateScheduleV2(SCHED_LEAGUE_ID, { rounds_per_week: rounds, games_per_team_per_week: games });
+      } else {
+        google.script.run
+          .withSuccessHandler(onResp)
+          .withFailureHandler(e => setMsg('schedMsg', String(e && e.message || e), 'err'))
+          .api_generateSchedule(SCHED_LEAGUE_ID, { rounds_per_week: rounds });
+      }
+    }
+
+    function loadSchedule() {
+      if (!SCHED_LEAGUE_ID) return;
+      const el = document.getElementById('scheduleView');
+      el.innerHTML = '<span class="muted">Loading…</span>';
+      google.script.run
+        .withSuccessHandler(r => {
+          if (!r.ok) { el.innerHTML = '<span class="err">' + escapeHtml(r.error) + '</span>'; return; }
+          renderScheduleView(r.data || []);
+        })
+        .withFailureHandler(e => { el.innerHTML = '<span class="err">' + escapeHtml(String(e && e.message || e)) + '</span>'; })
+        .api_listScheduledMatches(SCHED_LEAGUE_ID, null);
+    }
+
+    function renderScheduleView(matches) {
+      const el = document.getElementById('scheduleView');
+      if (!matches.length) {
+        el.innerHTML = '<span class="muted">No schedule yet — click Generate Schedule above.</span>';
+        return;
+      }
+
+      // Group by week_number.
+      const byWeek = {};
+      matches.forEach(m => {
+        const k = Number(m.week_number);
+        if (!byWeek[k]) byWeek[k] = [];
+        byWeek[k].push(m);
+      });
+
+      const weeks = Object.keys(byWeek).sort((a, b) => Number(a) - Number(b));
+      const totalWeeks   = weeks.length;
+      const totalMatches = matches.length;
+      const playedTotal  = matches.filter(m => m.game_id).length;
+
+      let html = `<p class="muted" style="margin:0 0 10px;font-size:13px">
+        ${totalMatches} matches across ${totalWeeks} weeks — ${playedTotal} played</p>`;
+
+      html += weeks.map(wn => {
+        const wMatches = byWeek[wn].sort((a, b) =>
+          Number(a.game_number) - Number(b.game_number) || Number(a.court_number) - Number(b.court_number));
+
+        // Use first match's play_date as the week label.
+        const pd = wMatches[0] && wMatches[0].play_date ? String(wMatches[0].play_date).slice(0, 10) : '';
+
+        // Group by round (game_number).
+        const byRound = {};
+        wMatches.forEach(m => {
+          const k = Number(m.game_number);
+          if (!byRound[k]) byRound[k] = [];
+          byRound[k].push(m);
+        });
+        const rNums = Object.keys(byRound).sort((a, b) => Number(a) - Number(b));
+
+        const played  = wMatches.filter(m => m.game_id).length;
+        const total   = wMatches.length;
+        const pillCls = played === total && total > 0 ? 'ok' : '';
+
+        const roundRows = rNums.map(rn => {
+          const rMatches = byRound[rn].sort((a, b) => Number(a.court_number) - Number(b.court_number));
+          const cells = rMatches.map(m => {
+            const t1 = SCHED_TEAMS[m.t1_team_id];
+            const t2 = SCHED_TEAMS[m.t2_team_id];
+            const played = m.game_id ? '<span style="color:var(--brand-green-dark)">✓ </span>' : '';
+            return `<td style="font-size:12px;padding:4px 10px;white-space:nowrap">
+              <span style="color:var(--text-muted)">C${m.court_number}</span>&ensp;${played}<strong>${escapeHtml(t1 ? t1.team_name : '?')}</strong> vs <strong>${escapeHtml(t2 ? t2.team_name : '?')}</strong>
+            </td>`;
+          }).join('');
+          return `<tr>
+            <td style="font-size:12px;padding:4px 10px;font-weight:600;color:var(--text-muted);white-space:nowrap">Rnd ${rn}</td>
+            ${cells}
+          </tr>`;
+        }).join('');
+
+        return `<details style="margin-bottom:8px" open>
+          <summary style="font-weight:600;cursor:pointer;padding:4px 0">
+            Week ${wn}${pd ? ' &mdash; ' + pd : ''}
+            <span class="pill ${pillCls}" style="margin-left:8px">${played}/${total} played</span>
+          </summary>
+          <div style="overflow-x:auto;margin-top:6px">
+            <table><tbody>${roundRows}</tbody></table>
+          </div>
+        </details>`;
+      }).join('');
+
+      el.innerHTML = html;
     }
 
     /* ----- Roster ----- */
+
+    /* Cached so the team-edit dropdowns and DUPR-validation can use them. */
+    let CURRENT_ROSTER = [];
+    let CURRENT_TEAMS  = [];
+    let CURRENT_DUPR_ISSUES = [];
 
     function loadRoster() {
       const league_id = document.getElementById('rosterLeaguePicker').value;
       if (!league_id) {
         document.getElementById('rosterList').innerHTML = '<span class="muted">Pick a league.</span>';
         document.getElementById('teamsList').innerHTML = '';
+        CURRENT_ROSTER = []; CURRENT_TEAMS = []; CURRENT_DUPR_ISSUES = [];
         return;
       }
       google.script.run
@@ -337,34 +789,160 @@ Quick update for {{league_name}}…
       google.script.run
         .withSuccessHandler(onTeams).withFailureHandler(showErr)
         .api_listTeams(league_id);
+      // Validate DUPR coverage once teams load (fires on its own; result merged into team render).
+      google.script.run
+        .withSuccessHandler(r => {
+          if (!r.ok) return;
+          CURRENT_DUPR_ISSUES = r.data || [];
+          // Re-render teams now that issues are known.
+          if (CURRENT_TEAMS.length) renderTeams();
+        })
+        .withFailureHandler(() => {})
+        .api_validateTeamsForDupr(league_id);
     }
 
     function onRoster(resp) {
       if (!resp.ok) return showErr(resp.error);
-      const list = resp.data || [];
-      if (!list.length) { document.getElementById('rosterList').innerHTML = '<span class="muted">No players yet.</span>'; return; }
-      const rows = list.map(r => `<tr>
-        <td>${r.full_name || '(unnamed)'}</td>
-        <td><span class="muted">${r.email || ''}</span></td>
-        <td>${r.level || r.roster_level || ''}</td>
-        <td>${r.team_id ? '<code>' + r.team_id + '</code>' : ''}</td>
-        <td><span class="pill ${r.roster_status === 'active' ? 'ok' : 'warn'}">${r.roster_status}</span></td>
-      </tr>`).join('');
-      document.getElementById('rosterList').innerHTML =
-        `<table><tr><th>Player</th><th>Email</th><th>Level</th><th>Team</th><th>Status</th></tr>${rows}</table>`;
+      CURRENT_ROSTER = resp.data || [];
+      const list = CURRENT_ROSTER;
+      if (!list.length) {
+        document.getElementById('rosterList').innerHTML = '<span class="muted">No players yet.</span>';
+      } else {
+        const rows = list.map(r => `<tr>
+          <td>${escapeHtml(r.full_name || '(unnamed)')}</td>
+          <td><span class="muted">${escapeHtml(r.email || '')}</span></td>
+          <td>${escapeHtml(r.level || r.roster_level || '')}</td>
+          <td>${escapeHtml(r.dupr_id || '')}</td>
+          <td>${r.team_id ? '<code style="font-size:11px">' + escapeHtml(r.team_id) + '</code>' : ''}</td>
+          <td><span class="pill ${r.roster_status === 'active' ? 'ok' : 'warn'}">${r.roster_status}</span></td>
+        </tr>`).join('');
+        document.getElementById('rosterList').innerHTML =
+          `<table><tr><th>Player</th><th>Email</th><th>Level</th><th>DUPR</th><th>Team</th><th>Status</th></tr>${rows}</table>`;
+      }
+      // Repopulate the create-team dropdowns.
+      populateNewTeamDropdowns();
     }
 
     function onTeams(resp) {
       if (!resp.ok) return showErr(resp.error);
-      const list = resp.data || [];
-      if (!list.length) { document.getElementById('teamsList').innerHTML = '<span class="muted">No teams (or this league is ladder format).</span>'; return; }
-      const rows = list.map(t => `<tr>
-        <td><strong>${t.team_name}</strong></td>
-        <td>${t.player_1_id || '<span class="muted">—</span>'}</td>
-        <td>${t.player_2_id || '<span class="muted">—</span>'}</td>
-      </tr>`).join('');
-      document.getElementById('teamsList').innerHTML =
-        `<table><tr><th>Team</th><th>P1</th><th>P2</th></tr>${rows}</table>`;
+      CURRENT_TEAMS = resp.data || [];
+      renderTeams();
+    }
+
+    function playerName(player_id) {
+      const p = CURRENT_ROSTER.find(r => r.player_id === player_id);
+      return p ? p.full_name : '';
+    }
+    function playerDupr(player_id) {
+      const p = CURRENT_ROSTER.find(r => r.player_id === player_id);
+      return p ? (p.dupr_id || '') : '';
+    }
+
+    function renderTeams() {
+      const el = document.getElementById('teamsList');
+      if (!CURRENT_TEAMS.length) {
+        el.innerHTML = '<span class="muted">No teams (or this league is ladder format).</span>';
+        return;
+      }
+      // Build a map of which teams have DUPR issues.
+      const issuesByTeam = {};
+      (CURRENT_DUPR_ISSUES || []).forEach(iss => {
+        if (!issuesByTeam[iss.team_id]) issuesByTeam[iss.team_id] = [];
+        issuesByTeam[iss.team_id].push(iss);
+      });
+
+      const rows = CURRENT_TEAMS.map(t => {
+        const p1Name = playerName(t.player_1_id);
+        const p2Name = playerName(t.player_2_id);
+        const p1Dupr = playerDupr(t.player_1_id);
+        const p2Dupr = playerDupr(t.player_2_id);
+        const issues = issuesByTeam[t.team_id] || [];
+        const issueBadge = issues.length
+          ? ` <span class="pill warn" title="${escapeHtml(issues.map(i => i.slot + ': ' + i.issue).join(' · '))}">⚠ DUPR</span>`
+          : '';
+
+        return `<tr id="team_row_${t.team_id}">
+          <td><strong>${escapeHtml(t.team_name)}</strong>${issueBadge}</td>
+          <td>${escapeHtml(p1Name || '(unassigned)')} <span class="muted" style="font-size:11px">${escapeHtml(p1Dupr || 'no DUPR')}</span></td>
+          <td>${escapeHtml(p2Name || '(unassigned)')} <span class="muted" style="font-size:11px">${escapeHtml(p2Dupr || 'no DUPR')}</span></td>
+          <td><button class="secondary" style="font-size:12px;padding:3px 8px" onclick="startEditTeam('${t.team_id}')">Edit</button></td>
+        </tr>`;
+      }).join('');
+      el.innerHTML = `<table>
+        <tr><th>Team</th><th>Player 1</th><th>Player 2</th><th></th></tr>${rows}
+      </table>`;
+    }
+
+    function startEditTeam(team_id) {
+      const t = CURRENT_TEAMS.find(x => x.team_id === team_id);
+      if (!t) return;
+      const opts = '<option value="">(unassigned)</option>' +
+        CURRENT_ROSTER.map(r => `<option value="${r.player_id}">${escapeHtml(r.full_name)}${r.dupr_id ? ' · ' + escapeHtml(r.dupr_id) : ' · no DUPR'}</option>`).join('');
+      const row = document.getElementById('team_row_' + team_id);
+      if (!row) return;
+      row.innerHTML = `
+        <td><input id="edit_name_${team_id}" value="${escapeHtml(t.team_name)}"></td>
+        <td><select id="edit_p1_${team_id}">${opts}</select></td>
+        <td><select id="edit_p2_${team_id}">${opts}</select></td>
+        <td>
+          <button onclick="saveTeam('${team_id}')" style="font-size:12px;padding:3px 8px">Save</button>
+          <button class="secondary" onclick="renderTeams()" style="font-size:12px;padding:3px 8px">Cancel</button>
+        </td>
+      `;
+      document.getElementById('edit_p1_' + team_id).value = t.player_1_id || '';
+      document.getElementById('edit_p2_' + team_id).value = t.player_2_id || '';
+    }
+
+    function saveTeam(team_id) {
+      const newName = document.getElementById('edit_name_' + team_id).value.trim();
+      const p1 = document.getElementById('edit_p1_' + team_id).value;
+      const p2 = document.getElementById('edit_p2_' + team_id).value;
+      if (!newName) { alert('Team name required'); return; }
+      if (p1 && p2 && p1 === p2) { alert('Players must be different'); return; }
+      // Save name first, then players. Sequential so we know both succeed before refreshing.
+      google.script.run
+        .withSuccessHandler(r1 => {
+          if (!r1.ok) { showErr(r1.error); return; }
+          google.script.run
+            .withSuccessHandler(r2 => {
+              if (!r2.ok) { showErr(r2.error); return; }
+              loadRoster();
+            })
+            .withFailureHandler(showErr)
+            .api_setTeamPlayers(team_id, p1, p2);
+        })
+        .withFailureHandler(showErr)
+        .api_renameTeam(team_id, newName);
+    }
+
+    function populateNewTeamDropdowns() {
+      const opts = '<option value="">— pick —</option>' +
+        CURRENT_ROSTER.map(r => `<option value="${r.player_id}">${escapeHtml(r.full_name)}${r.dupr_id ? ' · ' + escapeHtml(r.dupr_id) : ''}</option>`).join('');
+      ['newTeamP1', 'newTeamP2'].forEach(id => {
+        const sel = document.getElementById(id);
+        if (sel) sel.innerHTML = opts;
+      });
+    }
+
+    function createTeamManually() {
+      const league_id = document.getElementById('rosterLeaguePicker').value;
+      if (!league_id) { setMsg('newTeamMsg', 'Pick a league first', 'err'); return; }
+      const name = document.getElementById('newTeamName').value.trim();
+      const p1   = document.getElementById('newTeamP1').value;
+      const p2   = document.getElementById('newTeamP2').value;
+      if (!name) { setMsg('newTeamMsg', 'Team name required', 'err'); return; }
+      if (!p1 || !p2) { setMsg('newTeamMsg', 'Pick both players', 'err'); return; }
+      if (p1 === p2)  { setMsg('newTeamMsg', 'Players must differ', 'err'); return; }
+      setMsg('newTeamMsg', 'Creating…');
+      google.script.run
+        .withSuccessHandler(r => {
+          if (!r.ok) { setMsg('newTeamMsg', 'Error: ' + r.error, 'err'); return; }
+          setMsg('newTeamMsg', 'Created ' + r.data.team_name + ' ✓');
+          document.getElementById('newTeamName').value = '';
+          loadRoster();
+        })
+        .withFailureHandler(e => setMsg('newTeamMsg', String(e && e.message || e), 'err'))
+        .api_createTeamForLeague(league_id, name, p1, p2);
     }
 
     /* ----- Add players ----- */
@@ -609,10 +1187,25 @@ Quick update for {{league_name}}…
 
     /* ----- Export ----- */
 
+    function onExportKindChange() {
+      const kind = document.getElementById('exportKind').value;
+      const isDupr = kind === 'dupr' || kind === 'dupr_week';
+      document.getElementById('exportWeekWrap').classList.toggle('hidden', kind !== 'dupr_week');
+      document.getElementById('exportEventLabelWrap').classList.toggle('hidden', !isDupr);
+    }
+
     function downloadExport() {
       const league_id = document.getElementById('exportLeaguePicker').value;
       const kind      = document.getElementById('exportKind').value;
       if (!league_id) { setMsg('exportMsg', 'Pick a league', 'err'); return; }
+      const opts = {};
+      if (kind === 'dupr_week') {
+        opts.week_number = Number(document.getElementById('exportWeek').value) || 1;
+      }
+      if (kind === 'dupr' || kind === 'dupr_week') {
+        const lbl = (document.getElementById('exportEventLabel').value || '').trim();
+        if (lbl) opts.event_label = lbl;
+      }
       setMsg('exportMsg', 'Building…');
       google.script.run
         .withSuccessHandler(r => {
@@ -625,7 +1218,796 @@ Quick update for {{league_name}}…
           setMsg('exportMsg', 'Downloaded ' + r.data.filename);
         })
         .withFailureHandler(showErr)
-        .api_exportCsv(league_id, kind);
+        .api_exportCsv(league_id, kind, opts);
+    }
+
+    /* ----- CourtReserve integration ----- */
+
+    function loadCrStatus() {
+      document.getElementById('crStatus').textContent = 'Loading…';
+      google.script.run
+        .withSuccessHandler(onCrStatus).withFailureHandler(showErr)
+        .api_crGetStatus();
+    }
+
+    function onCrStatus(resp) {
+      if (!resp.ok) return showErr(resp.error);
+      const s = resp.data || {};
+      document.getElementById('crUsername').value = s.username || '';
+      document.getElementById('crBaseUrl').value  = s.base_url || '';
+      document.getElementById('crMode').value     = s.mode || 'org';
+      document.getElementById('crOrgId').value    = s.org_id || '';
+      const div = document.getElementById('crStatus');
+      if (s.configured) {
+        div.innerHTML = '<span class="pill ok">configured</span> ' +
+          'mode <code>' + (s.mode || '') + '</code>, user <code>' + (s.username || '') + '</code>';
+      } else {
+        div.innerHTML = '<span class="pill warn">not configured</span> ' +
+          'enter API username and password below.';
+      }
+    }
+
+    function crSave() {
+      const input = {
+        username: document.getElementById('crUsername').value.trim(),
+        base_url: document.getElementById('crBaseUrl').value.trim(),
+        mode:     document.getElementById('crMode').value,
+        org_id:   document.getElementById('crOrgId').value.trim(),
+      };
+      const pwd = document.getElementById('crPassword').value;
+      if (pwd) input.password = pwd;
+      setMsg('crMsg', 'Saving…');
+      google.script.run
+        .withSuccessHandler(r => {
+          if (!r.ok) { setMsg('crMsg', 'Error: ' + r.error, 'err'); return; }
+          setMsg('crMsg', 'Saved ✓');
+          document.getElementById('crPassword').value = '';
+          onCrStatus(r);
+        })
+        .withFailureHandler(showErr)
+        .api_crSetCredentials(input);
+    }
+
+    function crClear() {
+      if (!confirm('Wipe all CourtReserve credentials?')) return;
+      setMsg('crMsg', 'Clearing…');
+      google.script.run
+        .withSuccessHandler(r => {
+          if (!r.ok) { setMsg('crMsg', 'Error: ' + r.error, 'err'); return; }
+          setMsg('crMsg', 'Cleared ✓');
+          document.getElementById('crPassword').value = '';
+          onCrStatus(r);
+        })
+        .withFailureHandler(showErr)
+        .api_crClearCredentials();
+    }
+
+    function crTest() {
+      setMsg('crMsg', 'Pinging CourtReserve…');
+      document.getElementById('crPingResult').innerHTML = '';
+      google.script.run
+        .withSuccessHandler(r => {
+          if (!r.ok) { setMsg('crMsg', 'Error: ' + r.error, 'err'); return; }
+          setMsg('crMsg', '');
+          const p = r.data || {};
+          const cls = p.ok ? 'ok' : 'warn';
+          const label = p.ok ? 'connected' : 'not connected';
+          const detail = [
+            p.path ? 'tried <code>' + p.path + '</code>' : '',
+            p.status ? 'HTTP ' + p.status : '',
+            p.message ? '<span class="err">' + p.message + '</span>' : '',
+          ].filter(Boolean).join(' · ');
+          const sample = p.sample
+            ? '<details><summary>response sample</summary><pre style="font-size:11px;white-space:pre-wrap">' +
+              escapeHtmlClient(p.sample) + '</pre></details>'
+            : '';
+          document.getElementById('crPingResult').innerHTML =
+            '<span class="pill ' + cls + '">' + label + '</span> ' + detail + sample;
+        })
+        .withFailureHandler(showErr)
+        .api_crPing();
+    }
+
+    /* ----- CR pull-to-staging + assign flow ----- */
+
+    let CR_STAGED = [];
+
+    function crBuildPullFilters() {
+      const f = {};
+      const cid = document.getElementById('crPullCatId').value.trim();
+      const s   = document.getElementById('crPullStart').value;
+      const e   = document.getElementById('crPullEnd').value;
+      const inc = document.getElementById('crPullIncludeCancelled').checked;
+      if (cid) f.eventCategoryId = cid;
+      if (s)   f.startDate = s;
+      if (e)   f.endDate = e;
+      if (inc) f.includeCancelled = true;
+      return f;
+    }
+
+    function crRunPull() {
+      const f = crBuildPullFilters();
+      if (!f.startDate || !f.endDate) { setMsg('crPullMsg', 'Need start + end date', 'err'); return; }
+      setMsg('crPullMsg', 'Pulling…');
+      google.script.run
+        .withSuccessHandler(r => {
+          if (!r.ok) { setMsg('crPullMsg', 'Error: ' + r.error, 'err'); return; }
+          const d = r.data || {};
+          const rawNote = d.raw != null ? ' · raw CR rows: ' + d.raw : '';
+          const lgNote  = d.leagues_created != null
+            ? ' · leagues: ' + d.leagues_created + ' created, ' + d.leagues_existing + ' existing'
+            : '';
+          setMsg('crPullMsg', 'Added ' + d.added + ', updated ' + d.updated + ' (total ' + d.total + ')' + rawNote + lgNote + ' ✓');
+          crLoadStaged();
+        })
+        .withFailureHandler(showErr)
+        .api_crPullToStaging(f);
+    }
+
+    function crClearAndPull() {
+      const f = crBuildPullFilters();
+      if (!f.startDate || !f.endDate) { setMsg('crPullMsg', 'Need start + end date', 'err'); return; }
+      if (!confirm('This will delete ALL rows in the staging table and re-pull from CourtReserve. Continue?')) return;
+      setMsg('crPullMsg', 'Clearing staging table…');
+      google.script.run
+        .withSuccessHandler(r => {
+          if (!r.ok) { setMsg('crPullMsg', 'Error clearing: ' + r.error, 'err'); return; }
+          setMsg('crPullMsg', 'Cleared. Pulling…');
+          google.script.run
+            .withSuccessHandler(r2 => {
+              if (!r2.ok) { setMsg('crPullMsg', 'Error pulling: ' + r2.error, 'err'); return; }
+              const d = r2.data || {};
+              const rawNote2 = d.raw != null ? ' · raw CR rows: ' + d.raw : '';
+              const lgNote2  = d.leagues_created != null
+                ? ' · leagues: ' + d.leagues_created + ' created, ' + d.leagues_existing + ' existing'
+                : '';
+              setMsg('crPullMsg', 'Added ' + d.added + ', updated ' + d.updated + ' (total ' + d.total + ')' + rawNote2 + lgNote2 + ' ✓');
+              crLoadStaged();
+            })
+            .withFailureHandler(showErr)
+            .api_crPullToStaging(f);
+        })
+        .withFailureHandler(showErr)
+        .api_crClearStaging();
+    }
+
+    function crSyncLeagues() {
+      setMsg('crPullMsg', 'Syncing leagues from staging…');
+      google.script.run
+        .withSuccessHandler(r => {
+          if (!r.ok) { setMsg('crPullMsg', 'Error: ' + r.error, 'err'); return; }
+          const d = r.data || {};
+          setMsg('crPullMsg', 'Leagues: ' + d.created + ' created, ' + d.existing + ' existing ✓');
+          loadLeagues();
+        })
+        .withFailureHandler(showErr)
+        .api_crSyncLeagues();
+    }
+
+    function crLoadStaged() {
+      setMsg('crStageMsg', 'Loading…');
+      google.script.run
+        .withSuccessHandler(r => {
+          if (!r.ok) { setMsg('crStageMsg', 'Error: ' + r.error, 'err'); return; }
+          setMsg('crStageMsg', '');
+          CR_STAGED = r.data || [];
+          // Populate Category + Event filter pickers from the data
+          const cats = {};
+          const evts = {};
+          CR_STAGED.forEach(s => {
+            if (s.cr_category_id) cats[s.cr_category_id] = s.category_name || s.cr_category_id;
+            if (s.cr_event_id)    evts[s.cr_event_id]    = s.event_name || s.cr_event_id;
+          });
+          const optFor = (sel, items) => {
+            const cur = sel.value;
+            sel.innerHTML = '<option value="">all</option>' +
+              Object.keys(items).sort((a, b) => items[a].localeCompare(items[b]))
+                .map(k => '<option value="' + k + '">' + escapeHtmlClient(items[k]) + ' (' + k + ')</option>').join('');
+            sel.value = cur;
+          };
+          optFor(document.getElementById('crStageCategory'), cats);
+          optFor(document.getElementById('crStageEvent'),    evts);
+          crRenderStaged();
+        })
+        .withFailureHandler(showErr)
+        .api_crListStaged({});
+    }
+
+    function crFilteredStaged() {
+      const search = (document.getElementById('crStageSearch').value || '').toLowerCase().trim();
+      const cat    = document.getElementById('crStageCategory').value;
+      const evt    = document.getElementById('crStageEvent').value;
+      const stat   = document.getElementById('crStageStatus').value;
+      const asn    = document.getElementById('crStageAssigned').value;
+      return CR_STAGED.filter(r => {
+        if (cat && String(r.cr_category_id) !== cat) return false;
+        if (evt && String(r.cr_event_id) !== evt) return false;
+        if (stat && r.status !== stat) return false;
+        if (asn === 'unassigned' && r.assigned_league_id) return false;
+        if (asn === 'assigned'   && !r.assigned_league_id) return false;
+        if (search) {
+          const blob = ((r.first_name || '') + ' ' + (r.last_name || '') + ' ' +
+                        (r.email || '') + ' ' + (r.event_name || '') + ' ' +
+                        (r.category_name || '')).toLowerCase();
+          if (blob.indexOf(search) === -1) return false;
+        }
+        return true;
+      });
+    }
+
+    function crRenderStaged() {
+      const filtered = crFilteredStaged();
+      const stats = document.getElementById('crStageStats');
+      const total = CR_STAGED.length;
+      const showing = filtered.length;
+      const assignedCount = CR_STAGED.filter(r => r.assigned_league_id).length;
+      stats.innerHTML = 'Showing <strong>' + showing + '</strong> of ' + total +
+        ' total · ' + assignedCount + ' already assigned';
+
+      if (!showing) {
+        document.getElementById('crStageTable').innerHTML = '<p class="muted">No matching rows.</p>';
+        return;
+      }
+      const leaguesById = {};
+      LEAGUES.forEach(l => { leaguesById[l.league_id] = l; });
+
+      const COLS = [
+        { label: 'cr_reg_id',          key: 'cr_reg_id' },
+        { label: 'imported_at',        key: 'imported_at' },
+        { label: 'cr_event_id',        key: 'cr_event_id' },
+        { label: 'event_name',         key: 'event_name' },
+        { label: 'cr_category_id',     key: 'cr_category_id' },
+        { label: 'category_name',      key: 'category_name' },
+        { label: 'cr_event_date_id',   key: 'cr_event_date_id' },
+        { label: 'event_start',        key: 'event_start' },
+        { label: 'event_end',          key: 'event_end' },
+        { label: 'is_team_event',      key: 'is_team_event' },
+        { label: 'cr_member_id',       key: 'cr_member_id' },
+        { label: 'first_name',         key: 'first_name' },
+        { label: 'last_name',          key: 'last_name' },
+        { label: 'email',              key: 'email' },
+        { label: 'phone',              key: 'phone' },
+        { label: 'partners_json',             key: 'partners_json' },
+        { label: 'price_to_pay',             key: 'price_to_pay' },
+        { label: 'paid_amount',              key: 'paid_amount' },
+        { label: 'unsub_marketing_email',    key: 'unsub_marketing_email' },
+        { label: 'unsub_marketing_text',     key: 'unsub_marketing_text' },
+        { label: 'courts_json',              key: 'courts_json' },
+        { label: 'user_defined_fields_json', key: 'user_defined_fields_json' },
+        { label: 'signed_up_on',             key: 'signed_up_on' },
+        { label: 'cancelled_on',       key: 'cancelled_on' },
+        { label: 'status',             key: 'status' },
+        { label: 'assigned_league_id', key: 'assigned_league_id' },
+        { label: 'assigned_team_id',   key: 'assigned_team_id' },
+        { label: 'assigned_player_id', key: 'assigned_player_id' },
+        { label: 'assigned_at',        key: 'assigned_at' },
+      ];
+
+      const thead = '<tr>' + COLS.map(c => '<th style="white-space:nowrap">' + c.label + '</th>').join('') + '</tr>';
+      const rows = filtered.slice(0, 500).map(r => {
+        const cells = COLS.map(c => {
+          let v = r[c.key];
+          if (v === null || v === undefined) v = '';
+          // Highlight assigned_league_id with league name
+          if (c.key === 'assigned_league_id' && v) {
+            const name = (leaguesById[v] && leaguesById[v].name) || v;
+            return '<td><span class="pill">' + escapeHtmlClient(name) + '</span></td>';
+          }
+          if (c.key === 'status' && v) {
+            const cls = v === 'active' ? 'ok' : 'warn';
+            return '<td><span class="pill ' + cls + '">' + escapeHtmlClient(String(v)) + '</span></td>';
+          }
+          return '<td style="white-space:nowrap">' + escapeHtmlClient(String(v)) + '</td>';
+        }).join('');
+        return '<tr>' + cells + '</tr>';
+      }).join('');
+
+      const cap = filtered.length > 500
+        ? '<p class="muted" style="font-size:12px">Showing first 500 of ' + filtered.length + ' filtered rows. Assign uses the full filtered set, not just the visible 500.</p>'
+        : '';
+      document.getElementById('crStageTable').innerHTML =
+        '<div style="overflow-x:auto"><table style="font-size:12px">' + thead + rows + '</table></div>' + cap;
+    }
+
+    function crAssignFiltered() {
+      const league_id = document.getElementById('crStageAssignLeague').value;
+      if (!league_id) { setMsg('crStageMsg', 'Pick a league to assign to', 'err'); return; }
+      const filtered = crFilteredStaged();
+      const eligible = filtered.filter(r => !r.assigned_league_id);
+      if (!eligible.length) { setMsg('crStageMsg', 'No unassigned rows in the filtered set', 'err'); return; }
+      if (!confirm('Assign ' + eligible.length + ' registrations to this league?')) return;
+      const ids = eligible.map(r => r.cr_reg_id);
+      setMsg('crStageMsg', 'Assigning…');
+      google.script.run
+        .withSuccessHandler(r => {
+          if (!r.ok) { setMsg('crStageMsg', 'Error: ' + r.error, 'err'); return; }
+          const d = r.data || {};
+          const errs = (d.errors || []).length;
+          setMsg('crStageMsg', 'Assigned ' + d.assigned + ' / ' + d.total +
+            (errs ? ' (' + errs + ' errors)' : '') + ' ✓');
+          if (errs) console.warn('Assign errors', d.errors);
+          crLoadStaged();
+          if (document.getElementById('rosterLeaguePicker').value === league_id) loadRoster();
+        })
+        .withFailureHandler(showErr)
+        .api_crAssignStaged(ids, league_id);
+    }
+
+    function crUnassignFiltered() {
+      const filtered = crFilteredStaged();
+      const eligible = filtered.filter(r => r.assigned_league_id);
+      if (!eligible.length) { setMsg('crStageMsg', 'No assigned rows in the filtered set', 'err'); return; }
+      if (!confirm('Unassign ' + eligible.length + ' registrations? This removes them from their league rosters but keeps Player records.')) return;
+      const ids = eligible.map(r => r.cr_reg_id);
+      setMsg('crStageMsg', 'Unassigning…');
+      google.script.run
+        .withSuccessHandler(r => {
+          if (!r.ok) { setMsg('crStageMsg', 'Error: ' + r.error, 'err'); return; }
+          setMsg('crStageMsg', 'Unassigned ' + (r.data && r.data.unassigned || 0) + ' ✓');
+          crLoadStaged();
+        })
+        .withFailureHandler(showErr)
+        .api_crUnassignStaged(ids);
+    }
+
+    function crAutoAssignAll() {
+      const unassignedCount = CR_STAGED.filter(r => !r.assigned_league_id).length;
+      if (!unassignedCount) { setMsg('crStageMsg', 'No unassigned rows to assign', 'err'); return; }
+      if (!confirm('Auto-assign ' + unassignedCount + ' unassigned registrations to the league matching each row\'s event name? This may take a minute.')) return;
+      setMsg('crStageMsg', 'Auto-assigning… (this may take 30–60 s)');
+      google.script.run
+        .withSuccessHandler(r => {
+          if (!r.ok) { setMsg('crStageMsg', 'Error: ' + r.error, 'err'); return; }
+          const d = r.data || {};
+          const errs = (d.errors || []).length;
+          setMsg('crStageMsg', 'Assigned ' + d.assigned + ' of ' + d.total +
+            (errs ? ' (' + errs + ' errors — see console)' : '') + ' ✓');
+          if (errs) console.warn('Auto-assign errors', d.errors);
+          crLoadStaged();
+          loadLeagues();
+        })
+        .withFailureHandler(showErr)
+        .api_crAutoAssign();
+    }
+
+    /* ----- Attendance / No-shows ----- */
+
+    let CR_ATTENDANCE = [];
+
+    function crEnsureAttDates() {
+      const fmt = d => d.toISOString().slice(0, 10);
+      const s = document.getElementById('crAttStart');
+      const e = document.getElementById('crAttEnd');
+      if (!s.value) { const d = new Date(); d.setDate(d.getDate() - 7);  s.value = fmt(d); }
+      if (!e.value) { const d = new Date(); d.setDate(d.getDate() + 90); e.value = fmt(d); }
+    }
+
+    function crPullLeagueEvents() {
+      const s = document.getElementById('crEventsStart').value;
+      const e = document.getElementById('crEventsEnd').value;
+      const cat = document.getElementById('crEventsCatId').value.trim() || '48794';
+      if (!s || !e) { setMsg('crEventsMsg', 'Need start + end date', 'err'); return; }
+      setMsg('crEventsMsg', 'Pulling league events…');
+      google.script.run
+        .withSuccessHandler(r => {
+          if (!r.ok) { setMsg('crEventsMsg', 'Error: ' + r.error, 'err'); return; }
+          const d = r.data || {};
+          let msg = `${d.created} created, ${d.updated} updated (${d.total} events) ✓`;
+          if (d.sample && d.sample.length) {
+            msg += ' · e.g. ' + d.sample.slice(0, 3).map(s =>
+              `"${s.EventName}" (${s.RegisteredCount || 0} reg)`).join(', ');
+          }
+          setMsg('crEventsMsg', msg);
+          refreshLeagues();
+        })
+        .withFailureHandler(err => setMsg('crEventsMsg', 'Error: ' + (err && err.message || err), 'err'))
+        .api_crPullLeagueEvents({ startDate: s, endDate: e, categoryId: cat });
+    }
+
+    function crPullAttendance() {
+      const s = document.getElementById('crAttStart').value;
+      const e = document.getElementById('crAttEnd').value;
+      if (!s || !e) { setMsg('crAttMsg', 'Need start + end date', 'err'); return; }
+      setMsg('crAttMsg', 'Pulling…');
+      google.script.run
+        .withSuccessHandler(r => {
+          if (!r.ok) { setMsg('crAttMsg', 'Error: ' + r.error, 'err'); return; }
+          const d = r.data || {};
+          setMsg('crAttMsg', 'Added ' + d.added + ', updated ' + d.updated +
+            ' (total ' + d.total + ' no-shows) · raw CR rows: ' + d.raw + ' ✓');
+          crLoadAttendance();
+        })
+        .withFailureHandler(showErr)
+        .api_crPullAttendance({ startDate: s, endDate: e });
+    }
+
+    function crPullAllAttendance() {
+      const s = document.getElementById('crAttStart').value;
+      const e = document.getElementById('crAttEnd').value;
+      if (!s || !e) { setMsg('crAttMsg', 'Need start + end date', 'err'); return; }
+      setMsg('crAttMsg', 'Pulling ALL attendance (this may take a minute)…');
+      google.script.run
+        .withSuccessHandler(r => {
+          if (!r.ok) { setMsg('crAttMsg', 'Error: ' + r.error, 'err'); return; }
+          const d = r.data || {};
+          setMsg('crAttMsg', 'Added ' + d.added + ', updated ' + d.updated +
+            ' (total kept ' + d.total + ') · raw CR rows: ' + d.raw + ' ✓ — league rosters now read from attendance.');
+          crLoadAttendance();
+        })
+        .withFailureHandler(showErr)
+        .api_crPullAttendance({ startDate: s, endDate: e, includeAll: true });
+    }
+
+    function crClearAndPullAttendance() {
+      const s = document.getElementById('crAttStart').value;
+      const e = document.getElementById('crAttEnd').value;
+      if (!s || !e) { setMsg('crAttMsg', 'Need start + end date', 'err'); return; }
+      if (!confirm('Clear all attendance records and re-pull?')) return;
+      setMsg('crAttMsg', 'Clearing…');
+      google.script.run
+        .withSuccessHandler(r => {
+          if (!r.ok) { setMsg('crAttMsg', 'Error clearing: ' + r.error, 'err'); return; }
+          setMsg('crAttMsg', 'Cleared. Pulling…');
+          google.script.run
+            .withSuccessHandler(r2 => {
+              if (!r2.ok) { setMsg('crAttMsg', 'Error pulling: ' + r2.error, 'err'); return; }
+              const d = r2.data || {};
+              setMsg('crAttMsg', 'Added ' + d.added + ', updated ' + d.updated +
+                ' (total ' + d.total + ' no-shows) · raw CR rows: ' + d.raw + ' ✓');
+              crLoadAttendance();
+            })
+            .withFailureHandler(showErr)
+            .api_crPullAttendance({ startDate: s, endDate: e });
+        })
+        .withFailureHandler(showErr)
+        .api_crClearAttendance();
+    }
+
+    function crLoadAttendance() {
+      setMsg('crAttMsg', 'Loading…');
+      google.script.run
+        .withSuccessHandler(r => {
+          if (!r.ok) { setMsg('crAttMsg', 'Error: ' + r.error, 'err'); return; }
+          setMsg('crAttMsg', '');
+          CR_ATTENDANCE = r.data || [];
+          crRenderAttendance();
+        })
+        .withFailureHandler(showErr)
+        .api_crListAttendance({});
+    }
+
+    function crRenderAttendance() {
+      const search = (document.getElementById('crAttSearch').value || '').toLowerCase().trim();
+
+      const filtered = CR_ATTENDANCE.filter(r => {
+        if (search) {
+          const blob = ((r.first_name || '') + ' ' + (r.last_name || '') + ' ' +
+                        (r.event_name || '') + ' ' + (r.check_in_status || '')).toLowerCase();
+          if (blob.indexOf(search) === -1) return false;
+        }
+        return true;
+      });
+
+      document.getElementById('crAttStats').innerHTML =
+        'Showing <strong>' + filtered.length + '</strong> of ' + CR_ATTENDANCE.length + ' no-show records';
+
+      if (!filtered.length) {
+        document.getElementById('crAttTable').innerHTML = '<p class="muted">No records.</p>';
+        return;
+      }
+
+      const COLS = [
+        { label: 'member_number',        key: 'member_number' },
+        { label: 'first_name',           key: 'first_name' },
+        { label: 'last_name',            key: 'last_name' },
+        { label: 'event_name',           key: 'event_name' },
+        { label: 'check_in_status',      key: 'check_in_status' },
+        { label: 'check_in_type',        key: 'check_in_type' },
+        { label: 'checkin_datetime',     key: 'checkin_datetime' },
+        { label: 'checked_in_by',        key: 'checked_in_by' },
+        { label: 'registration_type',    key: 'registration_type' },
+        { label: 'reservation_start',    key: 'reservation_start' },
+        { label: 'reservation_end',      key: 'reservation_end' },
+        { label: 'reservation_display',  key: 'reservation_display' },
+        { label: 'registered_on',        key: 'registered_on_display' },
+        { label: 'is_guest',             key: 'is_guest' },
+        { label: 'type',                 key: 'type' },
+      ];
+
+      const thead = '<tr>' + COLS.map(c => '<th style="white-space:nowrap">' + c.label + '</th>').join('') + '</tr>';
+      const rows = filtered.slice(0, 500).map(r => {
+        const cells = COLS.map(c => {
+          const v = r[c.key] != null ? String(r[c.key]) : '';
+          if (c.key === 'check_in_status') {
+            const isOk = v.toLowerCase().indexOf('check') !== -1 && v.toLowerCase().indexOf('no') === -1;
+            const cls  = isOk ? 'ok' : 'warn';
+            return '<td><span class="pill ' + cls + '">' + escapeHtmlClient(v) + '</span></td>';
+          }
+          return '<td style="white-space:nowrap">' + escapeHtmlClient(v) + '</td>';
+        }).join('');
+        return '<tr>' + cells + '</tr>';
+      }).join('');
+
+      const cap = filtered.length > 500
+        ? '<p class="muted" style="font-size:12px">Showing first 500 of ' + filtered.length + '</p>' : '';
+
+      document.getElementById('crAttTable').innerHTML =
+        '<table style="font-size:12px">' + thead + rows + '</table>' + cap;
+    }
+
+    /* ----- Members ----- */
+
+    let CR_MEMBERS = [];
+
+    function crMembersPath() {
+      return (document.getElementById('crMembersPath').value || '').trim() || '/api/v1/memberreport/list';
+    }
+
+    function crTryMemberPath(path) {
+      document.getElementById('crMembersPath').value = path;
+      document.getElementById('crExplorePath').value = path;
+      document.getElementById('crExploreQuery').value = 'pageNumber=1&pageSize=5';
+      // Switch to integrations tab if needed, then explore
+      crExplore();
+      // Scroll explorer into view
+      setTimeout(() => {
+        const el = document.getElementById('crExploreResult');
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }, 200);
+    }
+
+    function crPullMembers() {
+      setMsg('crMembersMsg', 'Pulling members…');
+      google.script.run
+        .withSuccessHandler(r => {
+          if (!r.ok) { setMsg('crMembersMsg', 'Error: ' + r.error, 'err'); return; }
+          setMsg('crMembersMsg', `Done — ${r.data.added} added, ${r.data.updated} updated (${r.data.total} total)`);
+          crLoadMembers();
+        })
+        .withFailureHandler(e => setMsg('crMembersMsg', String(e), 'err'))
+        .api_crPullMembers({ _path: crMembersPath() });
+    }
+
+    function crClearAndPullMembers() {
+      setMsg('crMembersMsg', 'Clearing…');
+      google.script.run
+        .withSuccessHandler(() => {
+          setMsg('crMembersMsg', 'Cleared. Pulling…');
+          google.script.run
+            .withSuccessHandler(r => {
+              if (!r.ok) { setMsg('crMembersMsg', 'Error: ' + r.error, 'err'); return; }
+              setMsg('crMembersMsg', `Done — ${r.data.added} added (${r.data.total} total)`);
+              crLoadMembers();
+            })
+            .withFailureHandler(e => setMsg('crMembersMsg', String(e), 'err'))
+            .api_crPullMembers({ _path: crMembersPath() });
+        })
+        .withFailureHandler(e => setMsg('crMembersMsg', String(e), 'err'))
+        .api_crClearMembers();
+    }
+
+    function crLoadMembers() {
+      setMsg('crMembersMsg', 'Loading…');
+      google.script.run
+        .withSuccessHandler(r => {
+          if (!r.ok) { setMsg('crMembersMsg', 'Error: ' + r.error, 'err'); return; }
+          setMsg('crMembersMsg', '');
+          CR_MEMBERS = r.data || [];
+          crRenderMembers();
+        })
+        .withFailureHandler(e => setMsg('crMembersMsg', String(e), 'err'))
+        .api_crListMembers({});
+    }
+
+    function crRenderMembers() {
+      const search = (document.getElementById('crMembersSearch').value || '').toLowerCase().trim();
+      const filtered = CR_MEMBERS.filter(r => {
+        if (!search) return true;
+        return ((r.first_name || '') + ' ' + (r.last_name || '') + ' ' +
+                (r.email || '') + ' ' + (r.membership_number || '') + ' ' +
+                (r.cr_member_id || '')).toLowerCase().indexOf(search) !== -1;
+      });
+
+      document.getElementById('crMembersStats').innerHTML =
+        'Showing <strong>' + filtered.length + '</strong> of ' + CR_MEMBERS.length + ' members';
+
+      if (!filtered.length) {
+        document.getElementById('crMembersTable').innerHTML = '<p class="muted">No records. Pull members first.</p>';
+        return;
+      }
+
+      const COLS = [
+        { label: 'member_number',      key: 'membership_number' },
+        { label: 'cr_member_id',       key: 'cr_member_id' },
+        { label: 'first_name',         key: 'first_name' },
+        { label: 'last_name',          key: 'last_name' },
+        { label: 'email',              key: 'email' },
+        { label: 'phone',              key: 'phone' },
+        { label: 'gender',             key: 'gender' },
+        { label: 'dob',                key: 'date_of_birth' },
+        { label: 'status',             key: 'membership_status' },
+        { label: 'type',               key: 'membership_type' },
+        { label: 'type_id',            key: 'membership_type_id' },
+        { label: 'assignment',         key: 'membership_assignment_type' },
+        { label: 'start',              key: 'membership_start' },
+        { label: 'end',                key: 'membership_end' },
+        { label: 'family_id',          key: 'family_id' },
+        { label: 'family_role',        key: 'family_role' },
+        { label: 'allow_child_login',  key: 'allow_child_login' },
+        { label: 'address',            key: 'address' },
+        { label: 'city',               key: 'city' },
+        { label: 'state',              key: 'state' },
+        { label: 'zip',                key: 'zip' },
+        { label: 'unsub_mkt_email',    key: 'unsub_marketing_email' },
+        { label: 'unsub_mkt_push',     key: 'unsub_marketing_push' },
+        { label: 'unsub_mkt_text',     key: 'unsub_marketing_text' },
+        { label: 'unsub_org_text',     key: 'unsub_org_text' },
+        { label: 'external_id',        key: 'external_id' },
+        { label: 'udf_json',           key: 'udf_json' },
+      ];
+
+      const thead = '<tr>' + COLS.map(c => '<th style="white-space:nowrap">' + c.label + '</th>').join('') + '</tr>';
+      const rows = filtered.slice(0, 500).map(r => {
+        const cells = COLS.map(c => {
+          const v = r[c.key] != null ? String(r[c.key]) : '';
+          if (c.key === 'membership_status') {
+            const cls = v.toLowerCase() === 'active' ? 'ok' : 'warn';
+            return '<td><span class="pill ' + cls + '">' + escapeHtmlClient(v) + '</span></td>';
+          }
+          return '<td style="white-space:nowrap">' + escapeHtmlClient(v) + '</td>';
+        }).join('');
+        return '<tr>' + cells + '</tr>';
+      }).join('');
+
+      const cap = filtered.length > 500
+        ? '<p class="muted" style="font-size:12px">Showing first 500 of ' + filtered.length + '</p>' : '';
+
+      document.getElementById('crMembersTable').innerHTML =
+        '<table style="font-size:12px">' + thead + rows + '</table>' + cap;
+    }
+
+    function crTry(path) {
+      document.getElementById('crExplorePath').value = path;
+      document.getElementById('crExploreQuery').value = '';
+      crExplore();
+    }
+
+    function crTryWithDates(path) {
+      crEnsureDefaultDates();
+      const s = document.getElementById('crPullStart').value;
+      const e = document.getElementById('crPullEnd').value;
+      // CR caps each call at 31 days. For the explorer we just clamp the
+      // range to 30 days from the start to avoid the error; the import flow
+      // auto-chunks longer ranges server-side.
+      const clampedEnd = (() => {
+        if (!s || !e) return e;
+        const start = new Date(s);
+        const end   = new Date(e);
+        const cap   = new Date(start.getTime() + 30 * 86400000);
+        return (end > cap ? cap : end).toISOString().slice(0, 10);
+      })();
+      const isReg = path.indexOf('eventregistrationreport') !== -1;
+      const parts = [];
+      if (s)          parts.push((isReg ? 'eventDateFrom=' : 'startDate=') + s + (isReg ? 'T00:00:00Z' : ''));
+      if (clampedEnd) parts.push((isReg ? 'eventDateTo='   : 'endDate=')   + clampedEnd + (isReg ? 'T23:59:59Z' : ''));
+      if (isReg)      parts.push('includePartnerInfo=true');
+      document.getElementById('crExplorePath').value = path;
+      document.getElementById('crExploreQuery').value = parts.join('&');
+      crExplore();
+    }
+
+    function crEnsureDefaultDates() {
+      const fmt = d => d.toISOString().slice(0, 10);
+      const start = document.getElementById('crPullStart');
+      const end   = document.getElementById('crPullEnd');
+      if (!start.value) {
+        const d = new Date(); d.setDate(d.getDate() - 7);
+        start.value = fmt(d);
+      }
+      if (!end.value) {
+        const d = new Date(); d.setDate(d.getDate() + 90);
+        end.value = fmt(d);
+      }
+    }
+
+    function crExplore() {
+      const path = document.getElementById('crExplorePath').value.trim();
+      if (!path) { setMsg('crMsg', 'Need a path', 'err'); return; }
+      const qsRaw = document.getElementById('crExploreQuery').value.trim();
+      const query = {};
+      if (qsRaw) {
+        qsRaw.split('&').forEach(pair => {
+          const eq = pair.indexOf('=');
+          if (eq > 0) query[pair.slice(0, eq)] = pair.slice(eq + 1);
+        });
+      }
+      const div = document.getElementById('crExploreResult');
+      div.innerHTML = '<span class="muted">Calling…</span>';
+      google.script.run
+        .withSuccessHandler(r => {
+          if (!r.ok) { div.innerHTML = '<span class="err">' + escapeHtmlClient(r.error) + '</span>'; return; }
+          const d = r.data || {};
+          const ok = d.status >= 200 && d.status < 300;
+          const cls = ok ? 'ok' : 'warn';
+          const meta = [
+            '<span class="pill ' + cls + '">HTTP ' + d.status + '</span>',
+            d.count !== null && d.count !== undefined ? '<span class="pill">' + d.count + ' items</span>' : '',
+            '<span class="muted">' + (d.body_bytes || 0) + ' bytes</span>',
+            d.content_type ? '<span class="muted">' + escapeHtmlClient(d.content_type) + '</span>' : '',
+          ].filter(Boolean).join(' &middot; ');
+
+          const fullJson = (typeof d.body === 'string') ? d.body : JSON.stringify(d.body, null, 2);
+          const firstJson = d.first_item ? JSON.stringify(d.first_item, null, 2) : '';
+          const keysHtml = d.keys_first && d.keys_first.length
+            ? '<div style="margin:8px 0"><strong>Keys:</strong> ' +
+              d.keys_first.map(k => '<code style="font-size:11px;background:#eef;padding:1px 4px;border-radius:3px;margin-right:4px">' + escapeHtmlClient(k) + '</code>').join('') +
+              '</div>'
+            : '';
+          const emptyNote = (d.body_bytes === 0 || fullJson === '[]' || fullJson === '{}' || fullJson === 'null')
+            ? '<p class="muted" style="margin:8px 0"><em>Response body is empty.</em> Try adding query params (e.g. <code>startDate=2026-01-01&endDate=2026-12-31</code>) or check whether this resource has any records in CourtReserve.</p>'
+            : '';
+
+          const headers = d.headers || {};
+          const headerRows = Object.keys(headers)
+            .sort()
+            .map(k => '<tr><td style="padding:2px 6px;font-size:11px;color:#555">' + escapeHtmlClient(k) + '</td>' +
+              '<td style="padding:2px 6px;font-size:11px"><code>' + escapeHtmlClient(String(headers[k])) + '</code></td></tr>')
+            .join('');
+          const headersHtml = headerRows
+            ? '<details style="margin-top:8px"><summary style="font-size:12px;color:#555">Response headers (' + Object.keys(headers).length + ')</summary>' +
+              '<table style="margin-top:4px">' + headerRows + '</table></details>'
+            : '';
+          div.innerHTML = meta + emptyNote + keysHtml + headersHtml +
+            '<div style="margin-top:8px"><label style="font-size:12px;color:#555">URL</label>' +
+            '<input readonly style="font-size:11px" value="' + escapeHtmlClient(d.url || '') + '"></div>' +
+            (firstJson ? '<div style="margin-top:8px"><label style="font-size:12px;color:#555">First item</label>' +
+              '<textarea readonly rows="10" style="font-family:monospace;font-size:11px;width:100%;padding:6px;border:1px solid #ddd;border-radius:6px">' +
+              escapeHtmlClient(firstJson) + '</textarea>' +
+              '<button class="secondary" style="margin-top:4px" onclick="crCopy(this.previousElementSibling)">Copy first item</button></div>' : '') +
+            '<div style="margin-top:8px"><label style="font-size:12px;color:#555">Full response</label>' +
+            '<textarea readonly rows="14" style="font-family:monospace;font-size:11px;width:100%;padding:6px;border:1px solid #ddd;border-radius:6px">' +
+            escapeHtmlClient(fullJson || '') + '</textarea>' +
+            '<button class="secondary" style="margin-top:4px" onclick="crCopy(this.previousElementSibling)">Copy full response</button></div>';
+        })
+        .withFailureHandler(showErr)
+        .api_crExplore(path, query);
+    }
+
+    function crCopy(textarea) {
+      try {
+        textarea.select();
+        document.execCommand('copy');
+        textarea.blur();
+      } catch (e) { /* ignore */ }
+    }
+
+    function loadCrLog() {
+      document.getElementById('crLogList').textContent = 'Loading…';
+      google.script.run
+        .withSuccessHandler(r => {
+          if (!r.ok) return showErr(r.error);
+          const list = r.data || [];
+          const div = document.getElementById('crLogList');
+          if (!list.length) { div.innerHTML = '<span class="muted">No calls logged yet.</span>'; return; }
+          const rows = list.map(x => `<tr>
+            <td><span class="muted">${x.started_at || ''}</span></td>
+            <td>${x.kind || ''}</td>
+            <td>${x.method || ''}</td>
+            <td><code style="font-size:11px">${x.path || ''}</code></td>
+            <td>${x.http_status || ''}</td>
+            <td><span class="pill ${x.status === 'ok' ? 'ok' : 'warn'}">${x.status || ''}</span></td>
+            <td>${escapeHtmlClient(x.message || '')}</td>
+          </tr>`).join('');
+          div.innerHTML = `<table><tr><th>When</th><th>Kind</th><th>Method</th><th>Path</th><th>Status</th><th>Result</th><th>Message</th></tr>${rows}</table>`;
+        })
+        .withFailureHandler(showErr)
+        .api_crSyncLog(50);
+    }
+
+    function escapeHtmlClient(s) {
+      return String(s).replace(/[&<>"']/g, c => (
+        { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+      ));
     }
 
     init();

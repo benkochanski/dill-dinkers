@@ -43,6 +43,7 @@ function addRole_(input) {
     created_at:      nowStamp_(),
   };
   appendObjects_('Roles', [row]);
+  cacheBust_('roles:list');
   audit_('role_add', 'role', email + ':' + input.role, null, row);
   return row;
 }
@@ -57,7 +58,10 @@ function deactivateRole_(email, role, scope_league_id, scope_team_id) {
            String(r.scope_team_id   || '') === String(scope_team_id   || '') &&
            r.active === true;
   }, r => { r.active = false; touched++; });
-  if (touched) audit_('role_deactivate', 'role', e + ':' + role, true, false);
+  if (touched) {
+    cacheBust_('roles:list');
+    audit_('role_deactivate', 'role', e + ':' + role, true, false);
+  }
   return touched;
 }
 

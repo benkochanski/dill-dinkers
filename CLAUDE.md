@@ -5,15 +5,15 @@ Apps Script web app + single master Google Sheet for managing 12+ pickleball lea
 ## Architecture in two minutes
 
 ```
-Master Sheet (one sheet, 15 tabs)               GAS web app (single doGet)
+Master Sheet (one sheet, 16 tabs)               GAS web app (single doGet)
   Config           Players                       ?page=home    landing
-  Roles            Rosters                       ?page=admin    7 tabs
+  Roles            Rosters                       ?page=admin    8 tabs
   Leagues          Teams                         ?page=operator entry + standings
   League_Schedule  Session_Groups                ?page=display  TV scoreboard
   Match_Schedule   Games                         ?page=player   (stub)
   Substitutions    DUPR
   Email_Log        Audit_Log
-  Bonus_Config
+  Bonus_Config     CR_Sync_Log
 ```
 
 All data is one row per fact; standings/displays are computed on demand from `Games` + `Bonus_Config` (no derived tabs to keep in sync).
@@ -37,8 +37,9 @@ All data is one row per fact; standings/displays are computed on demand from `Ga
 - `Email.js` — `bulkEmailLeague_` with placeholder substitution + `Email_Log`
 - `Export.js` — `exportCsv_(league_id, kind)` for `roster | teams | scores | standings | subs`
 - `SeedTest.js` — `seedTestLadder()` / `seedTestPartner()` + debug helpers
+- `CourtReserve.js` — CourtReserve API client. Basic Auth, JSON, 429-with-Retry-After. Credentials in Script Properties (`CR_USERNAME`, `CR_PASSWORD`, `CR_BASE_URL`, `CR_MODE`, `CR_ORG_ID`) — never the Sheet. Helpers: `crGet_`, `crPost_`, `crFetch_`, `crPing_`, `crLogSync_` (writes to `CR_Sync_Log`)
 
-HTML pages: `Home.html`, `Admin.html` (7 tabs: Leagues / Roster / Subs / Email / Export / Roles / Audit), `Operator.html` (format-aware game entry + live standings), `Display.html` (TV scoreboard, auto-refresh 30s).
+HTML pages: `Home.html`, `Admin.html` (8 tabs: Leagues / Roster / Subs / Email / Export / Roles / Integrations / Audit), `Operator.html` (format-aware game entry + live standings), `Display.html` (TV scoreboard, auto-refresh 30s).
 
 Player roster intake is direct (no staging/approval): the Roster tab has a single-player form + bulk-paste textarea (`full_name, email, phone, level, dupr_id, team_name`, comma- or tab-separated). For partner format, players sharing the same `team_name` auto-merge into a Team.
 
@@ -66,6 +67,8 @@ Multiplier = `(num_groups - group_rank) × 0.03` so bottom group is 0. Stored ex
 
 **Deploy a fresh version**: `clasp push` updates the `/dev` URL automatically. For `/exec` (production), Apps Script editor → Deploy → Manage deployments → New version.
 
+**Configure CourtReserve API**: in CourtReserve, `Settings → Additional Features → Integrations` to enable and grab credentials (Scale or Enterprise plan only). Then Admin → Integrations tab → paste username/password/mode (org or enterprise) → Save → Test. Credentials are stored in Script Properties, never the Sheet. After that, server-side code can call `crGet_(path, query)` / `crPost_(path, body)` / `crFetch_(method, path, opts)` and they'll auto-attach Basic Auth and handle one 429-retry.
+
 ## Quirks worth knowing
 
 1. **`google.script.run` won't transmit Date objects.** Any return value containing a Date silently becomes `null`. `wrap_` in Api.js does a JSON-roundtrip to coerce Dates → ISO strings. If you write a new endpoint that bypasses `wrap_`, mind the Dates yourself.
@@ -74,6 +77,7 @@ Multiplier = `(num_groups - group_rank) × 0.03` so bottom group is 0. Stored ex
 4. **Mail quotas**: ~100/day on personal Google accounts, 1500/day on Workspace. Bulk email logs success/error per recipient in `Email_Log`.
 5. **Bootstrap is additive.** Re-running it after a schema change extends columns but never removes them. If you actually need to drop a column, do it manually in the Sheet.
 6. **Apps Script web app deployments are version-pinned.** `/exec` URLs serve the version that was current when you deployed; `/dev` URLs always serve the latest pushed code. For active dev, use `/dev`. For production / TVs, deploy a versioned `/exec` and update it explicitly when you want to ship.
+7. **CourtReserve rate limit is 60 req/min per key.** `crFetch_` does a single 429 retry honoring `Retry-After` (capped at 30s). For bulk pulls, paginate and throttle yourself — don't burst. Probe paths in `crPing_` are guesses based on the Swagger structure; if your account uses different routes, update them when you know what works.
 
 ## Test data
 

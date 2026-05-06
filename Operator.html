@@ -4,35 +4,79 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Operator — <?= appName ?></title>
+  <?!= include_('Styles') ?>
   <style>
     * { box-sizing: border-box; }
-    body { font-family: system-ui, -apple-system, sans-serif; margin: 0; padding: 16px; max-width: 1100px; margin-inline: auto; color: #222; }
+    body { margin: 0; padding: 16px; max-width: 1200px; margin-inline: auto; }
     h1 { margin: 0 0 4px; font-size: 22px; }
-    h2 { font-size: 16px; margin: 24px 0 8px; }
+    h2 { font-size: 16px; margin: 20px 0 8px; }
+    h3 { font-size: 14px; margin: 12px 0 6px; }
     .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
-    select, input { padding: 8px 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; }
-    button { padding: 8px 14px; background: #2c5; color: #fff; border: none; border-radius: 6px; font-size: 14px; cursor: pointer; }
-    button:hover { background: #1a4; }
-    button.secondary { background: #888; }
-    button.secondary:hover { background: #666; }
-    table { border-collapse: collapse; width: 100%; font-size: 13px; }
-    th, td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; }
-    th { background: #f4f4f4; }
-    tr.win td { background: #f0fff0; }
-    .pill { display: inline-block; padding: 1px 6px; border-radius: 10px; background: #e8f0fe; color: #1a3; font-size: 11px; }
-    .err { color: #c00; }
-    .muted { color: #888; }
-    .card { border: 1px solid #ddd; border-radius: 8px; padding: 12px 16px; margin: 12px 0; }
     .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
-    label { font-size: 12px; color: #555; display: block; }
-    .nav a { color: #246; text-decoration: none; margin-right: 12px; }
     .hidden { display: none !important; }
+    tr.win td { background: var(--brand-green-soft); }
+    /* Partner subs/no-shows pairing UI */
+    .sub-list, .noshow-list { display: flex; flex-direction: column; gap: 6px; min-height: 60px; }
+    .sub-card {
+      padding: 8px 12px; border: 1px solid var(--brand-green); border-radius: 6px;
+      background: var(--brand-green-soft); cursor: grab; user-select: none;
+      font-size: 13px;
+    }
+    .sub-card.dragging { opacity: 0.4; cursor: grabbing; }
+    .sub-card:hover { border-color: var(--brand-green-dark); }
+    .noshow-card {
+      padding: 10px 12px; border: 2px dashed var(--brand-orange); border-radius: 6px;
+      background: var(--brand-orange-soft); font-size: 13px;
+    }
+    .noshow-card.drag-over { background: #fff; border-style: solid; box-shadow: 0 0 0 2px var(--brand-orange) inset; }
+    .noshow-card .drop-hint { font-size: 11px; color: var(--brand-orange-dark); margin-top: 4px; font-style: italic; }
+    .noshow-card.drag-over .drop-hint { color: var(--brand-green-dark); font-weight: 700; font-style: normal; }
+    /* Ladder session-specific */
+    .group-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 12px; }
+    .group-card { border: 1px solid var(--border); border-radius: 8px; padding: 12px; background: var(--bg-subtle); }
+    .group-card h3 { margin: 0 0 8px; display: flex; justify-content: space-between; }
+    .game-row { display: grid; grid-template-columns: 1fr 60px 8px 60px; gap: 6px; align-items: center; padding: 6px 0; border-top: 1px solid var(--border); }
+    .game-row input.score-done { background: var(--brand-green-soft); color: var(--brand-green-dark); }
+    .game-row:first-of-type { border-top: none; }
+    .game-row .matchup { font-size: 13px; }
+    .game-row .matchup .vs { color: var(--text-muted); margin: 0 4px; }
+    .game-row input[type=number] { width: 100%; padding: 4px 6px; font-size: 14px; text-align: center; -moz-appearance: textfield; }
+    .game-row input[type=number]::-webkit-inner-spin-button,
+    .game-row input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    .game-row .saved { font-size: 11px; color: var(--brand-green-dark); font-weight: 600; }
+    .schedule-table td { text-align: center; font-size: 12px; }
+    .schedule-cell { padding: 4px; line-height: 1.3; }
+    .schedule-cell .group { font-weight: 600; }
+    .schedule-cell .game { color: var(--text-muted); font-size: 11px; }
+    .schedule-cell.complete { background: var(--brand-green-soft); }
+    .standings-mini { font-size: 12px; margin-top: 8px; }
+    .standings-mini td { padding: 3px 6px; font-size: 12px; }
+    .roster-table { font-size: 13px; }
+    .roster-table td:first-child { width: 40px; text-align: center; }
+    .roster-table td:nth-child(2) { width: 40px; text-align: center; color: var(--text-muted); }
+    .check-all { font-size: 12px; cursor: pointer; color: var(--brand-orange-dark); }
+    /* Partner schedule-driven UI */
+    .partner-round { margin-bottom: 18px; }
+    .partner-round-label { font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 8px; }
+    .partner-match-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px; }
+    .partner-match-card { border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; background: var(--bg-card); }
+    .partner-match-card.complete { background: var(--brand-green-soft); border-color: var(--brand-green-dark); }
+    .partner-match-header { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; margin-bottom: 8px; }
+    .partner-match-row { display: grid; grid-template-columns: 1fr 56px; gap: 6px; align-items: center; padding: 2px 0; }
+    .partner-team-name { font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .partner-score-input { width: 100%; padding: 4px 6px; font-size: 14px; text-align: center; -moz-appearance: textfield; border: 1px solid var(--border); border-radius: 4px; }
+    .partner-score-input::-webkit-inner-spin-button, .partner-score-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    .partner-score-input.saved { background: var(--brand-green-soft); color: var(--brand-green-dark); }
+    .partner-match-footer { font-size: 11px; color: var(--brand-green-dark); font-weight: 600; margin-top: 6px; min-height: 16px; }
   </style>
 </head>
 <body>
-  <p class="nav"><a href="?page=home">← Home</a></p>
+  <div class="app-header">
+    <?!= include_('Logo') ?>
+    <span class="who">Signed in as <code><?= user.email ?></code> · <?= user.roles.join(', ') || 'no roles' ?></span>
+  </div>
+  <?!= include_('Nav') ?>
   <h1>Operator</h1>
-  <p class="muted">Signed in as <?= user.email ?> — <?= user.roles.join(', ') || 'no roles' ?></p>
 
   <div class="card">
     <div class="row">
@@ -44,60 +88,187 @@
         <label>Week</label>
         <select id="weekPicker"></select>
       </div>
+      <div id="sessionDateWrap" style="flex-direction:column; gap:2px">
+        <label style="margin-bottom:2px">Session date <span class="muted" style="font-size:10px; font-weight:400">(for no-show check)</span></label>
+        <input id="sessionDateInput" type="date" style="width:150px"
+               title="Date used to look up no-shows. Auto-filled from week when dates are available; override manually if needed."
+               onchange="onSessionDateChange()">
+      </div>
+      <div id="courtsWrap" class="hidden" style="flex-direction:column; gap:2px">
+        <label style="margin-bottom:2px">Courts in use</label>
+        <div style="display:flex; gap:6px; align-items:center">
+          <input id="courtNumbers" type="text" placeholder="e.g. 1, 2, 3, 4" style="width:160px"
+                 title="Enter the specific court numbers being used, separated by commas or spaces">
+          <span id="courtCountPill" class="pill" style="white-space:nowrap"></span>
+        </div>
+      </div>
+      <button class="btn" onclick="pullTodaysAttendance()" title="Pull CR_Attendance for the selected date and event only — fast refresh on game day">Pull today's attendance</button>
       <button class="secondary" onclick="refreshAll()">Refresh</button>
+      <span id="pullAttMsg" class="muted" style="font-size:12px"></span>
       <span id="formatPill" class="pill"></span>
     </div>
   </div>
 
-  <div id="content" style="display:none">
+  <!-- ============ LADDER SESSION (ladder only) ============ -->
+  <div id="ladderSession" class="hidden">
+    <div class="tabs" id="halfTabs" style="margin-bottom: 0">
+      <button data-half="1" class="active" onclick="switchHalf(1)">Half 1</button>
+      <button data-half="2" onclick="switchHalf(2)">Half 2</button>
+    </div>
+
+    <!-- ===== HALF 1 ===== -->
+    <div id="half1Panel">
+      <!-- Setup phase: no Session_Groups for half 1 -->
+      <div id="setup1Panel" class="card hidden">
+        <h2>Setup Half 1 — Week <span class="weekLabel">?</span></h2>
+        <p class="muted">Mark who's here. Attendees are split into groups of 4 in season-rank order
+          (top 4 → group 1, next 4 → group 2, …). Attendance must be a multiple of 4.
+          Each half is 4 rounds; each group plays 3 games + 1 bye.</p>
+        <div class="row" style="margin: 8px 0">
+          <span><a class="check-all" onclick="checkAllAttendance(true)">all in</a> · <a class="check-all" onclick="checkAllAttendance(false)">none</a></span>
+          <span id="attendanceCount" class="muted"></span>
+        </div>
+        <div id="rankedRosterDiv">Loading…</div>
+        <div class="row" style="margin-top:8px;gap:6px">
+          <input id="manualSubName" type="text" placeholder="Sub name (e.g. Jane Doe)" style="flex:1;max-width:280px"
+                 onkeydown="if(event.key==='Enter'){event.preventDefault();addManualSub();}">
+          <button class="secondary tiny" onclick="addManualSub()">Add sub</button>
+          <span id="manualSubMsg" class="muted" style="font-size:11px"></span>
+        </div>
+        <div class="row" style="margin-top:4px; margin-bottom:8px">
+          <span id="noShowDebugNote" class="muted" style="font-size:11px"></span>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <button onclick="submitSetupHalf1()">Setup Half 1</button>
+          <span id="setupMsg" class="muted"></span>
+        </div>
+      </div>
+
+      <!-- Play phase: half 1 exists -->
+      <div id="play1Panel" class="hidden">
+        <div class="card">
+          <div class="row" style="justify-content: space-between">
+            <div>
+              <h2 style="margin:0">Half 1 — Week <span class="weekLabel">?</span></h2>
+              <p class="muted" id="summary1" style="margin: 4px 0 0"></p>
+            </div>
+            <div class="row" style="gap:6px">
+              <button class="secondary tiny" onclick="clearSessionResults(1)" title="Erase scores but keep groups + attendance — re-enter scores fresh">Clear results</button>
+              <button class="danger tiny" onclick="resetHalf(1)">Reset Half 1</button>
+            </div>
+          </div>
+        </div>
+        <div class="card"><h2>Schedule</h2><div id="schedule1"></div></div>
+        <div class="card">
+          <h2>Groups</h2>
+          <p class="muted">Enter scores in any order. Each group plays 3 games with rotating partners.</p>
+          <div id="groups1" class="group-grid"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== HALF 2 ===== -->
+    <div id="half2Panel" class="hidden">
+      <!-- Pre-setup: half 1 not done yet -->
+      <div id="half2Locked" class="card hidden">
+        <h2>Half 2 — Week <span class="weekLabel">?</span></h2>
+        <p id="half2LockMsg" class="muted"></p>
+      </div>
+
+      <!-- Halftime mix preview / confirm -->
+      <div id="halftimeMixPanel" class="card hidden">
+        <h2>Halftime mix</h2>
+        <p class="muted">Half 1 is complete. The new groups below come from promote/relegate on Half 1's standings:
+          rank 1 up two groups, rank 2 up one, rank 3 down one, rank 4 down two — with boundary rules at the top and bottom.</p>
+        <div id="halftimePreviewContent">Loading…</div>
+        <div class="row" style="margin-top:12px">
+          <button onclick="confirmHalftimeMix()">Confirm and start Half 2</button>
+          <button class="secondary" onclick="reloadSession()">Refresh</button>
+          <span id="halftimeMsg" class="muted"></span>
+        </div>
+      </div>
+
+      <!-- Play phase: half 2 exists -->
+      <div id="play2Panel" class="hidden">
+        <div class="card">
+          <div class="row" style="justify-content: space-between">
+            <div>
+              <h2 style="margin:0">Half 2 — Week <span class="weekLabel">?</span></h2>
+              <p class="muted" id="summary2" style="margin: 4px 0 0"></p>
+            </div>
+            <div class="row" style="gap:6px">
+              <button class="secondary tiny" onclick="clearSessionResults(2)" title="Erase scores but keep groups + attendance — re-enter scores fresh">Clear results</button>
+              <button class="danger tiny" onclick="resetHalf(2)">Reset Half 2</button>
+            </div>
+          </div>
+        </div>
+        <div class="card"><h2>Schedule</h2><div id="schedule2"></div></div>
+        <div class="card">
+          <h2>Groups</h2>
+          <p class="muted">Enter scores in any order. Each group plays 3 games with rotating partners.</p>
+          <div id="groups2" class="group-grid"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ PARTNER (schedule-driven) ============ -->
+  <div id="partnerContent" class="hidden">
     <div class="card">
-      <h2>Enter a game</h2>
-      <div class="grid">
-        <div><label>Round</label><input id="f_round" type="number" min="1" value="1"></div>
-        <div><label>Group / Match</label><input id="f_group" type="number" min="1" value="1"></div>
-        <div><label>Game</label><input id="f_game" type="number" min="1" value="1"></div>
-        <div><label>Court</label><input id="f_court" type="number" min="1" value="1"></div>
-      </div>
-
-      <div id="ladderFields">
-        <h2>Team 1</h2>
-        <div class="grid">
-          <div><label>P1</label><select id="f_t1p1"></select></div>
-          <div><label>P2</label><select id="f_t1p2"></select></div>
-          <div><label>Score</label><input id="f_s1_l" type="number" min="0" max="21"></div>
-        </div>
-        <h2>Team 2</h2>
-        <div class="grid">
-          <div><label>P1</label><select id="f_t2p1"></select></div>
-          <div><label>P2</label><select id="f_t2p2"></select></div>
-          <div><label>Score</label><input id="f_s2_l" type="number" min="0" max="21"></div>
+      <div class="row" style="justify-content:space-between; margin-bottom:8px">
+        <h2 style="margin:0">Subs &amp; no-shows <span class="muted" style="font-size:12px;font-weight:400">— for <span id="partnerSubDate">today</span></span></h2>
+        <div class="row" style="gap:8px;align-items:center">
+          <button class="btn" onclick="pullPartnerAttendance()">Pull today's attendance</button>
+          <button class="secondary" onclick="loadPartnerSubsContext()">Refresh</button>
         </div>
       </div>
-
-      <div id="partnerFields" class="hidden">
-        <h2>Match</h2>
-        <div class="grid">
-          <div><label>Team 1</label><select id="f_t1team"></select></div>
-          <div><label>Score</label><input id="f_s1_p" type="number" min="0" max="21"></div>
-          <div><label>Team 2</label><select id="f_t2team"></select></div>
-          <div><label>Score</label><input id="f_s2_p" type="number" min="0" max="21"></div>
+      <p class="muted" style="font-size:12px;margin:0 0 10px">
+        Drag a sub onto a no-show to swap. The pairing replaces the no-show in the live display for today only.
+      </p>
+      <span id="partnerAttMsg" class="muted" style="font-size:12px;display:block;margin-bottom:8px"></span>
+      <div id="partnerPairedSwaps" style="margin-bottom:14px"></div>
+      <div class="row" style="gap:16px;align-items:flex-start">
+        <div style="flex:1;min-width:0">
+          <h3 style="font-size:13px;color:var(--brand-green-dark);margin:0 0 6px;text-transform:uppercase;letter-spacing:0.04em">Subs <span id="partnerSubsCount" class="muted" style="font-weight:400">(0)</span></h3>
+          <div id="partnerSubsList" class="sub-list"><span class="muted" style="font-size:12px">No subs.</span></div>
         </div>
-      </div>
-
-      <div class="row" style="margin-top:12px">
-        <button onclick="submitGame()">Save game</button>
-        <span id="saveMsg" class="muted"></span>
+        <div style="flex:1;min-width:0">
+          <h3 style="font-size:13px;color:var(--brand-orange-dark);margin:0 0 6px;text-transform:uppercase;letter-spacing:0.04em">No-shows <span id="partnerNoshowsCount" class="muted" style="font-weight:400">(0)</span></h3>
+          <div id="partnerNoshowsList" class="noshow-list"><span class="muted" style="font-size:12px">No no-shows.</span></div>
+        </div>
       </div>
     </div>
 
     <div class="card">
-      <h2>Recent games this week</h2>
-      <div id="gamesList">Loading…</div>
+      <div class="row" style="justify-content:space-between; margin-bottom:12px">
+        <h2 style="margin:0">Week <span id="partnerWeekLabel">?</span> Matches</h2>
+        <div class="row" style="gap:8px">
+          <span id="partnerProgressPill" class="pill"></span>
+          <button class="secondary" onclick="refreshPartnerSession()">Refresh</button>
+        </div>
+      </div>
+      <div class="row" style="gap:8px; align-items:flex-end; margin-bottom:10px">
+        <div>
+          <label style="font-size:12px">Courts in use this week</label><br>
+          <input id="partnerCourtNumbers" type="text" placeholder="e.g. 3,4,5,6,7" style="width:200px">
+        </div>
+        <button class="btn" onclick="assignPartnerCourts()">Assign courts</button>
+        <span id="partnerCourtsMsg" class="muted" style="font-size:12px"></span>
+      </div>
+      <div id="partnerRoundCards"><span class="muted">Loading…</span></div>
+      <p id="partnerNoScheduleMsg" class="muted hidden" style="padding:16px 0 4px">
+        No schedule generated for this league yet. Go to <strong>Admin → Leagues</strong> and click <em>Schedule</em> next to this league to generate one.
+      </p>
     </div>
 
     <div class="card">
       <h2>Live standings</h2>
       <div id="standings">Loading…</div>
+    </div>
+
+    <div class="card">
+      <h2>Games this week</h2>
+      <div id="gamesList">Loading…</div>
     </div>
   </div>
 
@@ -105,13 +276,162 @@
   <p id="status" class="muted" style="font-size:12px"></p>
 
   <script>
-    let LEAGUES = [], CURRENT_LEAGUE = null, ROSTER = [], TEAMS = [];
+    let LEAGUES = [], CURRENT_LEAGUE = null;
+    let ROSTER = [], TEAMS = [];               // partner
+    let RANKED_ROSTER = [];                    // ladder, for half-1 setup
+    let SESSION_BY_HALF = { 1: null, 2: null };
+    let SCHEDULE = [];                         // league week schedule
+    let PARTNER_MATCHES = [];                  // Match_Schedule rows for current week
+    let PARTNER_GAMES   = [];                  // Games rows for current week (non-voided)
+    let NO_SHOW_PLAYER_IDS = {};               // player_id → true for today's no-shows
+    let SUB_PLAYER_IDS    = {};               // player_id → true for today's subs
+    let PRESENT_PLAYER_IDS = {};               // player_id → true for today's confirmed check-ins
+    let EXTERNAL_SUBS     = [];               // [{player_id, full_name, level, member_number, is_temp}] — subs not on roster
+    let CURRENT_HALF = 1;
+    let HALFTIME_MIX = null;                   // last fetched halftime mix preview
+
+    /* ====================================================================
+       STATE PERSISTENCE — remember which league/week/half/courts the user
+       was on across page refreshes. Stored in localStorage as a JSON blob.
+       ==================================================================== */
+    const PREFS_KEY = 'dill_operator_prefs_v1';
+    function loadPrefs_() {
+      try { return JSON.parse(localStorage.getItem(PREFS_KEY) || '{}') || {}; }
+      catch (e) { return {}; }
+    }
+    function savePrefs_(patch) {
+      try {
+        const cur = loadPrefs_();
+        const next = Object.assign({}, cur, patch);
+        localStorage.setItem(PREFS_KEY, JSON.stringify(next));
+      } catch (e) { /* localStorage may be disabled — ignore */ }
+    }
 
     function setStatus(s) { document.getElementById('status').textContent = s; }
     function showErr(e) { document.getElementById('error').textContent = String(e && e.message || e); }
     function isPartner() { return CURRENT_LEAGUE && CURRENT_LEAGUE.format_type === 'partner'; }
+    function isLadder() { return CURRENT_LEAGUE && CURRENT_LEAGUE.format_type === 'ladder'; }
+    function escapeHtml(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+    function getWeek() { return Number(document.getElementById('weekPicker').value || 1); }
+
+    /**
+     * Return the session date (yyyy-MM-dd) used for no-show lookups.
+     * Priority: manual date input → week option's data-date → ''
+     */
+    function getSessionDate() {
+      const manual = (document.getElementById('sessionDateInput').value || '').trim();
+      if (manual) return manual;
+      const sel = document.getElementById('weekPicker');
+      const opt = sel && sel.options[sel.selectedIndex];
+      return (opt && opt.dataset.date) ? opt.dataset.date : '';
+    }
+
+    /** Sync the date input whenever the week picker changes.
+     *  Falls back to today's date if the selected week has no date attached. */
+    function syncSessionDateFromWeek() {
+      const sel = document.getElementById('weekPicker');
+      const opt = sel && sel.options[sel.selectedIndex];
+      const d = (opt && opt.dataset.date) ? opt.dataset.date : todayIso_();
+      document.getElementById('sessionDateInput').value = d;
+    }
+
+    function todayIso_() {
+      const now = new Date();
+      const y = now.getFullYear();
+      const m = String(now.getMonth() + 1).padStart(2, '0');
+      const d = String(now.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+
+    /** Apply a successful api_crGetNoShowsForDate response to state + UI. */
+    function applyAttendanceFlags(r) {
+      if (!r.ok) { console.warn('[no-show] api error:', r.error); return; }
+      NO_SHOW_PLAYER_IDS  = {};
+      SUB_PLAYER_IDS      = {};
+      PRESENT_PLAYER_IDS  = {};
+      EXTERNAL_SUBS       = r.data.external_subs || [];
+      (r.data.no_show_player_ids  || []).forEach(id => { NO_SHOW_PLAYER_IDS[id]  = true; });
+      (r.data.sub_player_ids      || []).forEach(id => { SUB_PLAYER_IDS[id]      = true; });
+      (r.data.present_player_ids  || []).forEach(id => { PRESENT_PLAYER_IDS[id]  = true; });
+      const noteEl = document.getElementById('noShowDebugNote');
+      if (noteEl) {
+        const d = r.data;
+        const dateLabel  = d.date ? fmtSessionDate(d.date) : '(±14 day window)';
+        const noShows    = (d.no_show_player_ids || []).length;
+        const subs       = (d.sub_player_ids    || []).length;
+        const present    = (d.present_player_ids || []).length;
+        const extSubs    = EXTERNAL_SUBS.length;
+        const parts = [];
+        if (present) parts.push(`${present} checked in`);
+        if (noShows) parts.push(`${noShows} no-show${noShows > 1 ? 's' : ''}`);
+        if (subs)    parts.push(`${subs} roster sub${subs > 1 ? 's' : ''}`);
+        if (extSubs) parts.push(`${extSubs} external sub${extSubs > 1 ? 's' : ''}`);
+        noteEl.textContent = parts.length
+          ? `${parts.join(', ')} · ${dateLabel}`
+          : `No flags · ${dateLabel} · ${d.attendance_rows_checked || 0} rows checked · ${d.members_with_id || 0}/${d.roster_checked || 0} IDs matched`;
+        noteEl.style.color = (noShows || subs || extSubs)
+          ? 'var(--brand-orange-dark)'
+          : (present ? 'var(--brand-green-dark)' : 'var(--text-muted)');
+      }
+      renderRankedRoster();
+    }
+
+    /** Re-run the no-show/sub fetch when the date input changes manually. */
+    function onSessionDateChange() {
+      if (isLadder()) {
+        NO_SHOW_PLAYER_IDS = {};
+        SUB_PLAYER_IDS     = {};
+        EXTERNAL_SUBS      = [];
+        const noteEl = document.getElementById('noShowDebugNote');
+        if (noteEl) noteEl.textContent = 'Checking attendance…';
+        google.script.run
+          .withSuccessHandler(applyAttendanceFlags)
+          .withFailureHandler(e => { console.warn('[no-show] failure:', e); })
+          .api_crGetNoShowsForDate(CURRENT_LEAGUE.league_id, getSessionDate());
+      }
+    }
+
+    /** Format yyyy-MM-dd as a short readable string, e.g. "Wed Apr 30". */
+    function fmtSessionDate(iso) {
+      if (!iso || iso.length < 10) return iso || '';
+      try {
+        return new Date(iso + 'T12:00:00').toLocaleDateString(undefined,
+          { weekday: 'short', month: 'short', day: 'numeric' });
+      } catch(e) { return iso; }
+    }
+
+    /**
+     * Parse the court numbers text field. Returns an array of unique positive
+     * integers, e.g. [3, 4, 5, 6]. Falls back to [1,2,3,4] when blank.
+     */
+    function getCourtNumbers() {
+      const raw = (document.getElementById('courtNumbers').value || '').trim();
+      if (!raw) return [1, 2, 3, 4];
+      const nums = raw.split(/[\s,]+/)
+        .map(s => parseInt(s, 10))
+        .filter(n => Number.isFinite(n) && n > 0);
+      // Deduplicate, preserve order.
+      const seen = new Set();
+      return nums.filter(n => { if (seen.has(n)) return false; seen.add(n); return true; });
+    }
+
+    /** Update the court-count badge next to the input. */
+    function updateCourtCountPill() {
+      const nums = getCourtNumbers();
+      const pill = document.getElementById('courtCountPill');
+      if (!pill) return;
+      if (nums.length) {
+        pill.textContent = nums.length + ' court' + (nums.length === 1 ? '' : 's');
+        pill.className = 'pill ok';
+      } else {
+        pill.textContent = '0 courts';
+        pill.className = 'pill warn';
+      }
+    }
 
     function init() {
+      // Default session date to today immediately so it's never blank.
+      document.getElementById('sessionDateInput').value = todayIso_();
       setStatus('init: starting…');
       if (typeof google === 'undefined' || !google.script || !google.script.run) {
         showErr('google.script.run is not available. ' +
@@ -135,15 +455,26 @@
       LEAGUES = resp.data || [];
       const sel = document.getElementById('leaguePicker');
       sel.innerHTML = LEAGUES.length
-        ? LEAGUES.map(l => `<option value="${l.league_id}">${l.name} (${l.format_type})</option>`).join('')
+        ? LEAGUES.map(l => `<option value="${l.league_id}">${escapeHtml(l.name)} (${l.format_type})</option>`).join('')
         : '<option value="">— no leagues yet — create one in admin —</option>';
-      sel.onchange = () => loadLeague(sel.value);
-      if (LEAGUES.length) loadLeague(LEAGUES[0].league_id);
+      sel.onchange = () => { savePrefs_({ league_id: sel.value }); loadLeague(sel.value); };
+      if (LEAGUES.length) {
+        // Restore the previously selected league if it still exists.
+        const prefs = loadPrefs_();
+        const want = prefs.league_id && LEAGUES.some(l => l.league_id === prefs.league_id)
+          ? prefs.league_id : LEAGUES[0].league_id;
+        sel.value = want;
+        loadLeague(want);
+      }
       setStatus(LEAGUES.length + ' league(s) loaded');
     }
 
     function loadLeague(league_id) {
-      if (!league_id) { document.getElementById('content').style.display = 'none'; return; }
+      if (!league_id) {
+        document.getElementById('ladderSession').classList.add('hidden');
+        document.getElementById('partnerContent').classList.add('hidden');
+        return;
+      }
       google.script.run
         .withSuccessHandler(onLeague)
         .withFailureHandler(showErr)
@@ -155,156 +486,1318 @@
       CURRENT_LEAGUE = resp.data.league;
       ROSTER = resp.data.roster || [];
       TEAMS = resp.data.teams || [];
+      SCHEDULE = resp.data.schedule || [];
 
       document.getElementById('formatPill').textContent = CURRENT_LEAGUE.format_type;
 
+      // Show/hide format-specific UIs first so ladderSession div is visible when
+      // loadLadderSession renders into it.
+      document.getElementById('ladderSession').classList.toggle('hidden', !isLadder());
+      document.getElementById('partnerContent').classList.toggle('hidden', !isPartner());
+      document.getElementById('courtsWrap').classList.toggle('hidden', !isLadder());
+      if (isLadder()) updateCourtCountPill();
+
       const wsel = document.getElementById('weekPicker');
-      const weeks = (resp.data.schedule || []).map(s => s.week_number);
-      wsel.innerHTML = weeks.length
-        ? weeks.map(w => `<option value="${w}">Week ${w}</option>`).join('')
-        : '<option value="1">Week 1</option>';
-      wsel.onchange = refreshGamesAndStandings;
+      wsel.onchange = onWeekChange;
 
-      // Show ladder vs partner inputs.
-      document.getElementById('ladderFields').classList.toggle('hidden', isPartner());
-      document.getElementById('partnerFields').classList.toggle('hidden', !isPartner());
+      const schedRows = (resp.data.schedule || []);
+      const schedWithDates = schedRows.filter(s => s.play_date);
 
-      // Populate dropdowns for the active format only.
-      if (isPartner()) {
-        const opts = '<option value="">—</option>' +
-          TEAMS.map(t => `<option value="${t.team_id}">${t.team_name}</option>`).join('');
-        document.getElementById('f_t1team').innerHTML = opts;
-        document.getElementById('f_t2team').innerHTML = opts;
-      } else {
-        const opts = '<option value="">—</option>' +
-          ROSTER.map(p => `<option value="${p.player_id}">${p.full_name}</option>`).join('');
-        ['f_t1p1','f_t1p2','f_t2p1','f_t2p2'].forEach(id => {
-          document.getElementById(id).innerHTML = opts;
-        });
+      function startSession_() {
+        // Restore saved week for this league if it's still in the dropdown.
+        const prefs = loadPrefs_();
+        if (prefs.league_id === CURRENT_LEAGUE.league_id && prefs.week_number != null) {
+          const wantWeek = String(prefs.week_number);
+          if (Array.from(wsel.options).some(o => o.value === wantWeek)) {
+            wsel.value = wantWeek;
+          }
+        }
+        // Restore saved courts text for this league.
+        if (prefs.league_id === CURRENT_LEAGUE.league_id && typeof prefs.courts_text === 'string') {
+          const cInput = document.getElementById('courtNumbers');
+          if (cInput && !cInput.value) cInput.value = prefs.courts_text;
+        }
+        syncSessionDateFromWeek();
+        if (isLadder()) loadLadderSession();
+        else if (isPartner()) { refreshPartnerSession(); }
       }
 
-      document.getElementById('content').style.display = '';
-      refreshGamesAndStandings();
+      if (schedWithDates.length) {
+        // Schedule has play_dates — use them for rich labels.
+        const byWeek = {};
+        schedWithDates.forEach(s => { byWeek[s.week_number] = s; });
+        schedRows.forEach(s => { if (!byWeek[s.week_number]) byWeek[s.week_number] = s; });
+        wsel.innerHTML = Object.keys(byWeek).sort((a,b)=>a-b).map(wn => {
+          const s = byWeek[wn];
+          const d = s.play_date ? String(s.play_date).slice(0, 10) : '';
+          return `<option value="${wn}"${d ? ` data-date="${d}"` : ''}>Week ${wn}${d ? ' — ' + fmtSessionDate(d) : ''}</option>`;
+        }).join('');
+        startSession_();
+      } else if (schedRows.length) {
+        // Has schedule rows but no play_dates — show week numbers, also try CR dates.
+        wsel.innerHTML = schedRows.map(s => `<option value="${s.week_number}">Week ${s.week_number}</option>`).join('');
+        startSession_();
+        // Quietly enrich with CR event dates in the background.
+        google.script.run
+          .withSuccessHandler(r => {
+            if (!r.ok || !r.data || !r.data.length) return;
+            // Map CR dates onto existing options by index (closest match heuristic)
+            const opts = wsel.options;
+            r.data.forEach((ev, i) => {
+              if (i < opts.length) {
+                const d = String(ev.date).slice(0, 10);
+                opts[i].dataset.date = d;
+                opts[i].textContent = opts[i].textContent + ' — ' + fmtSessionDate(d);
+              }
+            });
+          })
+          .withFailureHandler(() => {})
+          .api_crGetEventDatesForLeague(CURRENT_LEAGUE.league_id);
+      } else {
+        // No schedule at all — populate from CR event dates (async).
+        wsel.innerHTML = '<option value="1">Loading dates…</option>';
+        google.script.run
+          .withSuccessHandler(r => {
+            if (!r.ok || !r.data || !r.data.length) {
+              wsel.innerHTML = '<option value="1">Week 1</option>';
+            } else {
+              wsel.innerHTML = r.data.map((ev, i) => {
+                const d = String(ev.date).slice(0, 10);
+                return `<option value="${i + 1}" data-date="${d}">${fmtSessionDate(d)}</option>`;
+              }).join('');
+            }
+            startSession_();
+          })
+          .withFailureHandler(() => {
+            wsel.innerHTML = '<option value="1">Week 1</option>';
+            startSession_();
+          })
+          .api_crGetEventDatesForLeague(CURRENT_LEAGUE.league_id);
+      }
+    }
+
+    function onWeekChange() {
+      savePrefs_({ week_number: getWeek() });
+      syncSessionDateFromWeek();
+      if (isLadder()) loadLadderSession();
+      else if (isPartner()) refreshPartnerSession();
+      _publishActiveHalf();
     }
 
     function refreshAll() {
       if (CURRENT_LEAGUE) loadLeague(CURRENT_LEAGUE.league_id);
     }
 
-    function refreshGamesAndStandings() {
+    /**
+     * Targeted attendance pull for the selected league + date. Tiny payload
+     * (typically a few dozen rows for one event on one day) — safe to call
+     * mid-session as players check in.
+     */
+    function pullTodaysAttendance() {
       if (!CURRENT_LEAGUE) return;
-      const week = document.getElementById('weekPicker').value;
+      const date = getSessionDate();
+      const msg = document.getElementById('pullAttMsg');
+      if (!date) {
+        if (msg) { msg.textContent = 'Pick a session date first'; msg.className = 'err'; }
+        return;
+      }
+      if (msg) { msg.textContent = 'Pulling…'; msg.className = 'muted'; }
       google.script.run
-        .withSuccessHandler(onGames).withFailureHandler(showErr)
-        .api_listGames(CURRENT_LEAGUE.league_id, week);
-      google.script.run
-        .withSuccessHandler(onStandings).withFailureHandler(showErr)
-        .api_recomputeStandings(CURRENT_LEAGUE.league_id);
+        .withSuccessHandler(r => {
+          if (!r.ok) {
+            if (msg) { msg.textContent = 'Error: ' + r.error; msg.className = 'err'; }
+            return;
+          }
+          const d = r.data || {};
+          const eventTag = d.cr_event_id ? ` · event #${d.cr_event_id}` : ' · matched by name';
+          let rosterTag = '';
+          if (d.roster_total != null) {
+            rosterTag = ` · roster: ${d.roster_total} attendees, +${d.roster_rows_added} added`;
+          } else if (d.roster_error) {
+            rosterTag = ` · roster sync error: ${d.roster_error}`;
+          }
+          if (msg) {
+            msg.textContent = `${d.matched_rows} row(s) (raw ${d.raw_rows}) · +${d.added} new, ${d.updated} updated${eventTag}${rosterTag} ✓`;
+            msg.className = 'muted';
+          }
+          // Refresh the session view so attendance flags + ranked roster pick up the new data.
+          if (isLadder()) loadLadderSession();
+          else if (isPartner()) refreshPartnerSession();
+          // Re-run the no-show/sub fetch explicitly (loadLadderSession already does
+          // this for ladder; partner doesn't, but partner doesn't currently use
+          // attendance flags either).
+        })
+        .withFailureHandler(e => {
+          if (msg) { msg.textContent = 'Error: ' + (e && e.message || e); msg.className = 'err'; }
+        })
+        .api_crPullAttendanceForLeagueDate(CURRENT_LEAGUE.league_id, date);
     }
 
-    function onGames(resp) {
-      if (!resp.ok) return showErr(resp.error);
-      const games = (resp.data || []).slice().reverse();
-      if (!games.length) { document.getElementById('gamesList').innerHTML = '<span class="muted">No games yet</span>'; return; }
-      const playerById = Object.fromEntries(ROSTER.map(p => [p.player_id, p.full_name]));
-      const teamById = Object.fromEntries(TEAMS.map(t => [t.team_id, t.team_name]));
+    /* ====================================================================
+       LADDER SESSION
+       ==================================================================== */
 
-      const rows = games.map(g => {
-        const t1 = isPartner()
-          ? (teamById[g.t1_team_id] || '?')
-          : (playerById[g.t1_player_1_id] || '?') + ' & ' + (playerById[g.t1_player_2_id] || '?');
-        const t2 = isPartner()
-          ? (teamById[g.t2_team_id] || '?')
-          : (playerById[g.t2_player_1_id] || '?') + ' & ' + (playerById[g.t2_player_2_id] || '?');
-        return `<tr class="${g.winner === 1 ? 'win' : ''}">
-          <td>R${g.round_number || '—'}/G${g.game_in_match || '—'}</td>
-          <td>${t1}</td><td>${g.t1_score}</td>
-          <td>${t2}</td><td>${g.t2_score}</td>
-          <td><span class="pill">${g.status}</span></td>
+    function loadLadderSession() {
+      const week = getWeek();
+      const courts = getCourtNumbers();
+      // Reset state and update week labels.
+      SESSION_BY_HALF = { 1: null, 2: null };
+      HALFTIME_MIX = null;
+      NO_SHOW_PLAYER_IDS  = {};
+      SUB_PLAYER_IDS      = {};
+      PRESENT_PLAYER_IDS  = {};
+      EXTERNAL_SUBS       = [];
+      document.querySelectorAll('.weekLabel').forEach(el => { el.textContent = week; });
+      updateCourtCountPill();
+
+      // Restore the saved half tab for this league.
+      const prefs = loadPrefs_();
+      if (prefs.league_id === CURRENT_LEAGUE.league_id && (prefs.half === 1 || prefs.half === 2)) {
+        switchHalf(prefs.half);
+      }
+
+      // Publish current half so Display tabs mirror.
+      _publishActiveHalf();
+
+      // Fetch ranked roster for half-1 setup, plus both halves.
+      google.script.run
+        .withSuccessHandler(r => { if (!r.ok) return showErr(r.error); RANKED_ROSTER = r.data || []; renderRankedRoster(); })
+        .withFailureHandler(showErr)
+        .api_getRankedRoster(CURRENT_LEAGUE.league_id);
+
+      // Fetch no-shows for the session date.
+      // getSessionDate() reads the data-date attribute from the selected week option;
+      // if no date is attached (no schedule, no CR event dates), pass '' so the
+      // backend searches a ±14 day window (covers past sessions and sessions scheduled ahead).
+      const sessionDate = getSessionDate();
+      google.script.run
+        .withSuccessHandler(applyAttendanceFlags)
+        .withFailureHandler(e => { console.warn('[no-show] failure:', e); })
+        .api_crGetNoShowsForDate(CURRENT_LEAGUE.league_id, sessionDate);
+      [1, 2].forEach(h => {
+        google.script.run
+          .withSuccessHandler(r => {
+            if (!r.ok) return showErr(r.error);
+            SESSION_BY_HALF[h] = r.data;
+            renderHalfPanel(h);
+            // Half 2's lock state depends on Half 1's session. If Half 1
+            // arrives after Half 2 (race condition), Half 2 would have
+            // rendered "Set up Half 1 first" using a null half1. Re-render.
+            if (h === 1) renderHalfPanel(2);
+          })
+          .withFailureHandler(showErr)
+          .api_getSession(CURRENT_LEAGUE.league_id, week, h, courts);
+      });
+    }
+
+    function reloadSession() {
+      if (CURRENT_LEAGUE) loadLadderSession();
+    }
+
+    function switchHalf(h) {
+      CURRENT_HALF = h;
+      savePrefs_({ half: h });
+      document.querySelectorAll('#halfTabs button').forEach(b => {
+        b.classList.toggle('active', Number(b.getAttribute('data-half')) === h);
+      });
+      document.getElementById('half1Panel').classList.toggle('hidden', h !== 1);
+      document.getElementById('half2Panel').classList.toggle('hidden', h !== 2);
+      renderHalfPanel(h);
+      // Publish active half so Display mirrors automatically.
+      _publishActiveHalf();
+    }
+
+    /** Push the Operator's current league/week/half/courts to the server so
+     *  Display can mirror it. Fire-and-forget. */
+    function _publishActiveHalf() {
+      if (!CURRENT_LEAGUE) return;
+      const courts = getCourtNumbers();
+      try {
+        google.script.run
+          .withFailureHandler(() => {})
+          .api_setActiveHalf(CURRENT_LEAGUE.league_id, getWeek(), CURRENT_HALF, courts);
+        // Also broadcast for same-browser Display tabs to react instantly.
+        new BroadcastChannel('dill_scores').postMessage({
+          league_id: CURRENT_LEAGUE.league_id,
+          week:      getWeek(),
+          half:      CURRENT_HALF,
+          courts:    courts,
+        });
+      } catch (e) { /* ignore */ }
+    }
+
+    function renderHalfPanel(half) {
+      const sess = SESSION_BY_HALF[half];
+      if (half === 1) {
+        renderHalf1(sess);
+      } else {
+        renderHalf2(sess);
+      }
+    }
+
+    function renderHalf1(sess) {
+      const setup = document.getElementById('setup1Panel');
+      const play  = document.getElementById('play1Panel');
+      if (sess && sess.exists) {
+        setup.classList.add('hidden');
+        play.classList.remove('hidden');
+        renderSchedule(1, sess);
+        renderGroups(1, sess);
+        document.getElementById('summary1').textContent =
+          `${sess.groups.length} groups • courts ${(sess.court_numbers || []).join(', ') || sess.num_courts} • ` +
+          `${sess.games_played}/${sess.games_total} games complete`;
+      } else {
+        setup.classList.remove('hidden');
+        play.classList.add('hidden');
+      }
+    }
+
+    function renderHalf2(sess) {
+      const locked  = document.getElementById('half2Locked');
+      const mix     = document.getElementById('halftimeMixPanel');
+      const play    = document.getElementById('play2Panel');
+      const half1   = SESSION_BY_HALF[1];
+
+      // Hide all by default, show one based on state.
+      locked.classList.add('hidden');
+      mix.classList.add('hidden');
+      play.classList.add('hidden');
+
+      if (sess && sess.exists) {
+        play.classList.remove('hidden');
+        renderSchedule(2, sess);
+        renderGroups(2, sess);
+        document.getElementById('summary2').textContent =
+          `${sess.groups.length} groups • courts ${(sess.court_numbers || []).join(', ') || sess.num_courts} • ` +
+          `${sess.games_played}/${sess.games_total} games complete`;
+        return;
+      }
+
+      // No half 2 yet — what do we show?
+      if (!half1 || !half1.exists) {
+        locked.classList.remove('hidden');
+        document.getElementById('half2LockMsg').textContent =
+          'Set up Half 1 first. Half 2 unlocks once Half 1 is complete.';
+        return;
+      }
+
+      if (half1.games_played < half1.games_total) {
+        locked.classList.remove('hidden');
+        const remaining = half1.games_total - half1.games_played;
+        document.getElementById('half2LockMsg').textContent =
+          `Half 1 has ${half1.games_played}/${half1.games_total} games complete. ` +
+          `Finish the last ${remaining} on the Half 1 tab to compute the halftime mix.`;
+        return;
+      }
+
+      // Half 1 is complete — fetch and show the halftime mix preview.
+      mix.classList.remove('hidden');
+      loadHalftimeMix();
+    }
+
+    function renderRankedRoster() {
+      const div = document.getElementById('rankedRosterDiv');
+      if (!RANKED_ROSTER.length) {
+        div.innerHTML = '<span class="muted">No players on this league\'s roster yet. Add them in Admin → Roster.</span>';
+        return;
+      }
+      const rows = RANKED_ROSTER.map((p, i) => {
+        const isNoShow  = !!NO_SHOW_PLAYER_IDS[p.player_id];
+        const isSub     = !!SUB_PLAYER_IDS[p.player_id];
+        const isPresent = !!PRESENT_PLAYER_IDS[p.player_id];
+        const badges = [
+          isNoShow  ? ' <span class="pill warn" title="No-show on record for this session date" style="font-size:11px;vertical-align:middle">⚠ no-show</span>' : '',
+          isSub     ? ' <span class="pill" title="Sub for league on record for this session date" style="font-size:11px;vertical-align:middle;background:var(--brand-green-soft);color:var(--brand-green-dark)">sub</span>' : '',
+          isPresent ? ' <span class="pill ok" title="Checked in on record for this session date" style="font-size:11px;vertical-align:middle">✓ checked in</span>' : '',
+        ].join('');
+        // No-shows start unchecked; subs/checked-in start checked (they're playing).
+        const checked = isNoShow ? '' : 'checked';
+        const rowBg   = isNoShow  ? ' style="background:var(--brand-orange-soft)"'
+                      : isSub     ? ' style="background:var(--brand-green-soft)"'
+                      : isPresent ? ' style="background:var(--brand-green-soft)"'
+                      : '';
+        return `<tr${rowBg}>
+          <td><input type="checkbox" class="attendee" data-pid="${p.player_id}" ${checked} onchange="updateAttendanceCount()"></td>
+          <td>${p.season_rank || (i + 1)}</td>
+          <td>${escapeHtml(p.full_name)}${badges}</td>
+          <td><span class="muted">${escapeHtml(p.level || '')}</span></td>
+          <td><span class="muted">${p.season_score ? p.season_score.toFixed(1) : '—'}</span></td>
         </tr>`;
       }).join('');
-      document.getElementById('gamesList').innerHTML =
-        '<table><tr><th></th><th>Team 1</th><th></th><th>Team 2</th><th></th><th></th></tr>' + rows + '</table>';
+      // External subs appear at the bottom of the same list, same styling as roster subs.
+      const subBadge = ' <span class="pill" style="font-size:11px;vertical-align:middle;background:var(--brand-green-soft);color:var(--brand-green-dark)">sub</span>';
+      const extRows = EXTERNAL_SUBS.map(s => {
+        const pid = s.player_id || ('ext_' + s.member_number);
+        const guestNote = s.is_temp ? ' <span class="muted" style="font-size:11px" title="Not in Players table — add via Admin → Roster if they play regularly">(guest)</span>' : '';
+        const manualNote = s.manual ? ' <span class="pill" style="font-size:11px;vertical-align:middle;background:var(--brand-orange-soft);color:var(--brand-orange-dark)">manual</span>' : '';
+        return `<tr style="background:var(--brand-green-soft)">
+          <td><input type="checkbox" class="attendee" data-pid="${escapeHtml(pid)}" checked onchange="updateAttendanceCount()"></td>
+          <td><span class="muted">—</span></td>
+          <td>${escapeHtml(s.full_name)}${subBadge}${guestNote}${manualNote}</td>
+          <td><span class="muted">${escapeHtml(s.level || '')}</span></td>
+          <td><span class="muted">—</span></td>
+        </tr>`;
+      }).join('');
+
+      div.innerHTML = `<table class="roster-table">
+        <tr><th></th><th>#</th><th>Player</th><th>Level</th><th>Score</th></tr>${rows}${extRows}</table>`;
+      updateAttendanceCount();
     }
 
-    function onStandings(resp) {
-      if (!resp.ok) return showErr(resp.error);
-      const data = resp.data || [];
-      if (!data.length) { document.getElementById('standings').innerHTML = '<span class="muted">No completed games yet</span>'; return; }
-      let html;
-      if (isPartner()) {
-        const rows = data.map(s => `<tr>
-          <td>${s.rank}</td>
-          <td><strong>${s.team_name}</strong><br><small class="muted">${s.player_1_name} & ${s.player_2_name}</small></td>
-          <td>${s.wins} - ${s.losses}</td>
-          <td>${s.games_back.toFixed(1)}</td>
-          <td>${s.point_diff > 0 ? '+' : ''}${s.point_diff}</td>
-          <td>${(s.point_pct * 100).toFixed(1)}%</td>
-        </tr>`).join('');
-        html = '<table><tr><th>#</th><th>Team</th><th>W-L</th><th>GB</th><th>+/-</th><th>P%</th></tr>' + rows + '</table>';
-      } else {
-        const rows = data.map(s => `<tr>
-          <td>${s.rank}</td>
-          <td>${s.full_name}</td>
-          <td>${s.wins} / ${s.games_played}</td>
-          <td>${(s.win_pct * 100).toFixed(1)}%</td>
-          <td>${s.points} / ${s.games_played * 11}</td>
-          <td>${(s.point_pct * 100).toFixed(1)}%</td>
-          <td><strong>${s.score.toFixed(1)}</strong></td>
-        </tr>`).join('');
-        html = '<table><tr><th>#</th><th>Player</th><th>Wins</th><th>W%</th><th>Points</th><th>P%</th><th>Score</th></tr>' + rows + '</table>';
+    function checkAllAttendance(state) {
+      document.querySelectorAll('.attendee').forEach(cb => { cb.checked = state; });
+      updateAttendanceCount();
+    }
+
+    /**
+     * Add a manual sub to the attendees list. Server creates a Player record
+     * (no Rosters row — the sub is session-only). Client appends to
+     * EXTERNAL_SUBS so the sub renders as a checked attendee.
+     */
+    function addManualSub() {
+      const input = document.getElementById('manualSubName');
+      const msg = document.getElementById('manualSubMsg');
+      const name = (input.value || '').trim();
+      if (!name) { if (msg) { msg.textContent = 'Type a name first'; msg.className = 'err'; } return; }
+      if (!CURRENT_LEAGUE) return;
+      if (msg) { msg.textContent = 'Adding…'; msg.className = 'muted'; }
+      google.script.run
+        .withSuccessHandler(r => {
+          if (!r.ok) {
+            if (msg) { msg.textContent = 'Error: ' + r.error; msg.className = 'err'; }
+            return;
+          }
+          const p = r.data || {};
+          EXTERNAL_SUBS.push({
+            player_id:     p.player_id,
+            full_name:     p.full_name,
+            level:         '',
+            member_number: '',
+            is_temp:       false,  // it's now a real Player record
+            manual:        true,   // flag so we can label them differently
+          });
+          if (msg) { msg.textContent = `Added "${p.full_name}" ✓`; msg.className = 'muted'; }
+          input.value = '';
+          renderRankedRoster();
+          input.focus();
+        })
+        .withFailureHandler(e => {
+          if (msg) { msg.textContent = 'Error: ' + (e && e.message || e); msg.className = 'err'; }
+        })
+        .api_addManualSub(CURRENT_LEAGUE.league_id, name);
+    }
+
+    function updateAttendanceCount() {
+      const n = document.querySelectorAll('.attendee:checked').length;
+      const groups = Math.floor(n / 4);
+      const remainder = n % 4;
+      const note = remainder === 0
+        ? `${n} attending → ${groups} group${groups === 1 ? '' : 's'} of 4 ✓`
+        : `${n} attending → ${groups} groups + ${remainder} extra (need multiple of 4)`;
+      const el = document.getElementById('attendanceCount');
+      el.textContent = note;
+      el.className = remainder === 0 ? 'pill ok' : 'pill warn';
+    }
+
+    function submitSetupHalf1() {
+      const checked = Array.from(document.querySelectorAll('.attendee:checked'));
+      const ids = checked.map(cb => cb.getAttribute('data-pid'));
+      if (!ids.length) { setupMsg('Pick at least 4 attendees', 'err'); return; }
+      if (ids.length % 4 !== 0) { setupMsg('Attendance must be a multiple of 4', 'err'); return; }
+      const courts = getCourtNumbers();
+      if (!courts.length) { setupMsg('Enter at least one court number', 'err'); return; }
+      setupMsg('Setting up…');
+      google.script.run
+        .withSuccessHandler(r => {
+          if (!r.ok) return setupMsg('Error: ' + r.error, 'err');
+          SESSION_BY_HALF[1] = r.data;
+          // Setting up Half 1 server-side also clears any stale Half 2 (it was
+          // built from the old Half 1 standings). Drop the client cache too.
+          SESSION_BY_HALF[2] = null;
+          HALFTIME_MIX = null;
+          setupMsg('Half 1 ready ✓');
+          renderHalfPanel(1);
+          // Re-fetch Half 2 fresh from the server so the lock state reflects reality.
+          google.script.run
+            .withSuccessHandler(r2 => {
+              if (r2 && r2.ok) SESSION_BY_HALF[2] = r2.data;
+              renderHalfPanel(2);
+            })
+            .withFailureHandler(() => renderHalfPanel(2))
+            .api_getSession(CURRENT_LEAGUE.league_id, getWeek(), 2, courts);
+        })
+        .withFailureHandler(showErr)
+        .api_setupSession(CURRENT_LEAGUE.league_id, getWeek(), 1, ids, courts);
+    }
+
+    function setupMsg(t, cls) {
+      const el = document.getElementById('setupMsg');
+      el.textContent = t;
+      el.className = cls || 'muted';
+    }
+
+    function loadHalftimeMix() {
+      const week = getWeek();
+      document.getElementById('halftimePreviewContent').innerHTML = '<span class="muted">Loading…</span>';
+      google.script.run
+        .withSuccessHandler(r => {
+          if (!r.ok) {
+            document.getElementById('halftimePreviewContent').innerHTML =
+              `<span class="err">Error: ${escapeHtml(r.error)}</span>`;
+            return;
+          }
+          HALFTIME_MIX = r.data;
+          renderHalftimeMixPreview();
+        })
+        .withFailureHandler(showErr)
+        .api_computeHalftimeMix(CURRENT_LEAGUE.league_id, week);
+    }
+
+    function renderHalftimeMixPreview() {
+      if (!HALFTIME_MIX) return;
+      const cards = HALFTIME_MIX.groups.map(grp => {
+        const rows = grp.players.map(p => {
+          const move = p.from_group === p.new_group
+            ? '<span class="muted">stays</span>'
+            : (p.from_group > p.new_group
+                ? `<span style="color:var(--brand-green-dark); font-weight:600">▲ from G${p.from_group} (#${p.from_rank})</span>`
+                : `<span style="color:var(--error); font-weight:600">▼ from G${p.from_group} (#${p.from_rank})</span>`);
+          return `<tr><td>${escapeHtml(p.full_name)}</td><td>${move}</td></tr>`;
+        }).join('');
+        return `<div class="group-card">
+          <h3>Group ${grp.group_number}</h3>
+          <table>${rows}</table>
+        </div>`;
+      }).join('');
+      document.getElementById('halftimePreviewContent').innerHTML =
+        `<div class="group-grid">${cards}</div>`;
+    }
+
+    function confirmHalftimeMix() {
+      if (!HALFTIME_MIX) { halftimeMsg('No mix loaded', 'err'); return; }
+      const courts = getCourtNumbers();
+      if (!courts.length) { halftimeMsg('Enter at least one court number', 'err'); return; }
+      const ids = [];
+      HALFTIME_MIX.groups.forEach(grp => grp.players.forEach(p => ids.push(p.player_id)));
+      halftimeMsg('Setting up Half 2…');
+      google.script.run
+        .withSuccessHandler(r => {
+          if (!r.ok) { halftimeMsg('Error: ' + r.error, 'err'); return; }
+          SESSION_BY_HALF[2] = r.data;
+          HALFTIME_MIX = null;
+          halftimeMsg('');
+          renderHalfPanel(2);
+          // Switch to the Half 2 tab so the operator is on the new half.
+          switchHalf(2);
+          // Notify any open Display tabs so they pick up Half 2 immediately.
+          // Including `half: 2` tells Display to actively switch its view to
+          // Half 2, not just refresh whatever it was already showing.
+          try {
+            new BroadcastChannel('dill_scores').postMessage({
+              league_id: CURRENT_LEAGUE.league_id,
+              week:      getWeek(),
+              half:      2,
+            });
+          } catch(e) {}
+        })
+        .withFailureHandler(showErr)
+        .api_setupSession(CURRENT_LEAGUE.league_id, getWeek(), 2, ids, courts);
+    }
+
+    function halftimeMsg(t, cls) {
+      const el = document.getElementById('halftimeMsg');
+      if (!el) return;
+      el.textContent = t;
+      el.className = cls || 'muted';
+    }
+
+    function resetHalf(half) {
+      const lbl = `Half ${half}`;
+      const btn  = event && event.target;
+      // Replace the button text with an inline confirmation so browser dialog
+      // suppression (common in some iframe / sandbox contexts) can't silently cancel.
+      if (btn && btn.dataset.confirmPending !== 'true') {
+        btn.dataset.confirmPending = 'true';
+        const origText = btn.textContent;
+        btn.textContent = `Confirm reset ${lbl}?`;
+        btn.style.opacity = '0.7';
+        // Auto-cancel after 5 s if user doesn't click again.
+        setTimeout(() => {
+          btn.dataset.confirmPending = '';
+          btn.textContent = origText;
+          btn.style.opacity = '';
+        }, 5000);
+        return;
       }
-      document.getElementById('standings').innerHTML = html;
+      // Second click — confirmed.
+      if (btn) { btn.dataset.confirmPending = ''; btn.textContent = 'Resetting…'; btn.disabled = true; }
+      showErr('');
+      console.log('[resetHalf] clearing', { league_id: CURRENT_LEAGUE.league_id, week: getWeek(), half });
+      google.script.run
+        .withSuccessHandler(r => {
+          console.log('[resetHalf] server response', r);
+          if (btn) { btn.disabled = false; btn.textContent = `Reset Half ${half}`; btn.style.opacity = ''; }
+          if (!r.ok) return showErr(r.error);
+          SESSION_BY_HALF[half] = null;
+          loadLadderSession();
+        })
+        .withFailureHandler(e => {
+          console.error('[resetHalf] failure', e);
+          if (btn) { btn.disabled = false; btn.textContent = `Reset Half ${half}`; btn.style.opacity = ''; }
+          showErr(e);
+        })
+        .api_clearSession(CURRENT_LEAGUE.league_id, getWeek(), half);
     }
 
-    function submitGame() {
-      const msg = document.getElementById('saveMsg');
-      msg.textContent = 'Saving…'; msg.className = 'muted';
+    /**
+     * Soft clear — wipe scores for this half but keep the group setup so the
+     * operator can re-enter scores without redoing attendance.
+     */
+    function clearSessionResults(half) {
+      const lbl = `Half ${half}`;
+      const btn = event && event.target;
+      if (btn && btn.dataset.confirmPending !== 'true') {
+        btn.dataset.confirmPending = 'true';
+        const origText = btn.textContent;
+        btn.textContent = `Confirm clear ${lbl} scores?`;
+        btn.style.opacity = '0.7';
+        setTimeout(() => {
+          btn.dataset.confirmPending = '';
+          btn.textContent = origText;
+          btn.style.opacity = '';
+        }, 5000);
+        return;
+      }
+      if (btn) { btn.dataset.confirmPending = ''; btn.textContent = 'Clearing…'; btn.disabled = true; }
+      showErr('');
+      google.script.run
+        .withSuccessHandler(r => {
+          if (btn) { btn.disabled = false; btn.textContent = 'Clear results'; btn.style.opacity = ''; }
+          if (!r.ok) return showErr(r.error);
+          // Reload the half view so the score inputs come back blank.
+          loadLadderSession();
+        })
+        .withFailureHandler(e => {
+          if (btn) { btn.disabled = false; btn.textContent = 'Clear results'; btn.style.opacity = ''; }
+          showErr(e);
+        })
+        .api_clearSessionResults(CURRENT_LEAGUE.league_id, getWeek(), half);
+    }
 
-      const base = {
-        league_id:     CURRENT_LEAGUE.league_id,
-        week_number:   Number(document.getElementById('weekPicker').value || 1),
-        round_number:  Number(document.getElementById('f_round').value || 0),
-        match_number:  Number(document.getElementById('f_group').value || 0),
-        group_number:  Number(document.getElementById('f_group').value || 0),
-        game_in_match: Number(document.getElementById('f_game').value || 0),
-        court_number:  Number(document.getElementById('f_court').value || 0),
+    function renderSchedule(half, sess) {
+      const target = document.getElementById('schedule' + half);
+      const schedule = sess.schedule || [];
+      if (!schedule.length) { target.innerHTML = '<span class="muted">No schedule.</span>'; return; }
+
+      // Use actual court numbers from session data; fall back to 1..N for compat.
+      const courtNums = (sess.court_numbers && sess.court_numbers.length)
+        ? sess.court_numbers
+        : Array.from({ length: sess.num_courts || 0 }, (_, i) => i + 1);
+
+      let html = '<table class="schedule-table"><tr><th>Round</th>';
+      courtNums.forEach(c => { html += `<th>Court ${c}</th>`; });
+      html += '</tr>';
+      schedule.forEach((round, ri) => {
+        const rNum = round.length ? round[0].round_number : (ri + 1);
+        html += `<tr><td><strong>R${rNum}</strong></td>`;
+        courtNums.forEach(c => {
+          const cell = round.find(x => x.court_number === c);
+          if (!cell) {
+            html += '<td><span class="muted">—</span></td>';
+          } else {
+            const cls = cell.game && cell.game.status === 'complete' ? 'schedule-cell complete' : 'schedule-cell';
+            const score = cell.game && cell.game.status === 'complete'
+              ? `${cell.game.t1_score}-${cell.game.t2_score}`
+              : '';
+            html += `<td><div class="${cls}"><div class="group">G${cell.group_number}</div>` +
+                    `<div class="game">game ${cell.game_in_match}${score ? ' · ' + score : ''}</div></div></td>`;
+          }
+        });
+        html += '</tr>';
+      });
+      html += '</table>';
+      target.innerHTML = html;
+    }
+
+    function renderGroups(half, sess) {
+      const target = document.getElementById('groups' + half);
+      const groups = sess.groups || [];
+      if (!groups.length) { target.innerHTML = '<span class="muted">No groups.</span>'; return; }
+      target.innerHTML = groups.map(grp => renderGroupCard(grp, half, sess)).join('');
+    }
+
+    function renderGroupCard(grp, half, sess) {
+      const slotName = (s) => grp.slots[s] ? escapeHtml(grp.slots[s].full_name.split(' ')[0]) : '?';
+      const fullName = (s) => grp.slots[s] ? escapeHtml(grp.slots[s].full_name) : '?';
+
+      // Map: round_number → schedule cell for this group (covers the 3 rounds
+      // where this group plays). The 4th round, where the group doesn't appear,
+      // is the bye round.
+      const cellByRound = {};
+      (sess.schedule || []).forEach(round => {
+        round.forEach(cell => {
+          if (cell.group_number === grp.group_number) {
+            cellByRound[Number(cell.round_number)] = cell;
+          }
+        });
+      });
+      const rotationByGame = {};
+      grp.rotation.forEach(g => { rotationByGame[g.game_in_match] = g; });
+      const totalRounds = (sess.schedule || []).length || 4;
+
+      const rounds = [];
+      for (let r = 1; r <= totalRounds; r++) {
+        const cell = cellByRound[r];
+        if (!cell) {
+          rounds.push(`<div class="game-row" style="opacity:0.55">
+            <div class="matchup"><strong>R${r}</strong> <span class="muted">— bye</span></div>
+            <div></div><div></div><div></div>
+          </div>`);
+          continue;
+        }
+        const g = rotationByGame[cell.game_in_match];
+        if (!g) {
+          rounds.push(`<div class="game-row"><div class="matchup"><span class="err">R${r} · game ${cell.game_in_match} not in rotation</span></div></div>`);
+          continue;
+        }
+        const game = cell.game;
+        const s1 = game ? game.t1_score : '';
+        const s2 = game ? game.t2_score : '';
+        const alreadySaved = game && game.status === 'complete';
+        const meta = `<span class="muted" style="font-size:11px;font-weight:600">R${r} · Court ${cell.court_number}</span>`;
+        const savedTag = alreadySaved ? '<span class="saved">✓</span>' : '';
+        const t1label = `${escapeHtml(g.t1_player_1.full_name.split(' ')[0])} + ${escapeHtml(g.t1_player_2.full_name.split(' ')[0])}`;
+        const t2label = `${escapeHtml(g.t2_player_1.full_name.split(' ')[0])} + ${escapeHtml(g.t2_player_2.full_name.split(' ')[0])}`;
+        rounds.push(`<div class="game-row">
+          <div class="matchup">${meta} <strong>${t1label}</strong><span class="vs">vs</span><strong>${t2label}</strong> ${savedTag}</div>
+          <input type="number" min="0" max="21" id="h${half}_g${grp.group_number}_${g.game_in_match}_s1" value="${s1}"
+            onchange="autoSaveLadderGame(${half},${grp.group_number},${g.game_in_match})" ${alreadySaved ? 'class="score-done"' : ''}>
+          <span style="text-align:center">-</span>
+          <input type="number" min="0" max="21" id="h${half}_g${grp.group_number}_${g.game_in_match}_s2" value="${s2}"
+            onchange="autoSaveLadderGame(${half},${grp.group_number},${g.game_in_match})" ${alreadySaved ? 'class="score-done"' : ''}>
+        </div>`);
+      }
+      const games = rounds.join('');
+
+      const standingsRows = (grp.standings || []).map(s => `<tr>
+        <td>${s.rank}</td>
+        <td>${fullName(s.starting_slot)}</td>
+        <td>${s.wins}-${s.losses}</td>
+        <td>${s.points_for}</td>
+      </tr>`).join('');
+
+      return `<div class="group-card">
+        <h3>Group ${grp.group_number} <span class="pill">slots ${slotName(1)}/${slotName(2)}/${slotName(3)}/${slotName(4)}</span></h3>
+        ${games}
+        <div class="standings-mini">
+          <table><tr><th>#</th><th>Player</th><th>W-L</th><th>Pts</th></tr>${standingsRows}</table>
+        </div>
+        <div id="msg_h${half}_g${grp.group_number}" class="muted" style="font-size:12px; margin-top:6px"></div>
+      </div>`;
+    }
+
+    function autoSaveLadderGame(half, group_number, game_in_match) {
+      const s1 = document.getElementById(`h${half}_g${group_number}_${game_in_match}_s1`).value;
+      const s2 = document.getElementById(`h${half}_g${group_number}_${game_in_match}_s2`).value;
+      if (s1 === '' || s2 === '') return; // wait until both are filled
+      saveLadderGame(half, group_number, game_in_match);
+    }
+
+    function saveLadderGame(half, group_number, game_in_match) {
+      const s1 = document.getElementById(`h${half}_g${group_number}_${game_in_match}_s1`).value;
+      const s2 = document.getElementById(`h${half}_g${group_number}_${game_in_match}_s2`).value;
+      if (s1 === '' || s2 === '') { groupMsg(half, group_number, 'Both scores required', 'err'); return; }
+      const sess = SESSION_BY_HALF[half];
+      const sched = ((sess && sess.schedule) || []).flat().find(c =>
+        c.group_number === group_number && c.game_in_match === game_in_match) || {};
+      groupMsg(half, group_number, 'Saving…');
+      google.script.run
+        .withSuccessHandler(r => {
+          if (!r.ok) return groupMsg(half, group_number, 'Error: ' + r.error, 'err');
+          groupMsg(half, group_number, 'Saved ✓');
+          // Notify any open Display tabs on the same origin.
+          try { new BroadcastChannel('dill_scores').postMessage({ league_id: CURRENT_LEAGUE.league_id }); } catch(e) {}
+          // Refresh this half's session.
+          google.script.run
+            .withSuccessHandler(r2 => {
+              if (!r2.ok) return showErr(r2.error);
+              SESSION_BY_HALF[half] = r2.data;
+              renderHalfPanel(half);
+              // If half 1 just became complete, re-render half 2 (it may have unlocked).
+              if (half === 1) renderHalfPanel(2);
+            })
+            .withFailureHandler(showErr)
+            .api_getSession(CURRENT_LEAGUE.league_id, getWeek(), half, getCourtNumbers());
+        })
+        .withFailureHandler(showErr)
+        .api_saveLadderSessionGame({
+          league_id:     CURRENT_LEAGUE.league_id,
+          week_number:   getWeek(),
+          half:          half,
+          group_number:  group_number,
+          game_in_match: game_in_match,
+          round_number:  sched.round_number || 0,
+          court_number:  sched.court_number || 0,
+          t1_score:      Number(s1),
+          t2_score:      Number(s2),
+        });
+    }
+
+    function groupMsg(half, g, t, cls) {
+      const el = document.getElementById(`msg_h${half}_g${g}`);
+      if (!el) return;
+      el.textContent = t;
+      el.className = cls || 'muted';
+    }
+
+    /* ====================================================================
+       PARTNER (schedule-driven)
+       ==================================================================== */
+
+    /**
+     * Main entry point for the partner session. Loads scheduled matches,
+     * games for the week, and standings in parallel, then renders.
+     */
+    /* ====================================================================
+       PARTNER — subs + no-shows pairing
+       ==================================================================== */
+
+    let PARTNER_SUBS_DATA = null;  // { no_shows, subs, paired }
+
+    function pullPartnerAttendance() {
+      if (!CURRENT_LEAGUE || !isPartner()) return;
+      const date = getSessionDate();
+      const msg = document.getElementById('partnerAttMsg');
+      if (!date) {
+        if (msg) { msg.textContent = 'Pick a session date first'; msg.className = 'err'; }
+        return;
+      }
+      if (msg) { msg.textContent = 'Pulling…'; msg.className = 'muted'; }
+      google.script.run
+        .withSuccessHandler(r => {
+          if (!r.ok) {
+            if (msg) { msg.textContent = 'Error: ' + r.error; msg.className = 'err'; }
+            return;
+          }
+          const d = r.data || {};
+          const eventTag = d.cr_event_id ? ` · event #${d.cr_event_id}` : ' · matched by name';
+          const rosterTag = d.rosters_added ? ` · +${d.rosters_added} roster row(s)` : '';
+          if (msg) {
+            msg.textContent = `${d.matched_rows} row(s) (raw ${d.raw_rows}) · +${d.added} new, ${d.updated} updated${eventTag}${rosterTag} ✓`;
+            msg.className = 'muted';
+          }
+          // The pull may have backfilled Rosters; reload league data so the
+          // local ROSTER / TEAMS arrays include the newly-added rows before
+          // we render the subs context (otherwise no-show player name lookup
+          // shows "(unknown)").
+          google.script.run
+            .withSuccessHandler(rr => {
+              if (rr && rr.ok) {
+                ROSTER = rr.data.roster || ROSTER;
+                TEAMS  = rr.data.teams  || TEAMS;
+              }
+              loadPartnerSubsContext();
+            })
+            .withFailureHandler(() => loadPartnerSubsContext())
+            .api_getLeague(CURRENT_LEAGUE.league_id);
+        })
+        .withFailureHandler(e => {
+          if (msg) { msg.textContent = 'Error: ' + (e && e.message || e); msg.className = 'err'; }
+        })
+        .api_crPullAttendanceForLeagueDate(CURRENT_LEAGUE.league_id, date);
+    }
+
+    function loadPartnerSubsContext() {
+      if (!CURRENT_LEAGUE || !isPartner()) return;
+      const date = getSessionDate();
+      const dateLabel = document.getElementById('partnerSubDate');
+      if (dateLabel) dateLabel.textContent = date || 'today';
+
+      let attendance = null, subs = null;
+      const tryRender = () => {
+        if (!attendance || !subs) return;
+        renderPartnerSubsContext(attendance, subs, date);
       };
+      google.script.run
+        .withSuccessHandler(r => { attendance = (r && r.ok && r.data) || {}; tryRender(); })
+        .withFailureHandler(e => { console.warn('partner attendance:', e); attendance = {}; tryRender(); })
+        .api_crGetNoShowsForDate(CURRENT_LEAGUE.league_id, date);
+      google.script.run
+        .withSuccessHandler(r => { subs = (r && r.ok && r.data) || []; tryRender(); })
+        .withFailureHandler(() => { subs = []; tryRender(); })
+        .api_listSubs(CURRENT_LEAGUE.league_id);
+    }
 
-      let g;
-      if (isPartner()) {
-        g = Object.assign(base, {
-          t1_team_id: document.getElementById('f_t1team').value,
-          t2_team_id: document.getElementById('f_t2team').value,
-          t1_score: document.getElementById('f_s1_p').value,
-          t2_score: document.getElementById('f_s2_p').value,
+    function renderPartnerSubsContext(att, allSubs, date) {
+      // Build lookup for player → team.
+      const teamByPlayer = {};
+      TEAMS.forEach(t => {
+        if (t.player_1_id) teamByPlayer[t.player_1_id] = t;
+        if (t.player_2_id) teamByPlayer[t.player_2_id] = t;
+      });
+      const playerById = {};
+      ROSTER.forEach(p => { playerById[p.player_id] = p; });
+
+      // Existing pairings for this date.
+      const paired = (allSubs || []).filter(s =>
+        String(s.play_date || '').slice(0, 10) === date);
+      const pairedAbsent = {};
+      const pairedSub    = {};
+      paired.forEach(p => {
+        if (p.absent_player_id)     pairedAbsent[p.absent_player_id] = p;
+        if (p.substitute_player_id) pairedSub[p.substitute_player_id] = p;
+      });
+
+      // No-shows: rostered players flagged as absent who aren't already paired.
+      const noShowIds = att.no_show_player_ids || [];
+      const noShows = noShowIds
+        .filter(pid => !pairedAbsent[pid])
+        .map(pid => {
+          const p = playerById[pid] || { full_name: '(unknown)' };
+          const t = teamByPlayer[pid];
+          return {
+            player_id: pid,
+            full_name: p.full_name,
+            team_id:   t ? t.team_id : '',
+            team_name: t ? t.team_name : '',
+          };
         });
+
+      // Subs: external_subs not yet paired.
+      const subs = (att.external_subs || [])
+        .filter(s => !pairedSub[s.player_id || ''])
+        .map(s => ({
+          player_id:     s.player_id,
+          full_name:     s.full_name,
+          member_number: s.member_number,
+          is_temp:       s.is_temp,
+        }));
+
+      PARTNER_SUBS_DATA = { no_shows: noShows, subs: subs, paired };
+
+      // Render paired list at top.
+      const pairedEl = document.getElementById('partnerPairedSwaps');
+      if (paired.length) {
+        pairedEl.innerHTML = '<div style="margin-bottom:6px;font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em">Active swaps</div>' +
+          paired.map(p => {
+            const t = teamByPlayer[p.absent_player_id];
+            const teamLbl = t ? ' · ' + escapeHtml(t.team_name) : '';
+            return `<div style="display:flex;align-items:center;gap:10px;padding:6px 10px;background:var(--brand-orange-soft);border-radius:6px;margin-bottom:4px;font-size:13px">
+              <strong>${escapeHtml(p.substitute_player_name)}</strong>
+              <span class="muted">→ subs for</span>
+              <strong>${escapeHtml(p.absent_player_name)}</strong>${teamLbl}
+              <span style="flex:1"></span>
+              <button class="tiny secondary" onclick="unpairPartnerSub('${escapeHtml(p.sub_id)}')">Undo</button>
+            </div>`;
+          }).join('');
       } else {
-        g = Object.assign(base, {
-          t1_player_1_id: document.getElementById('f_t1p1').value,
-          t1_player_2_id: document.getElementById('f_t1p2').value,
-          t2_player_1_id: document.getElementById('f_t2p1').value,
-          t2_player_2_id: document.getElementById('f_t2p2').value,
-          t1_score: document.getElementById('f_s1_l').value,
-          t2_score: document.getElementById('f_s2_l').value,
+        pairedEl.innerHTML = '';
+      }
+
+      // Subs (left).
+      const subsEl = document.getElementById('partnerSubsList');
+      document.getElementById('partnerSubsCount').textContent = '(' + subs.length + ')';
+      if (subs.length) {
+        subsEl.innerHTML = subs.map(s => `
+          <div class="sub-card" draggable="true" data-pid="${escapeHtml(s.player_id || '')}" data-name="${escapeHtml(s.full_name)}">
+            <strong>${escapeHtml(s.full_name)}</strong>
+            ${s.is_temp ? '<span class="muted" style="font-size:11px;margin-left:6px">(guest)</span>' : ''}
+          </div>`).join('');
+      } else {
+        subsEl.innerHTML = '<span class="muted" style="font-size:12px">No subs.</span>';
+      }
+
+      // No-shows (right) — drop targets.
+      const noEl = document.getElementById('partnerNoshowsList');
+      document.getElementById('partnerNoshowsCount').textContent = '(' + noShows.length + ')';
+      if (noShows.length) {
+        noEl.innerHTML = noShows.map(n => `
+          <div class="noshow-card" data-absent-pid="${escapeHtml(n.player_id)}" data-absent-name="${escapeHtml(n.full_name)}">
+            <div><strong>${escapeHtml(n.full_name)}</strong>${n.team_name ? `<span class="muted" style="font-size:11px;margin-left:6px">${escapeHtml(n.team_name)}</span>` : ''}</div>
+            <div class="drop-hint">drop a sub here</div>
+          </div>`).join('');
+      } else {
+        noEl.innerHTML = '<span class="muted" style="font-size:12px">No no-shows.</span>';
+      }
+
+      wirePartnerSubsDnD();
+    }
+
+    function wirePartnerSubsDnD() {
+      document.querySelectorAll('#partnerSubsList .sub-card').forEach(card => {
+        card.addEventListener('dragstart', e => {
+          e.dataTransfer.setData('text/plain', JSON.stringify({
+            pid:  card.dataset.pid,
+            name: card.dataset.name,
+          }));
+          e.dataTransfer.effectAllowed = 'move';
+          card.classList.add('dragging');
         });
+        card.addEventListener('dragend', () => card.classList.remove('dragging'));
+      });
+      document.querySelectorAll('#partnerNoshowsList .noshow-card').forEach(target => {
+        target.addEventListener('dragover', e => { e.preventDefault(); target.classList.add('drag-over'); });
+        target.addEventListener('dragleave', () => target.classList.remove('drag-over'));
+        target.addEventListener('drop', e => {
+          e.preventDefault();
+          target.classList.remove('drag-over');
+          let payload = {};
+          try { payload = JSON.parse(e.dataTransfer.getData('text/plain') || '{}'); } catch (err) {}
+          if (!payload.pid) return;
+          pairPartnerSub(payload.pid, payload.name,
+            target.dataset.absentPid, target.dataset.absentName);
+        });
+      });
+    }
+
+    function pairPartnerSub(subPid, subName, absentPid, absentName) {
+      const date = getSessionDate();
+      if (!CURRENT_LEAGUE || !date) return;
+      google.script.run
+        .withSuccessHandler(r => {
+          if (!r.ok) { showErr(r.error); return; }
+          loadPartnerSubsContext();
+          // Bump live state so Display picks up the swap.
+          _publishActiveHalf();
+        })
+        .withFailureHandler(showErr)
+        .api_recordSub({
+          league_id:            CURRENT_LEAGUE.league_id,
+          play_date:            date,
+          week_number:          getWeek(),
+          absent_player_id:     absentPid,
+          substitute_player_id: subPid,
+          notes:                'Operator partner sub-pair UI',
+        });
+    }
+
+    function unpairPartnerSub(sub_id) {
+      google.script.run
+        .withSuccessHandler(r => {
+          if (!r.ok) { showErr(r.error); return; }
+          loadPartnerSubsContext();
+          _publishActiveHalf();
+        })
+        .withFailureHandler(showErr)
+        .api_voidSub(sub_id);
+    }
+
+    function assignPartnerCourts() {
+      if (!CURRENT_LEAGUE || !isPartner()) return;
+      const raw = (document.getElementById('partnerCourtNumbers').value || '').trim();
+      const courts = raw.split(/[\s,]+/).map(n => parseInt(n, 10)).filter(n => Number.isFinite(n) && n > 0);
+      const msg = document.getElementById('partnerCourtsMsg');
+      if (!courts.length) { if (msg) { msg.textContent = 'Enter at least one court number'; msg.className = 'err'; } return; }
+      if (msg) { msg.textContent = 'Assigning…'; msg.className = 'muted'; }
+      google.script.run
+        .withSuccessHandler(r => {
+          if (!r.ok) {
+            if (msg) { msg.textContent = 'Error: ' + r.error; msg.className = 'err'; }
+            return;
+          }
+          const d = r.data || {};
+          if (msg) {
+            msg.textContent = `Assigned ${d.assigned} matches across ${d.rounds} rounds on courts ${d.courts.join(', ')} ✓`;
+            msg.className = 'muted';
+          }
+          refreshPartnerSession();
+        })
+        .withFailureHandler(e => {
+          if (msg) { msg.textContent = 'Error: ' + (e && e.message || e); msg.className = 'err'; }
+        })
+        .api_assignCourtsForWeek(CURRENT_LEAGUE.league_id, getWeek(), courts);
+    }
+
+    function refreshPartnerSession() {
+      if (!CURRENT_LEAGUE || !isPartner()) return;
+      const week = getWeek();
+      // Publish current week so Display tabs (partner mode) mirror.
+      _publishActiveHalf();
+      // Also load the subs/no-shows context so the operator can see attendance.
+      loadPartnerSubsContext();
+      // Pre-fill the courts input from this week's already-assigned matches
+      // (if any), so the operator can re-edit and re-assign.
+      const courtsInput = document.getElementById('partnerCourtNumbers');
+      if (courtsInput && !courtsInput.value) {
+        // Async — relies on PARTNER_MATCHES being populated below
+        setTimeout(() => {
+          const cs = Array.from(new Set(
+            (PARTNER_MATCHES || []).map(m => Number(m.court_number)).filter(n => n > 0)
+          )).sort((a, b) => a - b);
+          if (cs.length && !courtsInput.value) courtsInput.value = cs.join(', ');
+        }, 500);
+      }
+      document.getElementById('partnerWeekLabel').textContent = week;
+      document.getElementById('partnerRoundCards').innerHTML = '<span class="muted">Loading…</span>';
+      document.getElementById('partnerNoScheduleMsg').classList.add('hidden');
+      PARTNER_MATCHES = [];
+      PARTNER_GAMES   = [];
+
+      let matchesDone = false, gamesDone = false;
+      function tryRender() {
+        if (matchesDone && gamesDone) renderPartnerScheduleUI();
       }
 
       google.script.run
         .withSuccessHandler(r => {
-          if (!r.ok) { msg.textContent = 'Error: ' + r.error; msg.className = 'err'; return; }
-          msg.textContent = 'Saved ✓'; msg.className = 'muted';
-          // Clear scores, bump game number.
-          ['f_s1_l','f_s2_l','f_s1_p','f_s2_p'].forEach(id => {
-            const el = document.getElementById(id); if (el) el.value = '';
-          });
-          const gn = document.getElementById('f_game');
-          gn.value = Number(gn.value || 0) + 1;
-          refreshGamesAndStandings();
+          if (!r.ok) { showErr(r.error); matchesDone = true; tryRender(); return; }
+          PARTNER_MATCHES = r.data || [];
+          matchesDone = true;
+          tryRender();
         })
+        .withFailureHandler(e => { showErr(e); matchesDone = true; tryRender(); })
+        .api_listScheduledMatches(CURRENT_LEAGUE.league_id, week);
+
+      google.script.run
+        .withSuccessHandler(r => {
+          if (!r.ok) { showErr(r.error); gamesDone = true; tryRender(); return; }
+          PARTNER_GAMES = (r.data || []).filter(g => g.status !== 'voided');
+          gamesDone = true;
+          tryRender();
+        })
+        .withFailureHandler(e => { showErr(e); gamesDone = true; tryRender(); })
+        .api_listGames(CURRENT_LEAGUE.league_id, week);
+
+      google.script.run
+        .withSuccessHandler(onPartnerStandings)
         .withFailureHandler(showErr)
-        .api_saveGame(g);
+        .api_recomputeStandings(CURRENT_LEAGUE.league_id);
     }
+
+    /**
+     * Find the played Game that corresponds to a scheduled match.
+     * Matches by round_number + court_number + team IDs (order-insensitive).
+     */
+    function findGameForMatch(match) {
+      const wk = Number(match.week_number);
+      const rn = Number(match.game_number);
+      const cn = Number(match.court_number);
+      return PARTNER_GAMES.find(g =>
+        Number(g.week_number) === wk &&
+        Number(g.round_number) === rn &&
+        Number(g.court_number) === cn &&
+        ((g.t1_team_id === match.t1_team_id && g.t2_team_id === match.t2_team_id) ||
+         (g.t1_team_id === match.t2_team_id && g.t2_team_id === match.t1_team_id))
+      );
+    }
+
+    function renderPartnerScheduleUI() {
+      const container = document.getElementById('partnerRoundCards');
+      const noSched   = document.getElementById('partnerNoScheduleMsg');
+
+      if (!PARTNER_MATCHES.length) {
+        container.innerHTML = '';
+        noSched.classList.remove('hidden');
+        document.getElementById('partnerProgressPill').textContent = '';
+        renderPartnerGamesList();
+        return;
+      }
+      noSched.classList.add('hidden');
+
+      const teamById = {};
+      TEAMS.forEach(t => { teamById[t.team_id] = t; });
+
+      // Group by game_number (round), sorted ascending.
+      const byRound = {};
+      PARTNER_MATCHES.forEach(m => {
+        const k = Number(m.game_number);
+        if (!byRound[k]) byRound[k] = [];
+        byRound[k].push(m);
+      });
+      const rounds = Object.keys(byRound).sort((a, b) => Number(a) - Number(b));
+
+      let totalMatches = PARTNER_MATCHES.length;
+      let completedCount = 0;
+
+      const html = rounds.map(rNum => {
+        const matches = byRound[rNum].sort((a, b) => Number(a.court_number) - Number(b.court_number));
+        const cards = matches.map(match => {
+          const t1 = teamById[match.t1_team_id];
+          const t2 = teamById[match.t2_team_id];
+          const t1name = t1 ? t1.team_name : '?';
+          const t2name = t2 ? t2.team_name : '?';
+          const game = findGameForMatch(match);
+          const isComplete = !!(game && game.status === 'complete');
+          if (isComplete) completedCount++;
+
+          // If the stored game has teams swapped relative to match, swap score display.
+          let s1 = '', s2 = '';
+          let winnerT1 = false, winnerT2 = false;
+          if (isComplete) {
+            const swapped = game.t1_team_id === match.t2_team_id;
+            s1 = swapped ? game.t2_score : game.t1_score;
+            s2 = swapped ? game.t1_score : game.t2_score;
+            if (Number(s1) > Number(s2)) winnerT1 = true;
+            else if (Number(s2) > Number(s1)) winnerT2 = true;
+          }
+
+          const mid    = escapeHtml(match.match_id);
+          const t1id   = escapeHtml(match.t1_team_id);
+          const t2id   = escapeHtml(match.t2_team_id);
+          const rn     = Number(match.game_number);
+          const cn     = Number(match.court_number);
+          const roAttr = isComplete ? ' readonly' : '';
+
+          return `<div class="partner-match-card${isComplete ? ' complete' : ''}" id="pmatch_${mid}">
+            <div class="partner-match-header">Court ${cn}</div>
+            <div class="partner-match-row">
+              <span class="partner-team-name"${winnerT1 ? ' style="color:var(--brand-green-dark)"' : ''}>${escapeHtml(t1name)}</span>
+              <input type="number" min="0" max="21" class="partner-score-input${isComplete ? ' saved' : ''}"
+                id="ps_${mid}_t1" value="${s1}"
+                onchange="autoSavePartnerGame('${mid}','${t1id}','${t2id}',${rn},${cn})"${roAttr}>
+            </div>
+            <div class="partner-match-row">
+              <span class="partner-team-name"${winnerT2 ? ' style="color:var(--brand-green-dark)"' : ''}>${escapeHtml(t2name)}</span>
+              <input type="number" min="0" max="21" class="partner-score-input${isComplete ? ' saved' : ''}"
+                id="ps_${mid}_t2" value="${s2}"
+                onchange="autoSavePartnerGame('${mid}','${t1id}','${t2id}',${rn},${cn})"${roAttr}>
+            </div>
+            <div class="partner-match-footer" id="pstatus_${mid}">${isComplete ? '✓ Saved' : ''}</div>
+          </div>`;
+        }).join('');
+
+        return `<div class="partner-round">
+          <p class="partner-round-label">Round ${rNum}</p>
+          <div class="partner-match-grid">${cards}</div>
+        </div>`;
+      }).join('');
+
+      container.innerHTML = html;
+      updatePartnerProgress(completedCount, totalMatches);
+      renderPartnerGamesList();
+    }
+
+    function autoSavePartnerGame(matchId, t1TeamId, t2TeamId, roundNum, courtNum) {
+      const s1 = document.getElementById('ps_' + matchId + '_t1').value;
+      const s2 = document.getElementById('ps_' + matchId + '_t2').value;
+      if (s1 === '' || s2 === '') return;
+      savePartnerMatchGame(matchId, t1TeamId, t2TeamId, roundNum, courtNum, Number(s1), Number(s2));
+    }
+
+    function savePartnerMatchGame(matchId, t1TeamId, t2TeamId, roundNum, courtNum, s1, s2) {
+      const statusEl = document.getElementById('pstatus_' + matchId);
+      if (statusEl) { statusEl.textContent = 'Saving…'; statusEl.className = 'partner-match-footer muted'; }
+
+      google.script.run
+        .withSuccessHandler(r => {
+          if (!r.ok) {
+            if (statusEl) { statusEl.textContent = 'Error: ' + r.error; statusEl.className = 'partner-match-footer err'; }
+            return;
+          }
+          const saved = r.data;
+
+          // Update local cache: remove any prior version of this game, add saved.
+          PARTNER_GAMES = PARTNER_GAMES.filter(g => !(
+            Number(g.week_number) === getWeek() &&
+            Number(g.round_number) === roundNum &&
+            Number(g.court_number) === courtNum &&
+            ((g.t1_team_id === t1TeamId && g.t2_team_id === t2TeamId) ||
+             (g.t1_team_id === t2TeamId && g.t2_team_id === t1TeamId))
+          ));
+          PARTNER_GAMES.push(saved);
+
+          // Update card UI without re-rendering the whole list.
+          const card = document.getElementById('pmatch_' + matchId);
+          if (card) {
+            card.classList.add('complete');
+            const inputs = card.querySelectorAll('.partner-score-input');
+            inputs.forEach(inp => { inp.classList.add('saved'); inp.readOnly = true; });
+            const names = card.querySelectorAll('.partner-team-name');
+            if (saved.winner === 1 && names[0]) names[0].style.color = 'var(--brand-green-dark)';
+            if (saved.winner === 2 && names[1]) names[1].style.color = 'var(--brand-green-dark)';
+          }
+          if (statusEl) { statusEl.textContent = '✓ Saved'; statusEl.className = 'partner-match-footer'; }
+
+          // Mark the Match_Schedule row as played (background; ignore errors).
+          google.script.run
+            .withSuccessHandler(() => {})
+            .withFailureHandler(() => {})
+            .api_markMatchPlayed(matchId, saved.game_id);
+
+          // Broadcast to Display.
+          try { new BroadcastChannel('dill_scores').postMessage({ league_id: CURRENT_LEAGUE.league_id }); } catch(e) {}
+
+          // Refresh standings.
+          google.script.run
+            .withSuccessHandler(onPartnerStandings)
+            .withFailureHandler(showErr)
+            .api_recomputeStandings(CURRENT_LEAGUE.league_id);
+
+          // Recount progress.
+          const done  = PARTNER_MATCHES.filter(m => findGameForMatch(m)).length;
+          updatePartnerProgress(done, PARTNER_MATCHES.length);
+          renderPartnerGamesList();
+        })
+        .withFailureHandler(e => {
+          if (statusEl) { statusEl.textContent = String(e && e.message || e); statusEl.className = 'partner-match-footer err'; }
+        })
+        .api_saveGame({
+          league_id:    CURRENT_LEAGUE.league_id,
+          week_number:  getWeek(),
+          round_number: roundNum,
+          court_number: courtNum,
+          t1_team_id:   t1TeamId,
+          t2_team_id:   t2TeamId,
+          t1_score:     s1,
+          t2_score:     s2,
+        });
+    }
+
+    function updatePartnerProgress(done, total) {
+      const pill = document.getElementById('partnerProgressPill');
+      if (!pill) return;
+      if (!total) { pill.textContent = ''; pill.className = 'pill'; return; }
+      pill.textContent = done + '/' + total + ' complete';
+      pill.className = 'pill ' + (done === total ? 'ok' : '');
+    }
+
+    function renderPartnerGamesList() {
+      const el = document.getElementById('gamesList');
+      if (!el) return;
+      const games = PARTNER_GAMES.slice().reverse();
+      if (!games.length) { el.innerHTML = '<span class="muted">No games yet.</span>'; return; }
+      const teamById = {};
+      TEAMS.forEach(t => { teamById[t.team_id] = t; });
+      const rows = games.map(g => `<tr>
+        <td class="muted" style="font-size:11px">R${g.round_number}/C${g.court_number}</td>
+        <td><strong>${escapeHtml(teamById[g.t1_team_id] ? teamById[g.t1_team_id].team_name : '?')}</strong></td>
+        <td style="text-align:center;font-weight:700">${g.t1_score} – ${g.t2_score}</td>
+        <td><strong>${escapeHtml(teamById[g.t2_team_id] ? teamById[g.t2_team_id].team_name : '?')}</strong></td>
+        <td><span class="pill ok">${g.status}</span></td>
+      </tr>`).join('');
+      el.innerHTML = '<table><tr><th>Rd/Ct</th><th>Team 1</th><th>Score</th><th>Team 2</th><th></th></tr>' + rows + '</table>';
+    }
+
+    function onPartnerStandings(resp) {
+      if (!resp.ok) return showErr(resp.error);
+      const data = resp.data || [];
+      if (!data.length) { document.getElementById('standings').innerHTML = '<span class="muted">No completed games yet</span>'; return; }
+      const rows = data.map(s => `<tr>
+          <td>${s.rank}</td>
+          <td><strong>${escapeHtml(s.team_name)}</strong><br><small class="muted">${escapeHtml(s.player_1_name)} &amp; ${escapeHtml(s.player_2_name)}</small></td>
+          <td>${s.wins} – ${s.losses}</td>
+          <td>${s.games_back > 0 ? s.games_back.toFixed(1) : '—'}</td>
+          <td>${s.point_diff > 0 ? '+' : ''}${s.point_diff}</td>
+          <td>${(s.point_pct * 100).toFixed(1)}%</td>
+        </tr>`).join('');
+      document.getElementById('standings').innerHTML =
+        '<table><tr><th>#</th><th>Team</th><th>W–L</th><th>GB</th><th>+/−</th><th>P%</th></tr>' + rows + '</table>';
+    }
+
+    /* ====================================================================
+       Picker hooks
+       ==================================================================== */
+
+    document.addEventListener('change', e => {
+      if (e.target && e.target.id === 'courtNumbers' && isLadder()) {
+        updateCourtCountPill();
+        savePrefs_({ courts_text: e.target.value || '' });
+        loadLadderSession();
+      }
+    });
+    document.addEventListener('input', e => {
+      if (e.target && e.target.id === 'courtNumbers') updateCourtCountPill();
+    });
 
     init();
   </script>

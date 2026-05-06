@@ -77,6 +77,7 @@ function createLeague_(input) {
     appendObjects_('League_Schedule', rows);
   }
 
+  cacheBust_('leagues:list');
   audit_('league_create', 'league', league_id, null, { name: input.name, format_type: input.format_type });
   return getLeagueById_(league_id);
 }
@@ -98,10 +99,78 @@ function getLeagueSchedule_(league_id) {
     .sort((a, b) => Number(a.week_number) - Number(b.week_number));
 }
 
+/**
+ * Build (or extend) League_Schedule rows from the distinct play_dates found
+ * in CR_Attendance for this league's event. Idempotent — only appends weeks
+ * for dates not already in League_Schedule. New rows are numbered after
+ * existing ones (operator can reorder in the sheet if needed).
+ *
+ * Returns { added, total_attendance_dates, existing_weeks }.
+ */
+function populateLeagueScheduleFromAttendance_(league_id) {
+  const league = getLeagueById_(league_id);
+  if (!league) throw new Error('League not found: ' + league_id);
+  const targetName = (league.name || '').trim();
+
+  // Distinct attendance dates whose event matches the league name (strict).
+  const dateSet = {};
+  getObjects_('CR_Attendance').forEach(a => {
+    if (!_crEventNameMatches_(a.event_name, targetName)) return;
+    const rs = a.reservation_start;
+    const raw = rs instanceof Date
+      ? Utilities.formatDate(rs, CONFIG.TIMEZONE, 'yyyy-MM-dd')
+      : String(rs || '').replace('T', ' ').slice(0, 10);
+    const date = raw.slice(0, 10);
+    if (date) dateSet[date] = true;
+  });
+  const dates = Object.keys(dateSet).sort();
+
+  // Existing League_Schedule rows for this league.
+  const existing = getObjects_('League_Schedule').filter(s => s.league_id === league_id);
+  const existingDates = {};
+  existing.forEach(s => {
+    const d = s.play_date instanceof Date
+      ? Utilities.formatDate(s.play_date, CONFIG.TIMEZONE, 'yyyy-MM-dd')
+      : String(s.play_date || '').slice(0, 10);
+    if (d) existingDates[d] = true;
+  });
+
+  const stamp = nowStamp_();
+  let weekCounter = existing.length;
+  const toAppend = [];
+  dates.forEach(d => {
+    if (existingDates[d]) return;
+    weekCounter++;
+    toAppend.push({
+      schedule_id: makeId_('schedule'),
+      league_id:   league_id,
+      week_number: weekCounter,
+      week_starts: '',
+      week_ends:   '',
+      play_date:   d,
+      skip_week:   false,
+      notes:       'auto from CR_Attendance',
+    });
+  });
+  if (toAppend.length) {
+    appendObjects_('League_Schedule', toAppend);
+    cacheBust_('league:' + league_id + ':full');
+    audit_('league_schedule_populate', 'league', league_id, null,
+      { added: toAppend.length, total_attendance_dates: dates.length, existing_weeks: existing.length });
+  }
+  return {
+    added:                   toAppend.length,
+    total_attendance_dates:  dates.length,
+    existing_weeks:          existing.length,
+  };
+}
+
 function setLeagueStatus_(league_id, status) {
   if (VALID_STATUSES.indexOf(status) === -1) throw new Error('Invalid status: ' + status);
   const before = getLeagueById_(league_id);
   if (!before) throw new Error('League not found: ' + league_id);
   updateWhere_('Leagues', l => l.league_id === league_id, l => { l.status = status; });
+  cacheBust_('leagues:list');
+  cacheBust_('league:' + league_id + ':full');
   audit_('league_status', 'league', league_id, before.status, status);
 }

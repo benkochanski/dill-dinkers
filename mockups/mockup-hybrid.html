@@ -1,0 +1,590 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dill Dinkers Leagues — Hybrid style</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:           #faf9f6;
+    --card:         #ffffff;
+    --card-hover:   #fffbf5;
+    --ink:          #1a1a1a;
+    --ink-soft:     #4a4a4a;
+    --ink-mute:     #757575;
+    --line:         #ebe8e0;
+    --line-soft:    #f3f0e9;
+    --orange:       #F58220;
+    --orange-dark:  #D86A0F;
+    --orange-soft:  #FFE7D1;
+    --orange-tint:  #FFF4E6;
+    --green:        #6FA82A;
+    --green-dark:   #5a8b22;
+    --green-soft:   #E7F4D1;
+    --red:          #c0392b;
+    --red-soft:     #fde4e0;
+    --gold:         #f0b429;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.5;
+  }
+  .num { font-variant-numeric: tabular-nums; }
+
+  /* ===== Top bar ===== */
+  .topbar {
+    background: var(--card);
+    border-bottom: 1px solid var(--line);
+    padding: 16px 32px;
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+  }
+  .topbar .logo {
+    font-weight: 800;
+    font-size: 18px;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .topbar .logo .mark {
+    width: 32px; height: 32px;
+    background: var(--orange);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    color: white; font-weight: 900; font-size: 14px;
+  }
+  .topbar nav { margin-left: auto; display: flex; gap: 6px; }
+  .topbar nav a {
+    color: var(--ink-soft);
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+    padding: 8px 14px;
+    border-radius: 8px;
+    transition: all 0.12s;
+  }
+  .topbar nav a:hover { background: var(--orange-tint); color: var(--orange-dark); }
+  .topbar nav a.active { background: var(--orange-tint); color: var(--orange-dark); font-weight: 600; }
+
+  /* ===== Hero ===== */
+  .hero {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 48px 32px 24px;
+  }
+  .hero .eyebrow {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--orange-dark);
+    background: var(--orange-tint);
+    padding: 6px 12px;
+    border-radius: 999px;
+    margin-bottom: 16px;
+  }
+  .hero h1 {
+    margin: 0 0 10px;
+    font-size: 40px;
+    font-weight: 800;
+    letter-spacing: -0.025em;
+    line-height: 1.1;
+  }
+  .hero p {
+    margin: 0;
+    font-size: 16px;
+    color: var(--ink-mute);
+    max-width: 560px;
+  }
+
+  /* ===== Section ===== */
+  .section { max-width: 1200px; margin: 0 auto; padding: 24px 32px 56px; }
+  .section-h {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin: 0 0 18px;
+  }
+  .section-h h2 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+  .section-h .count {
+    font-size: 13px;
+    color: var(--ink-mute);
+  }
+
+  /* ===== League cards ===== */
+  .league-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 14px;
+  }
+  .league-card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 20px 22px;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    box-shadow: 0 1px 0 rgba(0,0,0,0.02);
+  }
+  .league-card:hover {
+    border-color: var(--orange);
+    box-shadow: 0 4px 16px rgba(245,130,32,0.12);
+    transform: translateY(-1px);
+    background: var(--card-hover);
+  }
+  .league-card .top-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .league-card .when {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--orange-dark);
+  }
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 9px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .badge.partner { background: var(--orange-tint); color: var(--orange-dark); }
+  .badge.ladder { background: var(--green-soft); color: var(--green-dark); }
+  .league-card h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: -0.015em;
+    color: var(--ink);
+  }
+  .league-card .footer-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 12px;
+    border-top: 1px solid var(--line-soft);
+    font-size: 13px;
+    color: var(--ink-mute);
+  }
+  .league-card .progress {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .progress-bar {
+    width: 50px;
+    height: 4px;
+    background: var(--line);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .progress-bar > div {
+    height: 100%;
+    background: var(--orange);
+    border-radius: 999px;
+  }
+  .arrow {
+    color: var(--orange);
+    font-size: 18px;
+    font-weight: 700;
+  }
+
+  /* ===== League page ===== */
+  .league-hero {
+    background: linear-gradient(135deg, #fff 0%, var(--orange-tint) 200%);
+    border-bottom: 1px solid var(--line);
+  }
+  .league-hero-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 36px 32px 0;
+  }
+  .crumb {
+    font-size: 13px;
+    color: var(--ink-mute);
+    margin-bottom: 16px;
+  }
+  .crumb a { color: var(--ink-mute); text-decoration: none; }
+  .crumb a:hover { color: var(--orange-dark); }
+  .league-hero .title-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 24px;
+    flex-wrap: wrap;
+    margin-bottom: 18px;
+  }
+  .league-hero h1 {
+    margin: 0 0 8px;
+    font-size: 32px;
+    font-weight: 800;
+    letter-spacing: -0.025em;
+    line-height: 1.15;
+  }
+  .league-hero .badges {
+    display: flex; gap: 8px; flex-wrap: wrap;
+  }
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 5px 11px;
+    border-radius: 999px;
+    background: white;
+    border: 1px solid var(--line);
+    font-size: 12px;
+    color: var(--ink-soft);
+    font-weight: 500;
+    gap: 6px;
+  }
+  .pill .label { color: var(--ink-mute); }
+  .pill strong { color: var(--ink); font-weight: 600; }
+  .pill .dot { width: 6px; height: 6px; background: var(--green); border-radius: 50%; display: inline-block; }
+
+  .tabs {
+    display: flex;
+    gap: 4px;
+    margin: 0;
+    padding: 0;
+  }
+  .tab {
+    padding: 10px 18px;
+    color: var(--ink-mute);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    border-radius: 8px 8px 0 0;
+    border: 1px solid transparent;
+    border-bottom: none;
+    margin-bottom: -1px;
+    background: transparent;
+    transition: all 0.12s;
+  }
+  .tab:hover { color: var(--ink); background: rgba(255,255,255,0.5); }
+  .tab.active {
+    color: var(--ink);
+    background: var(--bg);
+    border-color: var(--line);
+  }
+  .tab.active::after {
+    content: '';
+    display: block;
+    height: 1px;
+    background: var(--bg);
+    position: relative;
+    bottom: -11px;
+    margin: 0 -19px;
+  }
+
+  /* ===== Standings ===== */
+  .standings-wrap {
+    display: grid;
+    grid-template-columns: 1.6fr 1fr;
+    gap: 20px;
+    align-items: start;
+  }
+  .panel {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 1px 0 rgba(0,0,0,0.02);
+  }
+  .panel-h {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .panel-h h3 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+  .panel-h .qual {
+    font-size: 12px;
+    color: var(--ink-mute);
+  }
+
+  table { width: 100%; border-collapse: collapse; }
+  thead th {
+    color: var(--ink-mute);
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 12px 16px;
+    text-align: left;
+    background: var(--bg);
+    border-bottom: 1px solid var(--line);
+  }
+  thead th.r { text-align: right; }
+  tbody td {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--line-soft);
+    font-size: 14px;
+    vertical-align: middle;
+  }
+  tbody td.r { text-align: right; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: var(--orange-tint); cursor: pointer; }
+
+  .rank-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    font-size: 13px;
+    font-weight: 700;
+    background: var(--line-soft);
+    color: var(--ink-soft);
+  }
+  .rank-1 { background: var(--gold); color: white; }
+  .rank-2 { background: #c0c8d0; color: white; }
+  .rank-3 { background: #cd7f32; color: white; }
+
+  .team-cell { font-weight: 600; font-size: 15px; }
+  .team-sub { font-size: 12px; color: var(--ink-mute); font-weight: 400; margin-top: 2px; }
+  .wl { font-weight: 700; }
+  .pos { color: var(--green-dark); font-weight: 600; }
+  .neg { color: var(--red); font-weight: 600; }
+
+  /* Weekly */
+  .weekly-table th, .weekly-table td {
+    padding: 12px 8px;
+    text-align: center;
+  }
+  .weekly-table th:first-child, .weekly-table td:first-child {
+    text-align: left;
+    padding-left: 16px;
+  }
+  .weekly-table td:first-child {
+    font-weight: 600;
+    font-size: 13px;
+  }
+  .week-pill {
+    display: inline-block;
+    min-width: 36px;
+    padding: 3px 6px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  .week-w { background: var(--green-soft); color: var(--green-dark); }
+  .week-l { background: var(--red-soft); color: var(--red); }
+
+  @media (max-width: 900px) {
+    .standings-wrap { grid-template-columns: 1fr; gap: 16px; }
+    .hero h1 { font-size: 30px; }
+    .league-hero h1 { font-size: 26px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo"><span class="mark">DD</span> Dill Dinkers</div>
+  <nav>
+    <a href="#" class="active">Leagues</a>
+    <a href="#">Players</a>
+    <a href="#">About</a>
+  </nav>
+</div>
+
+<!-- ============== LEAGUE INDEX ============== -->
+<div class="hero">
+  <div class="eyebrow">Spring 2026 Season</div>
+  <h1>Active Leagues</h1>
+  <p>Twelve leagues running this season. Pick yours to see live standings, schedules, and team results.</p>
+</div>
+
+<div class="section">
+  <div class="section-h">
+    <h2>All Leagues</h2>
+    <div class="count">12 active · Spring 2026</div>
+  </div>
+  <div class="league-grid">
+    <div class="league-card">
+      <div class="top-row">
+        <span class="when">Tue · 8:00 PM</span>
+        <span class="badge ladder">Ladder</span>
+      </div>
+      <h3>Tuesday Night Ladder</h3>
+      <div class="footer-row">
+        <span>Levels 3.5–4.0</span>
+        <span class="progress"><span>W4 / 8</span><span class="progress-bar"><div style="width:50%"></div></span></span>
+      </div>
+    </div>
+    <div class="league-card">
+      <div class="top-row">
+        <span class="when">Wed · 7:00 PM</span>
+        <span class="badge partner">Partner</span>
+      </div>
+      <h3>Mixed Partner League</h3>
+      <div class="footer-row">
+        <span>Levels 3.0–3.5</span>
+        <span class="progress"><span>W5 / 8</span><span class="progress-bar"><div style="width:62%"></div></span></span>
+      </div>
+    </div>
+    <div class="league-card">
+      <div class="top-row">
+        <span class="when">Thu · 6:30 PM</span>
+        <span class="badge partner">Partner</span>
+      </div>
+      <h3>Advanced Doubles</h3>
+      <div class="footer-row">
+        <span>Level 4.0+</span>
+        <span class="progress"><span>W4 / 8</span><span class="progress-bar"><div style="width:50%"></div></span></span>
+      </div>
+    </div>
+    <div class="league-card">
+      <div class="top-row">
+        <span class="when">Sun · 10:00 AM</span>
+        <span class="badge ladder">Ladder</span>
+      </div>
+      <h3>Sunday Morning Ladder</h3>
+      <div class="footer-row">
+        <span>Levels 2.5–3.0</span>
+        <span class="progress"><span>W6 / 8</span><span class="progress-bar"><div style="width:75%"></div></span></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============== LEAGUE PAGE ============== -->
+<div class="league-hero">
+  <div class="league-hero-inner">
+    <div class="crumb"><a href="#">All Leagues</a> &nbsp;/&nbsp; Wednesday Mixed Partner</div>
+    <div class="title-row">
+      <div>
+        <h1>Wednesday Mixed Partner League</h1>
+        <div class="badges">
+          <span class="pill"><span class="dot"></span> <strong>Week 5 of 8</strong></span>
+          <span class="pill"><span class="label">Format</span> <strong>Partner</strong></span>
+          <span class="pill"><span class="label">Level</span> <strong>3.0–3.5</strong></span>
+          <span class="pill"><span class="label">Plays</span> <strong>Wed · 7:00 PM</strong></span>
+          <span class="pill"><span class="label">Season</span> <strong>Spring 2026</strong></span>
+        </div>
+      </div>
+    </div>
+    <div class="tabs">
+      <div class="tab active">Standings</div>
+      <div class="tab">Schedule</div>
+      <div class="tab">Match Results</div>
+      <div class="tab">Teams</div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="standings-wrap">
+    <div class="panel">
+      <div class="panel-h"><h3>Season Standings</h3><span class="qual">Through Week 5</span></div>
+      <table>
+        <thead>
+          <tr>
+            <th>#</th><th>Team</th>
+            <th class="r">W–L</th><th class="r">PCT</th><th class="r">GB</th><th class="r">+/−</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="rank-badge rank-1">1</span></td>
+            <td><div class="team-cell">Net Assets</div><div class="team-sub">M. Chen · J. Patel</div></td>
+            <td class="r wl">14–4</td><td class="r num">.778</td><td class="r num">—</td><td class="r pos">+38</td>
+          </tr>
+          <tr>
+            <td><span class="rank-badge rank-2">2</span></td>
+            <td><div class="team-cell">Dink City</div><div class="team-sub">A. Rodriguez · K. O'Brien</div></td>
+            <td class="r wl">12–6</td><td class="r num">.667</td><td class="r num">2.0</td><td class="r pos">+22</td>
+          </tr>
+          <tr>
+            <td><span class="rank-badge rank-3">3</span></td>
+            <td><div class="team-cell">Smash Bros</div><div class="team-sub">D. Kim · R. Foster</div></td>
+            <td class="r wl">11–7</td><td class="r num">.611</td><td class="r num">3.0</td><td class="r pos">+15</td>
+          </tr>
+          <tr>
+            <td><span class="rank-badge">4</span></td>
+            <td><div class="team-cell">The Volley Llamas</div><div class="team-sub">S. Johnson · T. Nguyen</div></td>
+            <td class="r wl">10–8</td><td class="r num">.556</td><td class="r num">4.0</td><td class="r pos">+8</td>
+          </tr>
+          <tr>
+            <td><span class="rank-badge">5</span></td>
+            <td><div class="team-cell">Pickle Rick</div><div class="team-sub">G. Martinez · P. Singh</div></td>
+            <td class="r wl">9–9</td><td class="r num">.500</td><td class="r num">5.0</td><td class="r pos">+3</td>
+          </tr>
+          <tr>
+            <td><span class="rank-badge">6</span></td>
+            <td><div class="team-cell">Just Here for the Snacks</div><div class="team-sub">L. Anderson · M. Williams</div></td>
+            <td class="r wl">7–11</td><td class="r num">.389</td><td class="r num">7.0</td><td class="r neg">−12</td>
+          </tr>
+          <tr>
+            <td><span class="rank-badge">7</span></td>
+            <td><div class="team-cell">Kitchen Kings</div><div class="team-sub">J. Park · E. Davis</div></td>
+            <td class="r wl">5–13</td><td class="r num">.278</td><td class="r num">9.0</td><td class="r neg">−28</td>
+          </tr>
+          <tr>
+            <td><span class="rank-badge">8</span></td>
+            <td><div class="team-cell">Lobsters</div><div class="team-sub">B. Taylor · C. Brown</div></td>
+            <td class="r wl">4–14</td><td class="r num">.222</td><td class="r num">10.0</td><td class="r neg">−46</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="panel">
+      <div class="panel-h"><h3>Weekly Record</h3><span class="qual">W–L per session</span></div>
+      <table class="weekly-table">
+        <thead>
+          <tr><th>Team</th><th>W1</th><th>W2</th><th>W3</th><th>W4</th><th>W5</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Net Assets</td><td><span class="week-pill week-w">3–1</span></td><td><span class="week-pill week-w">4–0</span></td><td><span class="week-pill week-w">3–1</span></td><td><span class="week-pill week-w">2–2</span></td><td><span class="week-pill week-w">2–2</span></td></tr>
+          <tr><td>Dink City</td><td><span class="week-pill week-w">3–1</span></td><td><span class="week-pill week-w">2–2</span></td><td><span class="week-pill week-w">3–1</span></td><td><span class="week-pill week-w">2–2</span></td><td><span class="week-pill week-w">2–2</span></td></tr>
+          <tr><td>Smash Bros</td><td><span class="week-pill week-w">2–2</span></td><td><span class="week-pill week-w">3–1</span></td><td><span class="week-pill week-l">1–3</span></td><td><span class="week-pill week-w">3–1</span></td><td><span class="week-pill week-w">2–2</span></td></tr>
+          <tr><td>Volley Llamas</td><td><span class="week-pill week-l">1–3</span></td><td><span class="week-pill week-w">3–1</span></td><td><span class="week-pill week-w">2–2</span></td><td><span class="week-pill week-w">2–2</span></td><td><span class="week-pill week-w">2–2</span></td></tr>
+          <tr><td>Pickle Rick</td><td><span class="week-pill week-w">2–2</span></td><td><span class="week-pill week-w">2–2</span></td><td><span class="week-pill week-w">2–2</span></td><td><span class="week-pill week-l">1–3</span></td><td><span class="week-pill week-w">2–2</span></td></tr>
+          <tr><td>Snacks</td><td><span class="week-pill week-l">1–3</span></td><td><span class="week-pill week-l">1–3</span></td><td><span class="week-pill week-w">2–2</span></td><td><span class="week-pill week-l">1–3</span></td><td><span class="week-pill week-w">2–2</span></td></tr>
+          <tr><td>Kitchen Kings</td><td><span class="week-pill week-l">1–3</span></td><td><span class="week-pill week-l">0–4</span></td><td><span class="week-pill week-w">2–2</span></td><td><span class="week-pill week-l">1–3</span></td><td><span class="week-pill week-l">1–3</span></td></tr>
+          <tr><td>Lobsters</td><td><span class="week-pill week-l">1–3</span></td><td><span class="week-pill week-l">1–3</span></td><td><span class="week-pill week-l">1–3</span></td><td><span class="week-pill week-l">0–4</span></td><td><span class="week-pill week-l">1–3</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

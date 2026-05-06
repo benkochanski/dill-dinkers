@@ -1,0 +1,159 @@
+<!--
+  Shared brand styles. Include via <?!= include_('Styles') ?> at the top of
+  every page's <head>. Pages can add their own <style> block afterwards for
+  page-specific rules; brand tokens live here.
+-->
+<style>
+  :root {
+    /* Brand palette — Dill Dinkers Pickleball */
+    --brand-orange:        #F58220;
+    --brand-orange-dark:   #D86A0F;
+    --brand-orange-soft:   #FFE7D1;
+    --brand-green:         #8DC63F;
+    --brand-green-dark:    #6FA82A;
+    --brand-green-soft:    #E7F4D1;
+    --brand-black:         #1a1a1a;
+
+    /* UI tokens derived from brand */
+    --bg:                  #ffffff;
+    --bg-subtle:           #faf9f6;
+    --bg-card:             #ffffff;
+    --border:              #e5e2dc;
+    --text:                #1a1a1a;
+    --text-muted:          #6b6b6b;
+    --error:               #c0392b;
+
+    /* Dark display tokens (used by Display.html) */
+    --dark-bg:             #0a1628;
+    --dark-card:           #142035;
+    --dark-border:         #234;
+    --dark-text:           #ffffff;
+    --dark-text-muted:     #9aa3b0;
+  }
+
+  html, body {
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    color: var(--text);
+    background: var(--bg);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3, h4 { color: var(--brand-black); letter-spacing: -0.01em; }
+
+  a { color: var(--brand-orange-dark); }
+  a:hover { color: var(--brand-orange); }
+
+  /* Buttons */
+  button, .btn {
+    padding: 8px 14px;
+    background: var(--brand-orange);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.12s ease;
+  }
+  button:hover, .btn:hover { background: var(--brand-orange-dark); }
+  button:disabled { background: #ccc; cursor: not-allowed; }
+
+  button.secondary, .btn.secondary {
+    background: #fff;
+    color: var(--brand-black);
+    border: 1px solid var(--border);
+  }
+  button.secondary:hover, .btn.secondary:hover {
+    background: var(--bg-subtle);
+    border-color: var(--brand-orange);
+  }
+
+  button.success, .btn.success { background: var(--brand-green-dark); }
+  button.success:hover, .btn.success:hover { background: var(--brand-green); color: var(--brand-black); }
+
+  button.danger, .btn.danger { background: var(--error); }
+  button.danger:hover, .btn.danger:hover { background: #962a1f; }
+
+  button.tiny, .btn.tiny { padding: 4px 10px; font-size: 12px; }
+
+  /* Form fields */
+  select, input, textarea {
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 14px;
+    color: var(--text);
+    background: #fff;
+  }
+  select:focus, input:focus, textarea:focus {
+    outline: 2px solid var(--brand-orange);
+    outline-offset: -1px;
+    border-color: var(--brand-orange);
+  }
+  label { font-size: 12px; color: var(--text-muted); display: block; }
+
+  /* Tables */
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th, td { border: 1px solid var(--border); padding: 6px 8px; text-align: left; vertical-align: top; }
+  th { background: var(--bg-subtle); font-weight: 600; }
+
+  /* Pills */
+  .pill {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    background: var(--brand-green-soft);
+    color: var(--brand-green-dark);
+  }
+  .pill.warn { background: #fff3cd; color: #856; }
+  .pill.ok   { background: var(--brand-green-soft); color: var(--brand-green-dark); }
+  .pill.brand{ background: var(--brand-orange-soft); color: var(--brand-orange-dark); }
+
+  /* Cards */
+  .card {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 18px;
+    margin: 12px 0;
+    background: var(--bg-card);
+  }
+
+  /* Misc */
+  .err   { color: var(--error); }
+  .muted { color: var(--text-muted); }
+  .nav   { margin-bottom: 8px; }
+  .nav a { color: var(--brand-orange-dark); text-decoration: none; margin-right: 12px; font-weight: 500; }
+  .nav a:hover { text-decoration: underline; }
+
+  /* App header (logo strip) */
+  .app-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 0 18px;
+    border-bottom: 2px solid var(--brand-orange);
+    margin-bottom: 24px;
+  }
+  .app-header .who {
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+  .app-header .who code { background: var(--bg-subtle); padding: 1px 6px; border-radius: 4px; }
+
+  /* Logo lockup (used inside .app-header). The real logo lives in Logo.html
+     as an inlined <img> with the wordmark + paddle + ball. We just size it. */
+  .logo {
+    display: inline-flex;
+    align-items: center;
+    text-decoration: none;
+    color: var(--brand-black);
+  }
+  .logo-img {
+    height: 56px;
+    width: auto;
+    display: block;
+  }
+  .logo.compact .logo-img { height: 40px; }
+</style>

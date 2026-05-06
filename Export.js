@@ -5,9 +5,14 @@
  * google.script.run on the client).
  */
 
-const EXPORT_KINDS = ['roster', 'teams', 'scores', 'standings', 'subs'];
+const EXPORT_KINDS = ['roster', 'teams', 'scores', 'standings', 'subs', 'dupr', 'dupr_week'];
 
-function exportCsv_(league_id, kind) {
+/**
+ * @param {string} league_id
+ * @param {string} kind
+ * @param {Object} opts  optional — for dupr_week: { week_number, event_label }
+ */
+function exportCsv_(league_id, kind, opts) {
   if (EXPORT_KINDS.indexOf(kind) === -1) throw new Error('Unknown export kind: ' + kind);
   const league = getLeagueById_(league_id);
   if (!league) throw new Error('League not found: ' + league_id);
@@ -19,6 +24,8 @@ function exportCsv_(league_id, kind) {
     case 'scores':    ({ headers, rows } = exportScores_(league_id)); break;
     case 'standings': ({ headers, rows } = exportStandings_(league_id, league)); break;
     case 'subs':      ({ headers, rows } = exportSubs_(league_id)); break;
+    case 'dupr':      ({ headers, rows } = exportDuprAll_(league_id, league, opts || {})); break;
+    case 'dupr_week': ({ headers, rows } = exportDuprWeek_(league_id, league, opts || {})); break;
   }
   return toCsv_(headers, rows);
 }
@@ -89,6 +96,65 @@ function exportSubs_(league_id) {
     'substitute_player_name', 'recorded_by', 'recorded_at', 'email_sent', 'notes'];
   const rows = list.map(s => headers.map(h => s[h] != null ? s[h] : ''));
   return { headers, rows };
+}
+
+/* ----- DUPR exports ----- */
+
+const DUPR_HEADERS = [
+  'matchType', 'scoreType', 'event', 'date',
+  'playerA1', 'playerA1DuprId', 'playerA2', 'playerA2DuprId',
+  'playerB1', 'playerB1DuprId', 'playerB2', 'playerB2DuprId',
+  'teamAGame1', 'teamBGame1',
+  'teamAGame2', 'teamBGame2',
+  'teamAGame3', 'teamBGame3',
+  'teamAGame4', 'teamBGame4',
+  'teamAGame5', 'teamBGame5',
+];
+
+/**
+ * DUPR-format CSV for all completed games in a league.
+ * One row per game; only game 1 score columns are populated (single-game-to-21).
+ * Names are left blank — only DUPR IDs are written, matching the DUPR template.
+ */
+function exportDuprAll_(league_id, league, opts) {
+  return buildDuprRows_(league_id, league, listGames_({ league_id }).filter(g => g.status === 'complete'), opts);
+}
+
+/**
+ * DUPR-format CSV for a single week's completed games.
+ */
+function exportDuprWeek_(league_id, league, opts) {
+  const week = opts.week_number;
+  if (week == null || week === '') throw new Error('week_number required for dupr_week export');
+  const games = listGames_({ league_id, week_number: week }).filter(g => g.status === 'complete');
+  return buildDuprRows_(league_id, league, games, opts);
+}
+
+function buildDuprRows_(league_id, league, games, opts) {
+  const players = getObjects_('Players');
+  const byId = {};
+  players.forEach(p => { byId[p.player_id] = p; });
+
+  // Default event label: "<league.name> — Week <n>" (or just the league name).
+  const defaultEvent = league.name + (opts.week_number ? ' — Week ' + opts.week_number :
+                                      (opts.event_label ? '' : ''));
+  const event = opts.event_label || defaultEvent;
+
+  const rows = games.map(g => {
+    const date = g.play_date ? String(g.play_date).slice(0, 10) : '';
+    const a1 = byId[g.t1_player_1_id] || {};
+    const a2 = byId[g.t1_player_2_id] || {};
+    const b1 = byId[g.t2_player_1_id] || {};
+    const b2 = byId[g.t2_player_2_id] || {};
+    return [
+      'D', 'SIDEOUT', event, date,
+      '', a1.dupr_id || '', '', a2.dupr_id || '',
+      '', b1.dupr_id || '', '', b2.dupr_id || '',
+      g.t1_score, g.t2_score,
+      '', '', '', '', '', '', '', '',
+    ];
+  });
+  return { headers: DUPR_HEADERS, rows };
 }
 
 /** Quote a CSV cell per RFC 4180 — quote if contains comma/quote/newline. */

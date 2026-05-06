@@ -5,3 +5,20 @@ node_modules/
 *.log
 .idea/
 .vscode/
+
+# Local OneDrive backup zips
+OneDrive_*.zip
+
+# Logo source files (20MB of .ai/.eps/.pdf — kept locally, not in git).
+# Runtime logo assets are inlined into Logo.html / LogoDark.html as base64.
+Logo Files/
+dd logo*.jpg
+
+# Public site env file (contains the live /exec URL)
+public-site/.env
+
+# SvelteKit build output
+public-site/.svelte-kit/
+public-site/build/
+public-site/.cloudflare/
+public-site/.wrangler/

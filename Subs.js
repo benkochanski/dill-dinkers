@@ -79,6 +79,21 @@ function recordSubstitution_(input) {
   return { sub_id, email_sent: emailSent, email_error: emailErr };
 }
 
+/**
+ * Delete a Substitution row by sub_id. Used to unpair a sub-with-no-show
+ * mapping. Returns { deleted: true|false }.
+ */
+function voidSubstitution_(sub_id) {
+  if (!sub_id) throw new Error('sub_id required');
+  const all = getObjects_('Substitutions');
+  const remain = all.filter(s => s.sub_id !== sub_id);
+  if (remain.length === all.length) return { deleted: false };
+  const removed = all.find(s => s.sub_id === sub_id);
+  overwriteObjects_('Substitutions', remain);
+  audit_('sub_void', 'sub', sub_id, removed || null, null);
+  return { deleted: true };
+}
+
 function listSubstitutions_(filter) {
   const all = getObjects_('Substitutions');
   if (!filter) return all;

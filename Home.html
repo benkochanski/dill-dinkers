@@ -3,42 +3,68 @@
 <head>
   <meta charset="utf-8">
   <title><?= appName ?></title>
+  <?!= include_('Styles') ?>
   <style>
-    body { font-family: system-ui, -apple-system, sans-serif; max-width: 720px; margin: 40px auto; padding: 0 16px; color: #222; }
-    h1 { margin: 0 0 4px; }
-    .sub { color: #666; margin: 0 0 24px; }
-    .card { border: 1px solid #ddd; border-radius: 8px; padding: 16px; margin: 12px 0; }
-    a.btn { display: inline-block; padding: 8px 14px; background: #2c5; color: #fff; border-radius: 6px; text-decoration: none; }
-    a.btn:hover { background: #1a4; }
-    code { background: #f4f4f4; padding: 2px 6px; border-radius: 4px; }
+    body { max-width: 760px; margin: 0 auto; padding: 0 20px 60px; }
+    .hero { text-align: center; padding: 28px 0 8px; }
+    .hero h1 { font-size: 28px; margin: 14px 0 6px; }
+    .hero .sub { color: var(--text-muted); margin: 0 0 24px; font-size: 14px; }
+    .tile-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+    .tile {
+      display: block;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px 18px 16px;
+      background: var(--bg-card);
+      text-decoration: none;
+      color: var(--text);
+      transition: border-color 0.15s ease, transform 0.1s ease;
+    }
+    .tile:hover { border-color: var(--brand-orange); transform: translateY(-1px); }
+    .tile h2 { font-size: 16px; margin: 0 0 4px; color: var(--brand-black); }
+    .tile p { font-size: 13px; color: var(--text-muted); margin: 0 0 12px; }
+    .tile .cta { color: var(--brand-orange-dark); font-weight: 600; font-size: 13px; }
   </style>
 </head>
 <body>
-  <h1><?= appName ?></h1>
-  <p class="sub">Signed in as <code><?= user.email || 'anonymous' ?></code> — roles: <?= user.roles.join(', ') || 'none' ?></p>
-
-  <div class="card">
-    <strong>Admin</strong><br>
-    Manage leagues, registrations, subs, email.<br>
-    <a class="btn" href="?page=admin">Open admin</a>
+  <div class="app-header">
+    <?!= include_('Logo') ?>
+    <span class="who">Signed in as <code><?= user.email || 'anonymous' ?></code> · <?= user.roles.join(', ') || 'no roles' ?></span>
   </div>
 
-  <div class="card">
-    <strong>Operator</strong><br>
-    Run a league night: today view, scores entry, display.<br>
-    <a class="btn" href="?page=operator">Open operator</a>
+  <?!= include_('Nav') ?>
+
+  <div class="hero">
+    <h1><?= appName ?></h1>
+    <p class="sub">League management for ladder + partner formats.</p>
   </div>
 
-  <div class="card">
-    <strong>Display</strong><br>
-    Big-screen scoreboard for venue TVs.<br>
-    <a class="btn" href="?page=display">Open display</a>
-  </div>
-
-  <div class="card">
-    <strong>Player</strong><br>
-    Personal stats and schedule.<br>
-    <a class="btn" href="?page=player">Open player</a>
+  <div class="tile-grid">
+    <a class="tile" href="?page=standings">
+      <h2>Standings</h2>
+      <p>Public league standings — no login required. Share this link with players.</p>
+      <span class="cta">View standings →</span>
+    </a>
+    <a class="tile" href="?page=admin">
+      <h2>Admin</h2>
+      <p>Manage leagues, roster, subs, email, exports, roles.</p>
+      <span class="cta">Open admin →</span>
+    </a>
+    <a class="tile" href="?page=operator">
+      <h2>Operator</h2>
+      <p>Run a league night: setup session, enter scores, see live group standings.</p>
+      <span class="cta">Open operator →</span>
+    </a>
+    <a class="tile" href="?page=display">
+      <h2>Display</h2>
+      <p>TV scoreboard for the venue. Auto-refreshes every 30 seconds.</p>
+      <span class="cta">Open display →</span>
+    </a>
+    <a class="tile" href="?page=player">
+      <h2>Player</h2>
+      <p>Personal stats and schedule.</p>
+      <span class="cta">Open player →</span>
+    </a>
   </div>
 </body>
 </html>

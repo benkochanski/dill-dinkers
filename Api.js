@@ -13,7 +13,8 @@ function api_listLeagues() {
   return wrap_(() => {
     const user = getCurrentUser_();
     requireRole_(user, ['admin', 'operator']);
-    return listLeagues_();
+    // Cached cross-request for 30s — leagues list is read on every page load.
+    return cacheGet_('leagues:list', 30, () => listLeagues_());
   });
 }
 
@@ -21,14 +22,26 @@ function api_getLeague(league_id) {
   return wrap_(() => {
     const user = getCurrentUser_();
     requireRole_(user, ['admin', 'operator'], league_id);
-    const league = getLeagueById_(league_id);
-    if (!league) throw new Error('League not found');
-    return {
-      league: league,
-      schedule: getLeagueSchedule_(league_id),
-      roster: listRoster_(league_id),
-      teams: league.format_type === 'partner' ? listTeams_(league_id) : [],
-    };
+    return cacheGet_('league:' + league_id + ':full', 30, () => {
+      const all = getObjects_('Leagues');
+      let league = all.find(l => l.league_id === league_id);
+      if (!league) {
+        const norm = s => String(s || '').toUpperCase().replace(/O/g, '0').replace(/I/g, '1');
+        const target = norm(league_id);
+        league = all.find(l => norm(l.league_id) === target);
+      }
+      if (!league) {
+        const sample = all.slice(0, 10).map(l => l.name + ' [' + l.league_id + ']').join(', ');
+        throw new Error('League not found: "' + league_id + '". ' +
+          'Have ' + all.length + ' leagues, e.g. ' + sample);
+      }
+      return {
+        league: league,
+        schedule: getLeagueSchedule_(league.league_id),
+        roster: listRoster_(league.league_id),
+        teams: league.format_type === 'partner' ? listTeams_(league.league_id) : [],
+      };
+    });
   });
 }
 
@@ -81,6 +94,43 @@ function api_recomputeStandings(league_id) {
   });
 }
 
+/**
+ * Tiny endpoint — just the league's version stamp (a monotonically-increasing
+ * integer bumped by any mutator that affects what Display shows). Display
+ * polls this every few seconds and only does a full refresh when it changes.
+ */
+function api_getLeagueVersion(league_id) {
+  return wrap_(() => {
+    if (!league_id) return 0;
+    return getLeagueVersion_(league_id);
+  });
+}
+
+/**
+ * Live state for a league — version stamp + the half the Operator is
+ * currently working on. Display polls this and mirrors `week` / `half`
+ * automatically (no manual toggle). Returns { version, week, half }.
+ */
+function api_getLeagueState(league_id) {
+  return wrap_(() => {
+    if (!league_id) return { version: 0, week: null, half: null };
+    return getLeagueState_(league_id);
+  });
+}
+
+/**
+ * Operator publishes its current half (and courts) so Display can mirror.
+ * Tiny CacheService write. Args optional — pass null to leave unchanged.
+ */
+function api_setActiveHalf(league_id, week, half, courts) {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin', 'operator'], league_id);
+    setActiveHalf_(league_id, week, half, courts);
+    return getLeagueState_(league_id);
+  });
+}
+
 function api_createLeague(input) {
   return wrap_(() => {
     const user = getCurrentUser_();
@@ -115,6 +165,144 @@ function api_generateSchedule(league_id, opts) {
   });
 }
 
+/**
+ * Build League_Schedule rows from the distinct play_dates found in
+ * CR_Attendance for this league. Idempotent. Used both as a standalone
+ * action and implicitly by the schedule generators when a league has no weeks.
+ */
+function api_populateLeagueScheduleFromAttendance(league_id) {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin'], league_id);
+    return populateLeagueScheduleFromAttendance_(league_id);
+  });
+}
+
+/**
+ * V2 schedule generation — bye-aware, balanced. Default 8 rounds/week with
+ * each team playing 6 + 2 byes.
+ */
+function api_generateScheduleV2(league_id, opts) {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin'], league_id);
+    return generatePartnerScheduleV2_(league_id, opts || {});
+  });
+}
+
+/**
+ * Partner Display payload — one card per team for the given week, including
+ * season standings, this-week record, and a per-round breakdown (played /
+ * scheduled / bye).
+ */
+function api_getPartnerWeekView(league_id, week_number) {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin', 'operator', 'captain'], league_id);
+    return getPartnerWeekView_(league_id, week_number);
+  });
+}
+
+/**
+ * Pair-count heat map for a partner league — T×T matrix of how often each
+ * pair of teams plays across the season.
+ */
+function api_getPartnerPairHeatmap(league_id) {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin', 'operator', 'captain'], league_id);
+    return getPartnerPairHeatmap_(league_id);
+  });
+}
+
+/**
+ * Season schedule pivoted by team: every team gets its full week × round
+ * sequence with opponent + court + score (where played) or 'bye'.
+ */
+function api_getPartnerTeamSeasonSchedule(league_id) {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin', 'operator', 'captain'], league_id);
+    return getPartnerTeamSeasonSchedule_(league_id);
+  });
+}
+
+/**
+ * Per-team week schedule for a partner league. Returns one entry per team
+ * with their 8 rounds for the given week (or all weeks if week_number null).
+ */
+function api_getTeamWeekSchedule(league_id, week_number) {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin', 'operator', 'captain'], league_id);
+    return buildTeamWeekSchedule_(league_id, week_number);
+  });
+}
+
+function api_renameTeam(team_id, new_name) {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    const team = getObjects_('Teams').find(t => t.team_id === team_id);
+    if (!team) throw new Error('Team not found: ' + team_id);
+    requireRole_(user, ['admin'], team.league_id);
+    return renameTeam_(team_id, new_name);
+  });
+}
+
+function api_setTeamPlayers(team_id, player_1_id, player_2_id) {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    const team = getObjects_('Teams').find(t => t.team_id === team_id);
+    if (!team) throw new Error('Team not found: ' + team_id);
+    requireRole_(user, ['admin'], team.league_id);
+    return setTeamPlayers_(team_id, player_1_id, player_2_id);
+  });
+}
+
+/**
+ * Patch a Player record (used for inline edits like fixing DUPR IDs from the
+ * league admin page). Only the explicitly-provided fields are updated.
+ */
+function api_updatePlayer(player_id, patch) {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin']);  // global; no league scope on Players
+    if (!player_id) throw new Error('player_id required');
+    const before = getObjects_('Players').find(p => p.player_id === player_id);
+    if (!before) throw new Error('Player not found: ' + player_id);
+    const allowed = ['full_name', 'first_name', 'last_name', 'phone', 'gender',
+                     'dupr_id', 'club_member_id', 'level', 'notes', 'email'];
+    updateWhere_('Players', p => p.player_id === player_id, p => {
+      allowed.forEach(k => {
+        if (patch[k] !== undefined) p[k] = patch[k];
+      });
+    });
+    audit_('player_update', 'player', player_id, before, patch);
+    return getObjects_('Players').find(p => p.player_id === player_id);
+  });
+}
+
+function api_validateTeamsForDupr(league_id) {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin', 'operator'], league_id);
+    return validateTeamsForDupr_(league_id);
+  });
+}
+
+/**
+ * Create a team for a league via the admin UI. Wrapper around createTeam_
+ * that returns the team object (not just the id) so the UI can refresh.
+ */
+function api_createTeamForLeague(league_id, team_name, player_1_id, player_2_id) {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin'], league_id);
+    const team_id = createTeam_(league_id, team_name, player_1_id, player_2_id);
+    return getObjects_('Teams').find(t => t.team_id === team_id);
+  });
+}
+
 function api_listScheduledMatches(league_id, week_number) {
   return wrap_(() => {
     const user = getCurrentUser_();
@@ -123,11 +311,75 @@ function api_listScheduledMatches(league_id, week_number) {
   });
 }
 
+/**
+ * Assign actual court numbers to a partner league's matches for one week.
+ * Triggered from the Operator when the operator enters today's courts.
+ */
+function api_assignCourtsForWeek(league_id, week_number, court_numbers) {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin', 'operator'], league_id);
+    return assignCourtsForWeek_(league_id, week_number, court_numbers);
+  });
+}
+
+/**
+ * Mark a Match_Schedule row as played by recording the game_id.
+ * Called from the Operator after saving a partner game so the admin
+ * schedule view can show which matches have been played.
+ */
+function api_markMatchPlayed(match_id, game_id) {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    const match = getObjects_('Match_Schedule').find(m => m.match_id === match_id);
+    if (!match) throw new Error('Match not found: ' + match_id);
+    requireRole_(user, ['admin', 'operator'], match.league_id);
+    updateWhere_('Match_Schedule', m => m.match_id === match_id, m => { m.game_id = game_id; });
+    return { match_id, game_id };
+  });
+}
+
 function api_bulkAddPlayers(league_id, rows) {
   return wrap_(() => {
     const user = getCurrentUser_();
     requireRole_(user, ['admin'], league_id);
     return bulkAddPlayersToLeague_(league_id, rows);
+  });
+}
+
+/**
+ * Ladder-format roster sync from CR_Attendance. Idempotent.
+ */
+function api_syncLadderRosterFromAttendance(league_id) {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin'], league_id);
+    return syncLadderRosterFromAttendance_(league_id);
+  });
+}
+
+/**
+ * Hard reset: wipe the league's roster, then re-sync from attendance. Use
+ * when an earlier (buggy) sync left stale roster rows behind.
+ */
+function api_resetLadderRosterFromAttendance(league_id) {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin'], league_id);
+    return resetLadderRosterFromAttendance_(league_id);
+  });
+}
+
+/**
+ * Add a manual sub for today's session — creates a Player record but does
+ * not add to Rosters. Operator UI pushes the returned player_id into
+ * EXTERNAL_SUBS so the sub appears as a checkable attendee.
+ */
+function api_addManualSub(league_id, full_name) {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin', 'operator'], league_id);
+    return addManualSub_(league_id, full_name);
   });
 }
 
@@ -144,6 +396,88 @@ function api_listTeams(league_id) {
     const user = getCurrentUser_();
     requireRole_(user, ['admin', 'operator', 'captain'], league_id);
     return listTeams_(league_id);
+  });
+}
+
+/* ----- Ladder Session ----- */
+
+function api_getRankedRoster(league_id) {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin', 'operator'], league_id);
+    return getRankedRoster_(league_id);
+  });
+}
+
+function api_setupSession(league_id, week_number, half, attending_player_ids, court_numbers) {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin', 'operator'], league_id);
+    return setupSession_(league_id, week_number, half, attending_player_ids, court_numbers);
+  });
+}
+
+function api_getSession(league_id, week_number, half, court_numbers) {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin', 'operator'], league_id);
+    return getSession_(league_id, week_number, half, court_numbers);
+  });
+}
+
+function api_clearSession(league_id, week_number, half) {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin', 'operator'], league_id);
+    // half null => clears both halves of the week.
+    clearSessionGroups_(league_id, week_number, half == null ? null : half);
+    return { cleared: true };
+  });
+}
+
+/**
+ * Soft clear: erase Games rows for (league, week, half) but keep the
+ * Session_Groups (attendance + group assignments) intact. Lets the operator
+ * re-enter scores without redoing setup.
+ */
+function api_clearSessionResults(league_id, week_number, half) {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin', 'operator'], league_id);
+    const removed = clearSessionResults_(league_id, week_number, half);
+    return { cleared: true, games_removed: removed };
+  });
+}
+
+function api_saveLadderSessionGame(input) {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin', 'operator'], input && input.league_id);
+    return saveLadderSessionGame_(input);
+  });
+}
+
+function api_computeHalftimeMix(league_id, week_number) {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin', 'operator'], league_id);
+    return computeHalftimeMix_(league_id, week_number);
+  });
+}
+
+function api_findLastSessionWeek(league_id) {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin', 'operator', 'captain'], league_id);
+    return { week: findLastSessionWeek_(league_id) };
+  });
+}
+
+function api_findLastSessionWeekHalf(league_id) {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin', 'operator', 'captain'], league_id);
+    return findLastSessionWeekHalf_(league_id) || { week: null, half: null };
   });
 }
 
@@ -165,6 +499,19 @@ function api_listSubs(league_id) {
   });
 }
 
+/**
+ * Unpair a sub-no-show mapping by deleting the Substitutions row.
+ */
+function api_voidSub(sub_id) {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    const row = getObjects_('Substitutions').find(s => s.sub_id === sub_id);
+    if (!row) throw new Error('Sub not found: ' + sub_id);
+    requireRole_(user, ['admin', 'operator'], row.league_id);
+    return voidSubstitution_(sub_id);
+  });
+}
+
 /* ----- Bulk Email ----- */
 
 function api_bulkEmail(input) {
@@ -183,7 +530,7 @@ function api_listRoles() {
   return wrap_(() => {
     const user = getCurrentUser_();
     requireRole_(user, ['admin']);
-    return listRoles_();
+    return cacheGet_('roles:list', 60, () => listRoles_());
   });
 }
 
@@ -212,17 +559,469 @@ function api_recentAudit(limit) {
   });
 }
 
-function api_exportCsv(league_id, kind) {
+/* ----- CourtReserve integration ----- */
+
+function api_crGetStatus() {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin']);
+    return crGetStatus_();
+  });
+}
+
+function api_crSetCredentials(input) {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin']);
+    return crSetCredentials_(input || {});
+  });
+}
+
+function api_crClearCredentials() {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin']);
+    return crClearCredentials_();
+  });
+}
+
+function api_crPing() {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin']);
+    return crPing_();
+  });
+}
+
+function api_crSyncLog(limit) {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin']);
+    return crListSyncLog_(limit);
+  });
+}
+
+function api_crPullToStaging(filters) {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin']);
+    return pullRegistrationsToStaging_(filters || {});
+  });
+}
+
+function api_crListStaged(opts) {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin']);
+    return listStagedRegistrations_(opts || {});
+  });
+}
+
+function api_crAssignStaged(reg_ids, league_id) {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin'], league_id);
+    return assignStagedRegistrationsToLeague_(reg_ids, league_id);
+  });
+}
+
+function api_crGetNoShowsForDate(league_id, date) {
   return wrap_(() => {
     const user = getCurrentUser_();
     requireRole_(user, ['admin', 'operator'], league_id);
-    const csv = exportCsv_(league_id, kind);
+    return getNoShowsForLeagueDate_(league_id, date || '');
+  });
+}
+
+function api_crGetEventDatesForLeague(league_id) {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin', 'operator'], league_id);
+    return getCREventDatesForLeague_(league_id);
+  });
+}
+
+/**
+ * Distinct session dates derived from CR_Attendance for this league's event
+ * name. No registration-assignment step required.
+ */
+function api_getLadderSessionDates(league_id) {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin', 'operator', 'captain'], league_id);
+    return getLadderSessionDatesFromAttendance_(league_id);
+  });
+}
+
+/**
+ * Pull league events from CourtReserve and upsert them into Leagues.
+ * After this, Leagues holds one row per CR event with cr_event_id set.
+ * Attendance pulls then filter to these event names automatically.
+ */
+function api_crPullLeagueEvents(filters) {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin']);
+    return pullLeagueEventsToLeagues_(filters || {});
+  });
+}
+
+function api_crPullAttendance(filters) {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin']);
+    return pullAttendanceToStaging_(filters || {});
+  });
+}
+
+/**
+ * Targeted attendance pull for one league × one date. Use on the day of a
+ * session to refresh check-in / no-show data without doing an org-wide pull.
+ */
+function api_crPullAttendanceForLeagueDate(league_id, date) {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin', 'operator'], league_id);
+    return pullAttendanceForLeagueDate_(league_id, date);
+  });
+}
+
+function api_crListAttendance(opts) {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin']);
+    return listAttendance_(opts || {});
+  });
+}
+
+function api_crClearAttendance() {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin']);
+    return clearAttendance_();
+  });
+}
+
+/* ----- Members ----- */
+
+function api_crPullMembers(filters) {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin']);
+    return pullMembersFromCR_(filters || {});
+  });
+}
+
+function api_crListMembers(opts) {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin']);
+    return listCRMembers_(opts || {});
+  });
+}
+
+function api_crClearMembers() {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin']);
+    return clearCRMembers_();
+  });
+}
+
+function api_crSyncLeagues() {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin']);
+    return syncLeaguesFromStaging_();
+  });
+}
+
+/**
+ * Diagnostic: snapshot of what the server can read from CR_Registrations
+ * AND CR_Attendance. Used to debug "0 rows" issues.
+ */
+function api_describeCRRegistrationFields() {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin']);
+
+    // CR_Registrations
+    const all = getObjects_('CR_Registrations');
+    const fields = {};
+    let sample = null;
+    let withRaw = 0;
+    all.forEach(r => {
+      if (!r.raw_json) return;
+      withRaw++;
+      try {
+        const o = JSON.parse(r.raw_json);
+        if (!sample) sample = o;
+        Object.keys(o).forEach(k => { fields[k] = (fields[k] || 0) + 1; });
+      } catch (e) {}
+    });
+
+    // CR_Attendance — also dump counts + distinct registration_types + a sample row.
+    let attendance = [];
+    let attendanceErr = '';
+    try {
+      attendance = getObjects_('CR_Attendance');
+    } catch (e) {
+      attendanceErr = String(e && e.message || e);
+    }
+    const attTypes = {};
+    const attEvents = {};
+    attendance.forEach(a => {
+      const t = a.registration_type || '(blank)';
+      const e = a.event_name || '(blank)';
+      attTypes[t] = (attTypes[t] || 0) + 1;
+      attEvents[e] = (attEvents[e] || 0) + 1;
+    });
+    const attHeaders = (() => {
+      try {
+        const sh = getSheet_('CR_Attendance');
+        return getHeaders_(sh);
+      } catch (e) { return ['(error: ' + e.message + ')']; }
+    })();
+
+    return {
+      registrations: {
+        total_rows: all.length,
+        rows_with_raw_json: withRaw,
+        distinct_field_names: Object.keys(fields).sort()
+          .map(k => ({ field: k, count: fields[k] })),
+        sample_row: sample,
+      },
+      attendance: {
+        total_rows: attendance.length,
+        read_error: attendanceErr,
+        sheet_headers: attHeaders,
+        registration_types: Object.keys(attTypes).map(t => ({ type: t, count: attTypes[t] }))
+          .sort((a, b) => b.count - a.count),
+        top_event_names: Object.keys(attEvents)
+          .sort((a, b) => attEvents[b] - attEvents[a]).slice(0, 25)
+          .map(e => ({ event_name: e, count: attEvents[e] })),
+        sample_row: attendance[0] || null,
+      },
+    };
+  });
+}
+
+/**
+ * Pure-filter view of registrations for a league. No materialization,
+ * no Players/Rosters/Teams writes — just a filtered read of CR_Registrations.
+ */
+function api_listLeaguePlayers(league_id) {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin', 'operator', 'captain'], league_id);
+    return listLeaguePlayersFromCR_(league_id);
+  });
+}
+
+function api_setPlayerDuprOverride(input) {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin']);
+    return setPlayerDuprOverride_(input || {});
+  });
+}
+
+/**
+ * Pair two players (by CR member_id) into a team for a partner league.
+ */
+function api_createTeamPairing(input) {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin'], input && input.league_id);
+    return createTeamPairing_(input || {});
+  });
+}
+
+function api_renameTeamPairing(pairing_id, team_name) {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    const p = getObjects_('Team_Pairings').find(x => x.pairing_id === pairing_id);
+    if (!p) throw new Error('Pairing not found: ' + pairing_id);
+    requireRole_(user, ['admin'], p.league_id);
+    return renameTeamPairing_(pairing_id, team_name);
+  });
+}
+
+function api_deleteTeamPairing(pairing_id) {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    const p = getObjects_('Team_Pairings').find(x => x.pairing_id === pairing_id);
+    if (!p) throw new Error('Pairing not found: ' + pairing_id);
+    requireRole_(user, ['admin'], p.league_id);
+    return deleteTeamPairing_(pairing_id);
+  });
+}
+
+function api_setTeamNameOverride(cr_reg_id, team_name) {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin']);
+    return setTeamNameOverride_(cr_reg_id, team_name);
+  });
+}
+
+/**
+ * Wipe roster + teams for a league and re-match against existing CR
+ * registrations using the strict (exact / boundary-substring) matcher.
+ * Useful when an earlier fuzzy match cross-contaminated the roster.
+ */
+function api_resetAndResyncLeague(league_id) {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin'], league_id);
+    return resetAndResyncLeagueFromCR_(league_id);
+  });
+}
+
+/**
+ * One-click: pull CR registrations + create teams for a partner league.
+ * Idempotent. Default date window: today − 90 days .. today + 180 days.
+ */
+function api_setupTeamsFromCR(league_id, opts) {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin'], league_id);
+    return setupTeamsFromCR_(league_id, opts || {});
+  });
+}
+
+function api_crAutoAssign() {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin']);
+    return autoAssignStagedByEventName_();
+  });
+}
+
+function api_crClearStaging() {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin']);
+    return clearStagedRegistrations_();
+  });
+}
+
+function api_crUnassignStaged(reg_ids) {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin']);
+    return unassignStagedRegistrations_(reg_ids);
+  });
+}
+
+/**
+ * GET-only explorer for the CourtReserve API. Lets an admin poke at arbitrary
+ * paths and see the raw response. POST/PUT/DELETE are deliberately not exposed
+ * here — those should land in named endpoints with their own validation so we
+ * don't accidentally mutate CR data from a freeform UI.
+ */
+function api_crExplore(path, query) {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin']);
+    if (!path || typeof path !== 'string') throw new Error('path required');
+    const r = crFetch_('GET', path, { query: query || null });
+    crLogSync_({
+      kind: 'explore', method: 'GET', path: path, http_status: r.status,
+      status: r.status >= 200 && r.status < 300 ? 'ok' : 'error',
+      message: r.status >= 200 && r.status < 300 ? '' : crSample_(r.body),
+    });
+    const items = Array.isArray(r.body) ? r.body :
+                  (r.body && Array.isArray(r.body.Items))  ? r.body.Items :
+                  (r.body && Array.isArray(r.body.Data))   ? r.body.Data  :
+                  (r.body && Array.isArray(r.body.Result)) ? r.body.Result : null;
+    const ct = r.headers && (r.headers['Content-Type'] || r.headers['content-type']) || '';
+    return {
+      status:        r.status,
+      url:           r.url,
+      content_type:  String(ct),
+      body_bytes:    (r.raw || '').length,
+      body:          r.body,
+      raw:           r.raw || '',
+      headers:       r.headers || {},
+      first_item:    items && items.length ? items[0] : null,
+      keys_first:    items && items.length ? Object.keys(items[0] || {}) : (r.body && typeof r.body === 'object' ? Object.keys(r.body) : []),
+      count:         items ? items.length : null,
+    };
+  });
+}
+
+function api_exportCsv(league_id, kind, opts) {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin', 'operator'], league_id);
+    const csv = exportCsv_(league_id, kind, opts || {});
     const league = getLeagueById_(league_id);
+    const wk = opts && opts.week_number ? '_w' + opts.week_number : '';
     const fname = (league ? league.name.replace(/[^a-z0-9]+/gi, '_') : 'export') +
-                  '_' + kind + '_' +
+                  '_' + kind + wk + '_' +
                   Utilities.formatDate(new Date(), CONFIG.TIMEZONE, 'yyyyMMdd_HHmmss') +
                   '.csv';
     return { filename: fname, csv: csv };
+  });
+}
+
+/* ----- Public (no role required) ----- */
+
+/**
+ * Public read-only endpoints — no role check. Safe to call from the public
+ * standings page where the visitor may not be a signed-in operator/admin.
+ * Only expose data that's appropriate for public consumption (standings/league
+ * names); never expose PII like emails or phone numbers.
+ */
+function api_publicListLeagues() {
+  return wrap_(() => {
+    const leagues = listLeagues_();
+    // Strip sensitive fields; only return what's needed for the standings page.
+    return leagues.map(l => ({
+      league_id:    l.league_id,
+      name:         l.name,
+      full_name:    l.full_name,
+      format_type:  l.format_type,
+      day_of_week:  l.day_of_week,
+      start_time:   l.start_time,
+      level:        l.level,
+      season_label: l.season_label,
+      status:       l.status,
+    }));
+  });
+}
+
+function api_publicGetStandings(league_id) {
+  return wrap_(() => {
+    if (!league_id) throw new Error('league_id required');
+    const league = getLeagueById_(league_id);
+    if (!league) throw new Error('League not found');
+    const raw = recomputeStandings_(league_id);
+    // Strip internal IDs from the public response.
+    const standings = raw.map(s => {
+      const out = Object.assign({}, s);
+      delete out.player_id;
+      delete out.team_id;
+      delete out.player_1_id;
+      delete out.player_2_id;
+      delete out.weeks;
+      delete out.rows;
+      return out;
+    });
+    return {
+      league: {
+        league_id:   league.league_id,
+        name:        league.name,
+        full_name:   league.full_name,
+        format_type: league.format_type,
+        day_of_week: league.day_of_week,
+        start_time:  league.start_time,
+        level:       league.level,
+        season_label:league.season_label,
+      },
+      standings: standings,
+    };
   });
 }
 

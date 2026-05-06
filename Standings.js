@@ -49,6 +49,17 @@ function computeLadderStandings_(league_id) {
 
   const bonusCfg = getObjects_('Bonus_Config').filter(c => c.league_id === league_id);
 
+  // Build a sub-exclusion set: "substitute_player_id:week_number" pairs.
+  // Games played as a sub don't count toward the sub's season standings —
+  // they're not a league member and were only filling in.
+  const subs = getObjects_('Substitutions').filter(s => s.league_id === league_id);
+  const subKeys = new Set();
+  subs.forEach(s => {
+    if (s.substitute_player_id && s.week_number != null && s.week_number !== '') {
+      subKeys.add(s.substitute_player_id + ':' + String(s.week_number));
+    }
+  });
+
   // Initialize one row per rostered player so people who haven't played
   // yet still appear (with zeros).
   const stats = {};
@@ -58,8 +69,10 @@ function computeLadderStandings_(league_id) {
     playerGames[r.player_id] = [];
   });
 
-  // Walk every game and credit each of the 4 players.
+  // Walk every game and credit each of the 4 players, skipping any player
+  // who was acting as a substitute in that week.
   games.forEach(g => {
+    const wk = String(g.week_number);
     const t1 = [g.t1_player_1_id, g.t1_player_2_id].filter(Boolean);
     const t2 = [g.t2_player_1_id, g.t2_player_2_id].filter(Boolean);
     const s1 = Number(g.t1_score);
@@ -67,14 +80,14 @@ function computeLadderStandings_(league_id) {
     if (Number.isNaN(s1) || Number.isNaN(s2)) return;
 
     t1.forEach(pid => {
-      if (!stats[pid]) stats[pid] = newPlayerStats_(pid, playerById[pid]);
-      if (!playerGames[pid]) playerGames[pid] = [];
+      if (subKeys.has(pid + ':' + wk)) return;  // sub this week — skip
+      if (!stats[pid]) return;                   // not on this league's roster — skip
       creditPlayer_(stats[pid], s1, s2, g.week_number);
       playerGames[pid].push(g);
     });
     t2.forEach(pid => {
-      if (!stats[pid]) stats[pid] = newPlayerStats_(pid, playerById[pid]);
-      if (!playerGames[pid]) playerGames[pid] = [];
+      if (subKeys.has(pid + ':' + wk)) return;  // sub this week — skip
+      if (!stats[pid]) return;                   // not on this league's roster — skip
       creditPlayer_(stats[pid], s2, s1, g.week_number);
       playerGames[pid].push(g);
     });
@@ -219,6 +232,8 @@ function seedBonusConfigStandard_(league_id, num_groups) {
  * Returns one row per team, sorted leader-first.
  */
 function computePartnerStandings_(league_id) {
+  // Sync Team_Pairings → Teams so standings see the latest pairings.
+  try { materializePairingsToTeams_(league_id); } catch (e) {}
   const games = listGames_({ league_id }).filter(g => g.status === 'complete');
   const teams = getObjects_('Teams').filter(t => t.league_id === league_id);
   const players = getObjects_('Players');

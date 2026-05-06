@@ -1,0 +1,319 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Standings — <?= appName ?></title>
+  <?!= include_('Styles') ?>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 16px; max-width: 960px; margin-inline: auto; }
+    h1 { margin: 0 0 4px; font-size: 22px; }
+    .page-meta { font-size: 13px; color: var(--text-muted); margin: 0 0 16px; }
+
+    /* League cards grid */
+    .leagues-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 10px;
+    }
+    .league-card {
+      padding: 14px 16px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--bg-card);
+      cursor: pointer;
+      text-align: left;
+      transition: border-color 0.12s, box-shadow 0.12s, transform 0.1s;
+    }
+    .league-card:hover {
+      border-color: var(--brand-orange);
+      box-shadow: 0 2px 8px rgba(245,130,32,0.15);
+      transform: translateY(-1px);
+    }
+    .league-card .card-name { font-weight: 600; font-size: 14px; color: var(--text); display: block; margin-bottom: 3px; }
+    .league-card .card-meta { font-size: 12px; color: var(--text-muted); }
+    .league-card .card-arrow { float: right; color: var(--brand-orange); font-size: 16px; margin-top: 1px; }
+
+    /* Overlay */
+    .drawer-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.35);
+      z-index: 100;
+      backdrop-filter: blur(2px);
+    }
+    .drawer-overlay.open { display: block; }
+
+    /* Drawer */
+    .drawer {
+      position: fixed;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      width: min(520px, 100vw);
+      background: var(--bg-card);
+      box-shadow: -4px 0 24px rgba(0,0,0,0.15);
+      z-index: 101;
+      display: flex;
+      flex-direction: column;
+      transform: translateX(100%);
+      transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .drawer.open { transform: translateX(0); }
+
+    .drawer-header {
+      padding: 16px 20px 14px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+    }
+    .drawer-header-text { flex: 1; min-width: 0; }
+    .drawer-title { font-size: 16px; font-weight: 700; margin: 0 0 3px; color: var(--text); }
+    .drawer-meta { font-size: 12px; color: var(--text-muted); margin: 0; }
+    .drawer-close {
+      flex-shrink: 0;
+      background: none;
+      border: none;
+      font-size: 22px;
+      line-height: 1;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 0 2px;
+      margin-top: -2px;
+    }
+    .drawer-close:hover { color: var(--text); }
+
+    .drawer-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 20px 24px;
+    }
+
+    /* Standings table */
+    .standings-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th {
+      background: var(--bg-subtle);
+      font-size: 11px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.04em;
+      color: var(--text-muted);
+      padding: 6px 10px; text-align: left;
+      border-bottom: 2px solid var(--border);
+      white-space: nowrap;
+    }
+    td { padding: 9px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    .rank { width: 28px; font-weight: 700; color: var(--brand-orange); font-size: 15px; }
+    .player-name { font-weight: 600; }
+    .player-sub { font-size: 12px; color: var(--text-muted); }
+    .score-val { font-weight: 700; font-size: 15px; color: var(--brand-orange); }
+    .pct { color: var(--text-muted); font-size: 13px; }
+    .wl { font-weight: 600; white-space: nowrap; }
+    .pd-pos { color: var(--brand-green-dark); font-weight: 600; }
+    .pd-neg { color: var(--error); font-weight: 600; }
+
+    .drawer-footer { font-size: 11px; color: var(--text-muted); margin-top: 12px; }
+    .last-update { font-size: 12px; color: var(--text-muted); margin-bottom: 12px; }
+    .loading-msg { color: var(--text-muted); font-size: 14px; padding: 24px 0; text-align: center; }
+    .empty-msg { color: var(--text-muted); font-size: 14px; padding: 24px 0; text-align: center; }
+
+    @media (max-width: 520px) {
+      .hide-mobile { display: none; }
+      .drawer { width: 100vw; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-header">
+    <?!= include_('Logo') ?>
+    <span class="who">Public standings</span>
+  </div>
+  <?!= include_('Nav') ?>
+
+  <h1>League Standings</h1>
+  <p class="page-meta" id="pageSubtitle">Loading leagues…</p>
+
+  <div class="leagues-grid" id="leagueTabs"></div>
+  <p id="error" class="err"></p>
+
+  <!-- Overlay -->
+  <div class="drawer-overlay" id="drawerOverlay" onclick="closeDrawer()"></div>
+
+  <!-- Drawer -->
+  <div class="drawer" id="drawer">
+    <div class="drawer-header">
+      <div class="drawer-header-text">
+        <p class="drawer-title" id="drawerTitle"></p>
+        <p class="drawer-meta" id="drawerMeta"></p>
+      </div>
+      <button class="drawer-close" onclick="closeDrawer()" aria-label="Close">✕</button>
+    </div>
+    <div class="drawer-body">
+      <p class="last-update" id="lastUpdate"></p>
+      <div id="standingsContent" class="standings-wrap">
+        <p class="loading-msg">Loading…</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let LEAGUES = [];
+    let CURRENT_LEAGUE_ID = null;
+
+    function escapeHtml(s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, c =>
+        ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+    function showErr(e) {
+      document.getElementById('error').textContent = String(e && e.message || e);
+    }
+
+    function openDrawer() {
+      document.getElementById('drawer').classList.add('open');
+      document.getElementById('drawerOverlay').classList.add('open');
+      document.body.style.overflow = 'hidden';
+    }
+    function closeDrawer() {
+      document.getElementById('drawer').classList.remove('open');
+      document.getElementById('drawerOverlay').classList.remove('open');
+      document.body.style.overflow = '';
+      document.querySelectorAll('.league-card').forEach(c => c.classList.remove('active'));
+      CURRENT_LEAGUE_ID = null;
+    }
+
+    // Close on Escape key
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDrawer(); });
+
+    function init() {
+      google.script.run
+        .withSuccessHandler(onLeagues)
+        .withFailureHandler(showErr)
+        .api_publicListLeagues();
+    }
+
+    function onLeagues(resp) {
+      if (!resp || !resp.ok) return showErr((resp && resp.error) || 'Failed to load leagues');
+      LEAGUES = (resp.data || []).filter(l => l.status !== 'archived');
+
+      const tabs = document.getElementById('leagueTabs');
+      if (!LEAGUES.length) {
+        document.getElementById('pageSubtitle').textContent = 'No active leagues found.';
+        return;
+      }
+
+      document.getElementById('pageSubtitle').textContent =
+        LEAGUES.length + ' league' + (LEAGUES.length === 1 ? '' : 's') + ' — click one to view standings';
+
+      tabs.innerHTML = LEAGUES.map(l => `
+        <button class="league-card" data-lid="${escapeHtml(l.league_id)}" onclick="selectLeague('${escapeHtml(l.league_id)}')">
+          <span class="card-arrow">›</span>
+          <span class="card-name">${escapeHtml(l.name)}</span>
+          <span class="card-meta">${[l.day_of_week, l.start_time, l.level, l.season_label].filter(Boolean).join(' · ')}</span>
+        </button>`).join('');
+    }
+
+    function selectLeague(league_id) {
+      CURRENT_LEAGUE_ID = league_id;
+
+      document.querySelectorAll('.league-card').forEach(c => {
+        c.classList.toggle('active', c.getAttribute('data-lid') === league_id);
+      });
+
+      // Reset drawer content and open it.
+      document.getElementById('standingsContent').innerHTML = '<p class="loading-msg">Loading…</p>';
+      document.getElementById('lastUpdate').textContent = '';
+
+      const league = LEAGUES.find(l => l.league_id === league_id);
+      if (league) {
+        document.getElementById('drawerTitle').textContent = league.full_name || league.name;
+        document.getElementById('drawerMeta').textContent =
+          [league.day_of_week, league.start_time, league.level, league.season_label]
+            .filter(Boolean).join(' · ');
+      }
+
+      openDrawer();
+
+      google.script.run
+        .withSuccessHandler(onStandings)
+        .withFailureHandler(showErr)
+        .api_publicGetStandings(league_id);
+    }
+
+    function onStandings(resp) {
+      if (!resp || !resp.ok) return showErr((resp && resp.error) || 'Failed to load standings');
+      if (resp.data.league.league_id !== CURRENT_LEAGUE_ID) return;
+
+      document.getElementById('lastUpdate').textContent =
+        'Updated ' + new Date().toLocaleTimeString();
+
+      const { league, standings } = resp.data;
+      const el = document.getElementById('standingsContent');
+
+      if (!standings.length) {
+        el.innerHTML = '<p class="empty-msg">No completed games yet — check back after the first session.</p>';
+        return;
+      }
+
+      el.innerHTML = league.format_type === 'ladder'
+        ? renderLadder(standings)
+        : renderPartner(standings);
+    }
+
+    function renderLadder(data) {
+      const rows = data.map(s => `<tr>
+        <td class="rank">${s.rank}</td>
+        <td>
+          <div class="player-name">${escapeHtml(s.full_name)}</div>
+          ${s.level ? `<div class="player-sub">${escapeHtml(s.level)}</div>` : ''}
+        </td>
+        <td class="wl">${s.wins} – ${s.losses}</td>
+        <td class="hide-mobile pct">${(s.win_pct * 100).toFixed(1)}%</td>
+        <td class="hide-mobile pct">${(s.point_pct * 100).toFixed(1)}%</td>
+        <td class="score-val">${s.score.toFixed(1)}</td>
+      </tr>`).join('');
+      return `<table>
+        <thead><tr>
+          <th>#</th><th>Player</th><th>W–L</th>
+          <th class="hide-mobile">W%</th>
+          <th class="hide-mobile">P%</th>
+          <th>Score</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <p class="drawer-footer">Score = 60% win rate + 40% points rate. Group bonuses from week 3.</p>`;
+    }
+
+    function renderPartner(data) {
+      const rows = data.map(s => {
+        const pd = s.point_diff;
+        const pdClass = pd > 0 ? 'pd-pos' : pd < 0 ? 'pd-neg' : '';
+        return `<tr>
+          <td class="rank">${s.rank}</td>
+          <td>
+            <div class="player-name">${escapeHtml(s.team_name)}</div>
+            <div class="player-sub">${escapeHtml(s.player_1_name)} &amp; ${escapeHtml(s.player_2_name)}</div>
+          </td>
+          <td class="wl">${s.wins} – ${s.losses}</td>
+          <td class="hide-mobile pct">${s.games_back > 0 ? s.games_back.toFixed(1) : '—'}</td>
+          <td class="${pdClass} hide-mobile">${(pd > 0 ? '+' : '') + pd}</td>
+          <td class="pct hide-mobile">${(s.point_pct * 100).toFixed(1)}%</td>
+        </tr>`;
+      }).join('');
+      return `<table>
+        <thead><tr>
+          <th>#</th><th>Team</th><th>W–L</th>
+          <th class="hide-mobile">GB</th>
+          <th class="hide-mobile">+/−</th>
+          <th class="hide-mobile">P%</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+    }
+
+    init();
+  </script>
+</body>
+</html>

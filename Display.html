@@ -4,62 +4,256 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Display — <?= appName ?></title>
+  <?!= include_('Styles') ?>
   <style>
     * { box-sizing: border-box; }
+    html, body { height: 100%; }
     body {
-      font-family: system-ui, -apple-system, sans-serif;
-      margin: 0; padding: 24px;
-      background: #0a1628;
-      color: #fff;
-      min-height: 100vh;
+      margin: 0; padding: 16px 20px;
+      background: var(--dark-bg);
+      color: var(--dark-text);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
     }
-    h1 { margin: 0 0 4px; font-size: 36px; letter-spacing: 0.5px; }
-    h2 { margin: 0 0 8px; font-size: 24px; color: #9cf; }
-    .header { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 12px; margin-bottom: 24px; }
-    .meta { color: #9aa; font-size: 14px; }
-    .picker { color: #fff; }
-    .picker select { padding: 6px 10px; background: #1a2638; color: #fff; border: 1px solid #345; border-radius: 6px; font-size: 14px; }
-    .picker a { color: #9cf; margin-left: 12px; text-decoration: none; }
+    /* #content fills the space between header and footer; .fit-wrap inside
+       grows to that, so the session-grid no longer needs JS height sizing. */
+    #content { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+    h1 { margin: 0 0 4px; font-size: 36px; letter-spacing: 0.5px; color: #fff; }
+    h2 { margin: 0 0 8px; font-size: 24px; color: var(--brand-orange); }
+    h3 { margin: 0 0 8px; font-size: 18px; color: var(--brand-green); }
+    .header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 2px solid var(--brand-orange); }
+    .meta { color: var(--dark-text-muted); font-size: 14px; }
+    .picker { color: #fff; font-size: 13px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .picker label { color: var(--dark-text-muted); display: inline-block; }
+    .picker select { padding: 6px 10px; background: var(--dark-card); color: #fff; border: 1px solid var(--dark-border); border-radius: 6px; font-size: 14px; }
+    .half-toggle { display: inline-flex; gap: 0; border: 1px solid var(--dark-border); border-radius: 6px; overflow: hidden; }
+    .half-toggle button { padding: 6px 14px; background: var(--dark-card); color: #fff; border: 0; border-right: 1px solid var(--dark-border); cursor: pointer; font-size: 14px; font-weight: 500; }
+    .half-toggle button:last-child { border-right: 0; }
+    .half-toggle button.active { background: var(--brand-orange); color: #fff; }
+    .half-toggle button:hover:not(.active) { background: var(--dark-bg); }
+    .half-toggle button:disabled { opacity: 0.4; cursor: not-allowed; }
+    /* Display uses the REVERSE-variant logo designed for dark backgrounds
+       (white wordmark, color paddle/ball). No backing pill needed. */
+    .logo-img { height: 56px; }
     table { border-collapse: collapse; width: 100%; }
-    th, td { border-bottom: 1px solid #234; padding: 8px 10px; text-align: left; }
-    th { background: #142035; color: #9cf; font-size: 14px; font-weight: 600; }
-    td { font-size: 18px; }
+    th, td { border-bottom: 1px solid var(--dark-border); padding: 6px 10px; text-align: left; }
+    th { background: var(--dark-card); color: var(--brand-orange); font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+    td { font-size: 16px; }
     tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
-    .rank { width: 48px; font-weight: 700; color: #fc6; font-size: 22px; }
-    .pf { color: #9f9; }
+    .rank { width: 36px; font-weight: 700; color: var(--brand-orange); }
+    .pf { color: var(--brand-green); font-weight: 600; }
     .pa { color: #f99; }
-    .partner-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); margin-top: 16px; }
-    .team-card { background: #142035; border: 1px solid #234; border-radius: 8px; padding: 12px 14px; }
-    .team-card .name { font-size: 18px; font-weight: 700; }
-    .team-card .players { font-size: 13px; color: #9aa; margin: 2px 0 8px; }
-    .team-card .rec { font-size: 14px; color: #fc6; }
-    .team-card .pd { font-size: 13px; color: #9aa; margin-left: 8px; }
     .err { color: #f99; }
-    .footer { margin-top: 32px; color: #678; font-size: 12px; text-align: center; }
-    @media (min-width: 1400px) { td { font-size: 22px; } h1 { font-size: 48px; } }
+    .session-summary { font-size: 14px; margin: 4px 0 8px; }
+    .footer { margin-top: 8px; color: var(--dark-text-muted); font-size: 11px; text-align: center; }
+    /* Session view — fills the available viewport via flex layout from
+       body → #content → .fit-wrap → .session-grid. No JS height sizing. */
+    .fit-wrap { width: 100%; flex: 1; min-height: 0; display: flex; flex-direction: column; }
+    .session-grid {
+      display: grid;
+      grid-template-columns: repeat(var(--cols, 3), 1fr);
+      grid-auto-rows: 1fr;
+      gap: 1vw;
+      width: 100%;
+      flex: 1;
+      min-height: 0;
+    }
+    .group-card {
+      background: var(--dark-card); border: 1px solid var(--dark-border);
+      border-radius: 14px; padding: 3% 4%;
+      display: flex; flex-direction: column;
+      min-height: 0; overflow: hidden;
+      /* The card establishes a query container; font-size lives on the inner
+         wrapper below — cqi/cqb only resolve correctly on DESCENDANTS of the
+         container, never the container itself (they'd silently fall back to
+         viewport units, which is what made everything render at 72px). */
+      container-type: size;
+    }
+    .group-card-inner {
+      flex: 1; min-height: 0;
+      display: flex; flex-direction: column;
+      /* Bumped from min(3cqi, 5cqb) — paired with a compact standings strip
+         (was a table) so the matchup rows can absorb the freed vertical room.
+         Player names also get an explicit 1.3em on .pair below so they
+         dominate the card visually, since "who am I playing where" is the
+         primary thing someone walking up to the wall needs. */
+      font-size: clamp(14px, min(3.7cqi, 6cqb), 96px);
+    }
+    .group-card .group-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.4em; }
+    .group-card h3 { font-size: 1.5em; font-weight: 800; margin: 0; }
+    .round-label { font-size: 0.85em; color: var(--brand-orange); font-weight: 800; letter-spacing: 0.06em; margin-top: 0.15em; padding: 0 2px; text-transform: uppercase; line-height: 1.2; }
+    .matchup { display: grid; grid-template-columns: 1fr auto auto auto 1fr; gap: 0.5em; padding: 0.05em 0; align-items: center; font-size: 1em; font-weight: 600; line-height: 1.15; }
+    .matchup:first-of-type { border-top: none; }
+    .matchup .vs { color: var(--dark-text-muted); font-size: 0.7em; padding: 0 4px; font-weight: 500; }
+    .matchup .pair { color: #e6edf5; font-size: 1.3em; }
+    /* Lean each pair toward the center score block — without these, the
+       1fr columns left-align text and you get dead space on the outer edges. */
+    .matchup .pair:first-of-type { text-align: right; }
+    .matchup .pair:last-of-type  { text-align: left; }
+    .matchup .pair.win { color: var(--brand-green); font-weight: 800; }
+    .matchup .score { font-size: 1.25em; font-weight: 800; min-width: 2em; text-align: center; color: #fff; }
+    .matchup .score.lose { color: var(--dark-text-muted); font-weight: 500; }
+    .matchup .score.empty { color: #345; }
+    .standings-mini { margin-top: auto; padding-top: 0.4em; border-top: 1px solid var(--dark-border); }
+    /* Horizontal strip — was a 5-row table. Drops vertical footprint from
+       ~5em to ~1.5em so the matchup rows can run bigger. Names use first
+       name + last initial to keep the strip on one line at every card size
+       in the N=1..9 range. */
+    .standings-mini .strip {
+      display: flex; flex-wrap: wrap;
+      gap: 0.3em 1.1em;
+      font-size: 0.7em; line-height: 1.4; font-weight: 600;
+      color: var(--dark-text);
+    }
+    .standings-mini .strip .player { white-space: nowrap; }
+    .standings-mini .strip .rank { color: var(--brand-orange); font-weight: 800; margin-right: 0.25em; }
+    .standings-mini .strip .record { color: var(--dark-text-muted); font-weight: 500; margin-left: 0.35em; }
+    .session-summary { color: var(--dark-text-muted); font-size: 13px; margin: 0 0 12px; }
+    /* Session info card — fills the empty slot in N=5 / N=7 grids with
+       at-a-glance week / half / progress / time. Same container-query type
+       scale as group cards so it looks like a peer. */
+    .session-card {
+      background: var(--dark-card); border: 1px solid var(--dark-border);
+      border-radius: 14px; padding: 3% 4%;
+      display: flex; flex-direction: column;
+      min-height: 0; overflow: hidden;
+      container-type: size;
+    }
+    .session-card-inner {
+      flex: 1; min-height: 0;
+      display: flex; flex-direction: column; justify-content: center; align-items: center;
+      font-size: clamp(14px, min(3cqi, 5cqb), 96px);
+      text-align: center;
+    }
+    .session-card .session-card-meta { font-size: 0.55em; color: var(--dark-text-muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.6em; }
+    .session-card .session-card-headline { font-size: 1.6em; font-weight: 800; color: var(--brand-orange); margin-bottom: 0.3em; line-height: 1.05; }
+    .session-card .session-card-progress { font-size: 0.95em; color: var(--dark-text); margin-bottom: 0.7em; font-weight: 600; }
+    .session-card .session-card-clock { font-size: 1.4em; font-weight: 800; color: #fff; font-variant-numeric: tabular-nums; line-height: 1; }
+    /* Partner-league team card — vertical stack of colored bands.
+       Same container-query pattern as group cards so type scales per card. */
+    .team-card {
+      background: white;
+      border-radius: 14px;
+      overflow: hidden;
+      display: flex; flex-direction: column;
+      min-height: 0;
+      container-type: size;
+      color: #1a1a1a;
+    }
+    .team-card-inner {
+      flex: 1; min-height: 0;
+      display: flex; flex-direction: column;
+      /* Team cards have less vertical content than group cards so we can run
+         the type bigger. Tuned for cards in the 790×820 (N=14, 5×3) range up
+         to 1320×1230 (N=5, 3×2) — keeps the longest standings line on one
+         line at the small end without overflow. */
+      font-size: clamp(14px, min(4.5cqi, 5.5cqb), 96px);
+    }
+    .team-card-name {
+      background: var(--brand-orange); color: white;
+      padding: 0.5em 0.7em 0.2em;
+      font-size: 1.5em; font-weight: 800; line-height: 1.05;
+    }
+    .team-card-players {
+      background: var(--brand-orange); color: white;
+      padding: 0 0.7em 0.5em;
+      font-size: 0.9em; font-weight: 800; line-height: 1.15;
+    }
+    .team-card-standings {
+      background: var(--brand-green); color: #1a1a1a;
+      padding: 0.5em 0.7em;
+      font-size: 0.75em; font-weight: 800; line-height: 1.25;
+      letter-spacing: 0.01em;
+    }
+    .team-card-today {
+      background: var(--brand-orange); color: white;
+      padding: 0.45em 0.7em;
+      font-size: 0.8em; font-weight: 800;
+    }
+    .team-card-results {
+      background: white; color: #1a1a1a;
+      padding: 0.7em 0.8em 0.7em;
+      flex: 1; min-height: 0; overflow: hidden;
+      display: flex; flex-direction: column; gap: 0.35em;
+      font-size: 0.8em; font-weight: 600; line-height: 1.25;
+    }
+    .team-card-results .result { display: flex; align-items: center; gap: 0.55em; }
+    .team-card-results .result-icon {
+      width: 1.2em; height: 1.2em;
+      display: inline-flex; align-items: center; justify-content: center;
+      border-radius: 0.2em;
+      font-size: 0.85em; font-weight: 800; color: white;
+      flex-shrink: 0; line-height: 1;
+    }
+    .team-card-results .result-icon.win  { background: var(--brand-green); }
+    .team-card-results .result-icon.loss { background: #d44; }
+    .team-card-results .result.upcoming { color: #555; }
+    .team-card-results .result.upcoming .result-icon {
+      background: transparent; color: #555;
+      width: auto; font-size: 1.1em; font-weight: 700;
+    }
+    @media (min-width: 1400px) { td { font-size: 18px; } h1 { font-size: 48px; } }
   </style>
 </head>
 <body>
   <div class="header">
-    <div>
+    <?!= include_('LogoDark') ?>
+    <div style="flex:1; min-width: 200px">
       <h1 id="title">Display</h1>
       <p class="meta" id="meta">Loading…</p>
     </div>
     <div class="picker">
       <label>League: <select id="leaguePicker"><option>Loading…</option></select></label>
-      <a href="?page=home">Home</a>
+      <span id="halfToggle" class="half-toggle" style="display:none">
+        <button data-half="1" onclick="setHalf(1)">Half 1</button>
+        <button data-half="2" onclick="setHalf(2)">Half 2</button>
+      </span>
     </div>
   </div>
 
   <div id="content"></div>
   <p id="error" class="err"></p>
-  <p class="footer">Auto-refreshes every 30 seconds. Last update: <span id="lastUpdate">—</span></p>
+  <p class="footer">Updates live when scores are entered. Last update: <span id="lastUpdate">—</span></p>
 
   <script>
-    let LEAGUES = [], CURRENT_LEAGUE = null;
-    const REFRESH_MS = 30000;
+    let LEAGUES = [], CURRENT_LEAGUE = null, CURRENT_WEEK = null, CURRENT_HALF = null;
+    let CURRENT_COURTS = [];        // mirrored from Operator's published state
+    const VERSION_POLL_MS = 3000;   // tiny version-stamp poll — sub-second response
+    const FALLBACK_POLL_MS = 60000; // safety full-refresh in case a version bump was missed
+    let _refreshing = false;        // guard against concurrent fetches
+    let LAST_LEAGUE_VERSION = -1;   // last seen value of api_getLeagueVersion(league_id)
+
+    // Listen for score-saved / half-changed events from the Operator tab (same origin).
+    try {
+      const _scoreCh = new BroadcastChannel('dill_scores');
+      _scoreCh.onmessage = function(e) {
+        if (!CURRENT_LEAGUE) return;
+        const d = e && e.data || {};
+        if (d.league_id && d.league_id !== CURRENT_LEAGUE.league_id) return;
+        // Operator sends `half` (and optionally `week`, `courts`) when the
+        // active session changes. Honor it so Display switches views automatically.
+        if (d.week) CURRENT_WEEK = Number(d.week);
+        if (d.half) {
+          CURRENT_HALF = Number(d.half);
+          updateHalfToggle();
+        }
+        if (Array.isArray(d.courts) && d.courts.length) CURRENT_COURTS = d.courts;
+        refreshContent();
+      };
+    } catch(e) { /* BroadcastChannel not supported — fallback to poll */ }
 
     function showErr(e) { document.getElementById('error').textContent = String(e && e.message || e); }
+    function escapeHtml(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+    function isLadder() { return CURRENT_LEAGUE && CURRENT_LEAGUE.format_type === 'ladder'; }
+
+    /** Display has no manual half toggle — it mirrors the Operator. The
+     *  toggle stub is kept hidden so existing code that calls updateHalfToggle()
+     *  doesn't break. */
+    function updateHalfToggle() {
+      const tog = document.getElementById('halfToggle');
+      if (tog) tog.style.display = 'none';
+    }
 
     function init() {
       if (typeof google === 'undefined' || !google.script || !google.script.run) {
@@ -68,7 +262,43 @@
       google.script.run
         .withSuccessHandler(onLeagues).withFailureHandler(showErr)
         .api_listLeagues();
-      setInterval(refreshContent, REFRESH_MS);
+      // Cheap 3s poll: just the league's version stamp. Full refresh fires
+      // only when it changes (i.e. an Operator saved a score, started Half 2,
+      // etc). 60s fallback covers any edge case where a bump was missed.
+      setInterval(checkLeagueVersion, VERSION_POLL_MS);
+      setInterval(refreshContent, FALLBACK_POLL_MS);
+    }
+
+    function checkLeagueVersion() {
+      if (!CURRENT_LEAGUE || _refreshing) return;
+      google.script.run
+        .withSuccessHandler(r => {
+          if (!r || !r.ok) return;
+          const s = r.data || {};
+          const v = Number(s.version || 0);
+          let changed = (v !== LAST_LEAGUE_VERSION);
+          // Mirror the Operator's active week / half / courts.
+          if (s.week != null && Number(s.week) !== Number(CURRENT_WEEK)) {
+            CURRENT_WEEK = Number(s.week);
+            changed = true;
+          }
+          if (s.half != null && Number(s.half) !== Number(CURRENT_HALF)) {
+            CURRENT_HALF = Number(s.half);
+            updateHalfToggle();
+            changed = true;
+          }
+          if (Array.isArray(s.courts) && s.courts.length &&
+              JSON.stringify(s.courts) !== JSON.stringify(CURRENT_COURTS)) {
+            CURRENT_COURTS = s.courts.slice();
+            changed = true;
+          }
+          if (changed) {
+            LAST_LEAGUE_VERSION = v;
+            refreshContent();
+          }
+        })
+        .withFailureHandler(() => { /* swallow — fallback poll will catch up */ })
+        .api_getLeagueState(CURRENT_LEAGUE.league_id);
     }
 
     function onLeagues(resp) {
@@ -76,64 +306,429 @@
       LEAGUES = resp.data || [];
       const sel = document.getElementById('leaguePicker');
       sel.innerHTML = LEAGUES.length
-        ? LEAGUES.map(l => `<option value="${l.league_id}">${l.name}</option>`).join('')
+        ? LEAGUES.map(l => `<option value="${l.league_id}">${escapeHtml(l.name)}</option>`).join('')
         : '<option value="">— no leagues —</option>';
       sel.onchange = () => loadLeague(sel.value);
-      // Allow ?leagueId=... to pre-select.
       const qs = new URLSearchParams(window.location.search);
       const preselect = qs.get('leagueId') || (LEAGUES[0] && LEAGUES[0].league_id);
+      const overrideWeek = Number(qs.get('week')) || null;
+      const overrideHalf = Number(qs.get('half')) || null;
       if (preselect) {
         sel.value = preselect;
-        loadLeague(preselect);
+        loadLeague(preselect, overrideWeek, overrideHalf);
       }
     }
 
-    function loadLeague(league_id) {
+    function loadLeague(league_id, overrideWeek, overrideHalf) {
       if (!league_id) return;
       google.script.run
-        .withSuccessHandler(onLeague).withFailureHandler(showErr)
+        .withSuccessHandler(r => {
+          if (!r.ok) return showErr(r.error);
+          CURRENT_LEAGUE = r.data.league;
+          document.getElementById('title').textContent = CURRENT_LEAGUE.name;
+          document.getElementById('meta').textContent =
+            [CURRENT_LEAGUE.full_name, CURRENT_LEAGUE.day_of_week, CURRENT_LEAGUE.start_time, CURRENT_LEAGUE.season_label]
+              .filter(Boolean).join(' — ');
+
+          if (isLadder()) {
+            if (overrideWeek) {
+              CURRENT_WEEK = overrideWeek;
+              CURRENT_HALF = overrideHalf || 1;
+              updateHalfToggle();
+              refreshContent();
+              return;
+            }
+            // Mirror whatever the Operator is on. If no Operator state has
+            // been published yet, fall back to the heuristic.
+            google.script.run
+              .withSuccessHandler(rState => {
+                const s = (rState && rState.ok && rState.data) || {};
+                if (s.week && s.half) {
+                  CURRENT_WEEK = Number(s.week);
+                  CURRENT_HALF = Number(s.half);
+                  CURRENT_COURTS = Array.isArray(s.courts) ? s.courts.slice() : [];
+                  LAST_LEAGUE_VERSION = Number(s.version || 0);
+                  updateHalfToggle();
+                  refreshContent();
+                  return;
+                }
+                // No published state yet — heuristic fallback.
+                google.script.run
+                  .withSuccessHandler(r2 => {
+                    if (r2.ok && r2.data && r2.data.week) {
+                      CURRENT_WEEK = r2.data.week;
+                      CURRENT_HALF = r2.data.half || 1;
+                    } else {
+                      CURRENT_WEEK = null;
+                      CURRENT_HALF = null;
+                    }
+                    updateHalfToggle();
+                    refreshContent();
+                  })
+                  .withFailureHandler(showErr)
+                  .api_findLastSessionWeekHalf(CURRENT_LEAGUE.league_id);
+              })
+              .withFailureHandler(showErr)
+              .api_getLeagueState(CURRENT_LEAGUE.league_id);
+          } else if (isPartner()) {
+            // Partner: prefer Operator-published state, then today's date in
+            // League_Schedule, then nearest scheduled date.
+            const schedule = (r.data.schedule || []).slice();
+            google.script.run
+              .withSuccessHandler(rState => {
+                const s = (rState && rState.ok && rState.data) || {};
+                CURRENT_HALF = null;
+                CURRENT_COURTS = Array.isArray(s.courts) ? s.courts.slice() : [];
+                LAST_LEAGUE_VERSION = Number(s.version || 0);
+                if (s.week) {
+                  CURRENT_WEEK = Number(s.week);
+                } else {
+                  CURRENT_WEEK = pickPartnerWeekForToday(schedule);
+                }
+                updateHalfToggle();
+                refreshContent();
+              })
+              .withFailureHandler(() => {
+                CURRENT_WEEK = pickPartnerWeekForToday(schedule);
+                CURRENT_HALF = null;
+                refreshContent();
+              })
+              .api_getLeagueState(CURRENT_LEAGUE.league_id);
+          } else {
+            CURRENT_WEEK = null;
+            CURRENT_HALF = null;
+            updateHalfToggle();
+            refreshContent();
+          }
+        })
+        .withFailureHandler(showErr)
         .api_getLeague(league_id);
     }
 
-    function onLeague(resp) {
-      if (!resp.ok) return showErr(resp.error);
-      CURRENT_LEAGUE = resp.data.league;
-      document.getElementById('title').textContent = CURRENT_LEAGUE.name;
-      document.getElementById('meta').textContent =
-        [CURRENT_LEAGUE.full_name, CURRENT_LEAGUE.day_of_week, CURRENT_LEAGUE.start_time, CURRENT_LEAGUE.season_label]
-          .filter(Boolean).join(' — ');
-      refreshContent();
+    /** Pick a partner-league week_number based on today's date.
+     *  Exact match first; otherwise the nearest play_date by absolute distance. */
+    function pickPartnerWeekForToday(schedule) {
+      if (!schedule || !schedule.length) return null;
+      const now = new Date();
+      const today = now.getFullYear() + '-' +
+                    String(now.getMonth() + 1).padStart(2, '0') + '-' +
+                    String(now.getDate()).padStart(2, '0');
+      const exact = schedule.find(s => String(s.play_date || '').slice(0, 10) === today);
+      if (exact) return Number(exact.week_number);
+      const todayMs = new Date(today + 'T12:00:00').getTime();
+      let best = null, bestDiff = Infinity;
+      schedule.forEach(s => {
+        const d = String(s.play_date || '').slice(0, 10);
+        if (!d) return;
+        const ms = new Date(d + 'T12:00:00').getTime();
+        if (isNaN(ms)) return;
+        const diff = Math.abs(ms - todayMs);
+        if (diff < bestDiff) { bestDiff = diff; best = s; }
+      });
+      return best ? Number(best.week_number) : null;
     }
 
     function refreshContent() {
       if (!CURRENT_LEAGUE) return;
-      google.script.run
-        .withSuccessHandler(onStandings).withFailureHandler(showErr)
-        .api_recomputeStandings(CURRENT_LEAGUE.league_id);
+      if (_refreshing) return;   // don't pile up concurrent fetches
+      _refreshing = true;
+      const done = () => { _refreshing = false; };
+      if (isLadder() && CURRENT_WEEK && CURRENT_HALF) {
+        const courtsArg = (CURRENT_COURTS && CURRENT_COURTS.length) ? CURRENT_COURTS : 0;
+        google.script.run
+          .withSuccessHandler(r => { done(); onSession(r); })
+          .withFailureHandler(e  => { done(); showErr(e); })
+          .api_getSession(CURRENT_LEAGUE.league_id, CURRENT_WEEK, CURRENT_HALF, courtsArg);
+      } else if (isPartner() && CURRENT_WEEK) {
+        google.script.run
+          .withSuccessHandler(r => { done(); onPartnerWeek(r); })
+          .withFailureHandler(e  => { done(); showErr(e); })
+          .api_getPartnerWeekView(CURRENT_LEAGUE.league_id, CURRENT_WEEK);
+      } else {
+        google.script.run
+          .withSuccessHandler(r => { done(); onStandings(r); })
+          .withFailureHandler(e  => { done(); showErr(e); })
+          .api_recomputeStandings(CURRENT_LEAGUE.league_id);
+      }
     }
+
+    function isPartner() { return CURRENT_LEAGUE && CURRENT_LEAGUE.format_type === 'partner'; }
+
+    /** Map api_getPartnerWeekView's per-team rounds into the shape
+     *  renderTeamCard expects (today_record / today_results / today_upcoming),
+     *  then hand off to renderPartner. */
+    function onPartnerWeek(resp) {
+      document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
+      if (!resp.ok) return showErr(resp.error);
+      const data = resp.data || {};
+      const teams = data.teams || [];
+      if (!teams.length) {
+        document.getElementById('content').innerHTML =
+          `<p class="meta">Week ${data.week_number || ''} — no teams yet.</p>`;
+        return;
+      }
+      const rows = teams.map(t => {
+        const today_results = [];
+        const today_upcoming = [];
+        (t.rounds || []).forEach(r => {
+          if (r.kind === 'bye') {
+            today_upcoming.push('bye');
+          } else if (r.kind === 'scheduled') {
+            today_upcoming.push({
+              court: r.court,
+              opponent: r.opponent_name,
+              opponent_rank: r.opponent_rank,
+            });
+          } else if (r.kind === 'played') {
+            today_results.push({
+              won: !!r.won,
+              opponent: r.opponent_name,
+              opponent_rank: r.opponent_rank,
+              our_score: r.my_score,
+              their_score: r.opp_score,
+            });
+          }
+        });
+        const wkW = (t.week && t.week.wins)   || 0;
+        const wkL = (t.week && t.week.losses) || 0;
+        return {
+          team_id:        t.team_id,
+          team_name:      t.team_name,
+          player_1_name:  t.player_1_name,
+          player_2_name:  t.player_2_name,
+          rank:           (t.season && t.season.rank)        || null,
+          wins:           (t.season && t.season.wins)        || 0,
+          losses:         (t.season && t.season.losses)      || 0,
+          games_back:     (t.season && t.season.games_back)  || 0,
+          point_diff:     (t.season && t.season.point_diff)  || 0,
+          today_record:   `${wkW} - ${wkL}`,
+          today_results:  today_results,
+          today_upcoming: today_upcoming,
+        };
+      });
+      document.getElementById('content').innerHTML = renderPartner(rows);
+      requestAnimationFrame(fitToViewport);
+    }
+
+    function onSession(resp) {
+      document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
+      if (!resp.ok) return showErr(resp.error);
+      const session = resp.data;
+      const c = document.getElementById('content');
+      if (!session || !session.exists) {
+        c.innerHTML =
+          `<p class="session-summary">Week ${CURRENT_WEEK} · Half ${CURRENT_HALF} — not set up yet.` +
+          (Number(CURRENT_HALF) === 2 ? ' Confirm the halftime mix in the Operator to start Half 2.' : '') +
+          `</p>`;
+        return;
+      }
+      c.innerHTML = renderSession(session);
+      // Wait one paint, then scale to fit the viewport.
+      requestAnimationFrame(fitToViewport);
+    }
+
+    /**
+     * Now a no-op. CSS flex layout (body → #content → .fit-wrap → .session-grid)
+     * handles viewport filling automatically. Kept for any existing callers
+     * (e.g. requestAnimationFrame in onSession / onStandings).
+     */
+    function fitToViewport() {
+      return;
+    }
+
+    // Re-fit on window resize (TV picture changes, browser zoom, etc).
+    window.addEventListener('resize', () => {
+      requestAnimationFrame(fitToViewport);
+    });
+
+    function renderSession(s) {
+      const summary = `Week ${s.week_number} · Half ${s.half} · ${s.groups.length} group${s.groups.length === 1 ? '' : 's'} · ` +
+        `${s.games_played}/${s.games_total} games complete`;
+      // Index schedule cells by (group_number, round_number) so each group
+      // can be rendered as a 4-round list (3 games + 1 bye).
+      const cellByGroupRound = {};
+      const totalRounds = (s.schedule || []).length || 4;
+      (s.schedule || []).forEach(round => round.forEach(cell => {
+        cellByGroupRound[cell.group_number + ':' + cell.round_number] = cell;
+      }));
+      const cards = s.groups.map(grp => renderGroupCard(grp, cellByGroupRound, totalRounds)).join('');
+      // Pick the grid shape (cols × rows) that best fits N cards on a 16:9
+      // viewport. Helper is shared with renderPartner for partner leagues.
+      const N = s.groups.length || 1;
+      const best = pickGridLayout(N);
+      const sessionCard = renderSessionInfoCard(s, best, N);
+      return `<p class="session-summary">${summary}</p>` +
+             `<div class="fit-wrap"><div class="session-grid" style="--cols:${best.cols}">${cards}${sessionCard}</div></div>`;
+    }
+
+    /**
+     * Pick (cols, rows) for an N-card grid on the current viewport. Empty cells
+     * are cheap (we can drop a session-info card in one); aspect distortion is
+     * EXPENSIVE — using a multiplicative ratio penalty (squared) means cards
+     * like N=13 prefer 5×3 with two empty cells over a 13×1 row of slivers.
+     * Verified for N=1..16; matches intuition at every count.
+     */
+    function pickGridLayout(N) {
+      const targetAspect = (window.innerWidth || 1920) / (window.innerHeight || 1080);
+      let best = { cols: 1, rows: N, score: Infinity };
+      for (let cols = 1; cols <= N; cols++) {
+        const rows = Math.ceil(N / cols);
+        const empty = cols * rows - N;
+        const cellAspect = (1 / cols) / (1 / rows) * targetAspect;
+        const ratio = cellAspect / 1.4;
+        const aspectPenalty = (ratio < 1 ? 1/ratio : ratio) - 1;
+        const score = empty * 50 + aspectPenalty * aspectPenalty * 100;
+        if (score < best.score) best = { cols, rows, score };
+      }
+      return best;
+    }
+
+    function renderGroupCard(grp, cellByGroupRound, totalRounds) {
+      const rotationByGame = {};
+      (grp.rotation || []).forEach(g => { rotationByGame[g.game_in_match] = g; });
+
+      const rows = [];
+      for (let r = 1; r <= totalRounds; r++) {
+        const cell = cellByGroupRound[grp.group_number + ':' + r];
+        if (!cell) {
+          rows.push(`<div class="round-label" style="opacity:0.5">R${r} — bye</div>
+            <div class="matchup" style="opacity:0.45">
+              <span class="pair">—</span>
+              <span class="score empty">—</span>
+              <span class="vs">bye</span>
+              <span class="score empty">—</span>
+              <span class="pair">—</span>
+            </div>`);
+          continue;
+        }
+        const g = rotationByGame[cell.game_in_match];
+        if (!g) {
+          rows.push(`<div class="round-label">R${r}</div>
+            <div class="matchup"><span class="vs">— missing rotation —</span></div>`);
+          continue;
+        }
+        const game = cell.game || g.game || null;
+        const has = game && game.status === 'complete';
+        const s1 = has ? Number(game.t1_score) : null;
+        const s2 = has ? Number(game.t2_score) : null;
+        const t1Win = has && s1 > s2;
+        const t2Win = has && s2 > s1;
+        const t1label = `${escapeHtml(g.t1_player_1.full_name.split(' ')[0])} + ${escapeHtml(g.t1_player_2.full_name.split(' ')[0])}`;
+        const t2label = `${escapeHtml(g.t2_player_1.full_name.split(' ')[0])} + ${escapeHtml(g.t2_player_2.full_name.split(' ')[0])}`;
+        const s1cls = !has ? 'score empty' : (t1Win ? 'score' : 'score lose');
+        const s2cls = !has ? 'score empty' : (t2Win ? 'score' : 'score lose');
+        rows.push(`<div class="round-label">R${r} · Court ${cell.court_number}</div>
+          <div class="matchup">
+            <span class="pair ${t1Win ? 'win' : ''}">${t1label}</span>
+            <span class="${s1cls}">${has ? s1 : ''}</span>
+            <span class="vs">vs</span>
+            <span class="${s2cls}">${has ? s2 : ''}</span>
+            <span class="pair ${t2Win ? 'win' : ''}">${t2label}</span>
+          </div>`);
+      }
+
+      // Compact horizontal strip — much smaller vertical footprint than the
+       // 5-row table, so the matchup names above can dominate the card.
+       // Display name = first name + last initial ("Allison Post" → "Allison P.")
+       // to keep the strip on one line at every typical card width.
+      const standingsStrip = (grp.standings || []).map(p => {
+        const parts = String(p.full_name || '').trim().split(/\s+/);
+        const display = parts.length > 1
+          ? `${parts[0]} ${parts[parts.length - 1].charAt(0)}.`
+          : (parts[0] || '');
+        return `<span class="player"><span class="rank">${p.rank}.</span>${escapeHtml(display)}<span class="record">${p.wins}-${p.losses}</span></span>`;
+      }).join('');
+
+      return `<div class="group-card">
+        <div class="group-card-inner">
+          <div class="group-header">
+            <h3>Group ${grp.group_number}</h3>
+          </div>
+          ${rows.join('')}
+          <div class="standings-mini">
+            <div class="strip">${standingsStrip}</div>
+          </div>
+        </div>
+      </div>`;
+    }
+
+    /**
+     * Build a session-info card to drop into the grid's empty slot when the
+     * picker chose a layout with one (e.g. N=5 → 3×2, N=7 → 4×2). Returns ''
+     * when there's no empty slot. Same outer shape as a group card so the
+     * grid doesn't notice the difference.
+     */
+    function renderSessionInfoCard(s, best, N) {
+      const empty = best.cols * best.rows - N;
+      if (empty <= 0) return '';
+      const games = `${s.games_played} / ${s.games_total}`;
+      const pct = s.games_total ? Math.round((s.games_played / s.games_total) * 100) : 0;
+      const leagueName = (CURRENT_LEAGUE && CURRENT_LEAGUE.name) || '';
+      return `<div class="session-card">
+        <div class="session-card-inner">
+          ${leagueName ? `<div class="session-card-meta">${escapeHtml(leagueName)}</div>` : ''}
+          <div class="session-card-headline">Week ${s.week_number}<br>Half ${s.half}</div>
+          <div class="session-card-progress">${games} games · ${pct}%</div>
+          <div class="session-card-clock" id="session-card-clock">${getNowDisplay()}</div>
+        </div>
+      </div>`;
+    }
+
+    function getNowDisplay() {
+      const now = new Date();
+      const h = now.getHours();
+      const m = String(now.getMinutes()).padStart(2, '0');
+      const ampm = h < 12 ? 'AM' : 'PM';
+      const h12 = ((h + 11) % 12) + 1;
+      return `${h12}:${m} ${ampm}`;
+    }
+
+    // Tick the session card clock once a minute (the displayed format is
+    // hour:minute, so per-second updates would just redraw the same string).
+    setInterval(() => {
+      const el = document.getElementById('session-card-clock');
+      if (el) el.textContent = getNowDisplay();
+    }, 30000);
 
     function onStandings(resp) {
       if (!resp.ok) return showErr(resp.error);
       const data = resp.data || [];
       document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
       const c = document.getElementById('content');
-      if (!data.length) { c.innerHTML = '<p class="meta">No completed games yet.</p>'; return; }
+      if (!data.length) {
+        // For ladder leagues with no week/half active, the most likely cause
+        // is that no session has been set up (or it was reset). Make that
+        // explicit instead of the misleading "No completed games yet."
+        if (CURRENT_LEAGUE.format_type === 'ladder' && (!CURRENT_WEEK || !CURRENT_HALF)) {
+          c.innerHTML =
+            '<div style="text-align:center; padding:60px 20px">' +
+            '<h2 style="color:var(--brand-orange); margin:0 0 8px">Session not set up yet</h2>' +
+            '<p class="meta" style="font-size:18px;margin:0">Start Half&nbsp;1 in the Operator to bring this scoreboard to life.</p>' +
+            '</div>';
+        } else {
+          c.innerHTML = '<p class="meta">No completed games yet.</p>';
+        }
+        return;
+      }
+      // renderPartner returns its own .fit-wrap (it uses the dynamic
+      // session-grid like ladder sessions); renderLadder still needs wrapping.
       c.innerHTML = (CURRENT_LEAGUE.format_type === 'partner')
         ? renderPartner(data)
-        : renderLadder(data);
+        : '<div class="fit-wrap">' + renderLadder(data) + '</div>';
+      requestAnimationFrame(fitToViewport);
     }
 
     function renderLadder(data) {
       const rows = data.map(s => `<tr>
         <td class="rank">${s.rank}</td>
-        <td>${s.full_name}<br><span class="meta">${s.level || ''}</span></td>
+        <td>${escapeHtml(s.full_name)}<br><span class="meta">${escapeHtml(s.level || '')}</span></td>
         <td>${s.wins} / ${s.games_played}</td>
         <td>${(s.win_pct * 100).toFixed(1)}%</td>
         <td><span class="pf">${s.points}</span> / ${s.games_played * 11}</td>
         <td>${(s.point_pct * 100).toFixed(1)}%</td>
         <td><strong>${s.score.toFixed(1)}</strong></td>
       </tr>`).join('');
-      return `<h2>Standings</h2>
+      return `<h2>Season standings</h2>
         <table>
           <tr><th>#</th><th>Player</th><th>Wins</th><th>W%</th><th>Points</th><th>P%</th><th>Score</th></tr>
           ${rows}
@@ -141,27 +736,76 @@
     }
 
     function renderPartner(data) {
-      const cards = data.map(s => `
-        <div class="team-card">
-          <div class="rank">${s.rank}</div>
-          <div class="name">${s.team_name}</div>
-          <div class="players">${s.player_1_name} & ${s.player_2_name}</div>
-          <div class="rec">${s.wins} - ${s.losses}<span class="pd">${s.point_diff > 0 ? '+' : ''}${s.point_diff} • GB ${s.games_back.toFixed(1)}</span></div>
-        </div>`).join('');
-      const tableRows = data.map(s => `<tr>
-        <td class="rank">${s.rank}</td>
-        <td><strong>${s.team_name}</strong><br><span class="meta">${s.player_1_name} & ${s.player_2_name}</span></td>
-        <td>${s.wins} - ${s.losses}</td>
-        <td>${s.games_back.toFixed(1)}</td>
-        <td>${s.point_diff > 0 ? '+' : ''}${s.point_diff}</td>
-        <td>${(s.point_pct * 100).toFixed(1)}%</td>
-      </tr>`).join('');
-      return `<div class="partner-grid">${cards}</div>
-        <h2 style="margin-top:32px">Standings</h2>
-        <table>
-          <tr><th>#</th><th>Team</th><th>W-L</th><th>GB</th><th>+/-</th><th>P%</th></tr>
-          ${tableRows}
-        </table>`;
+      const N = data.length || 1;
+      const best = pickGridLayout(N);
+      const cards = data.map(s => renderTeamCard(s)).join('');
+      // Drop a session-info card into the empty slot when the picker leaves
+      // one (e.g. N=5 → 3×2, N=7 → 4×2, N=11 → 4×3, N=13 → 5×3 has two empty).
+      const empty = best.cols * best.rows - N;
+      let extra = '';
+      if (empty > 0) {
+        const leagueName = (CURRENT_LEAGUE && CURRENT_LEAGUE.name) || '';
+        extra = `<div class="session-card"><div class="session-card-inner">
+          ${leagueName ? `<div class="session-card-meta">${escapeHtml(leagueName)}</div>` : ''}
+          <div class="session-card-headline">${N} teams</div>
+          <div class="session-card-clock" id="session-card-clock">${getNowDisplay()}</div>
+        </div></div>`;
+      }
+      return `<div class="fit-wrap"><div class="session-grid" style="--cols:${best.cols}">${cards}${extra}</div></div>`;
+    }
+
+    function renderTeamCard(s) {
+      const games = (s.wins || 0) + (s.losses || 0);
+      const ppg = games > 0 ? ((s.point_diff || 0) / games) : 0;
+      const ppgStr = `${ppg > 0 ? '+' : ''}${ppg.toFixed(1)} PPG`;
+      const gb = (s.games_back || 0).toFixed(1);
+      const standingsLine = `${ordinal(s.rank)} Place &nbsp;|&nbsp; ${s.wins||0} - ${s.losses||0} &nbsp;|&nbsp; ${gb} Game(s) Back &nbsp;|&nbsp; ${ppgStr}`;
+
+      // Optional per-session fields. Server can populate these later; the card
+      // gracefully omits the band if absent.
+      //   today_record: "1 - 3"
+      //   today_results: [{ won: bool, opponent: "Dinkin Pinktini's", opponent_rank: 1, our_score: 4, their_score: 11 }, ...]
+      //   today_upcoming: [{ court: 3, opponent: "Super DUPR", opponent_rank: 10 } | "bye", ...]
+      const todayRecord = s.today_record || '';
+      const results = Array.isArray(s.today_results) ? s.today_results : [];
+      const upcoming = Array.isArray(s.today_upcoming) ? s.today_upcoming : [];
+
+      const resultsHtml = results.map(r => {
+        const verb = r.won ? 'Beat' : 'Lost to';
+        const cls = r.won ? 'win' : 'loss';
+        const sym = r.won ? '✓' : '×';
+        const score = (r.our_score != null && r.their_score != null)
+          ? ` ${r.won ? Math.max(r.our_score, r.their_score) : Math.max(r.our_score, r.their_score)}-${r.won ? Math.min(r.our_score, r.their_score) : Math.min(r.our_score, r.their_score)}`
+          : '';
+        const opp = r.opponent_rank ? `${escapeHtml(r.opponent)} (${ordinal(r.opponent_rank)})` : escapeHtml(r.opponent || '');
+        return `<div class="result"><span class="result-icon ${cls}">${sym}</span><span>${verb} ${opp}${score}</span></div>`;
+      }).join('');
+
+      const upcomingHtml = upcoming.map(u => {
+        if (u === 'bye' || (u && u.bye)) {
+          return `<div class="result upcoming"><span class="result-icon">•</span><span>Bye</span></div>`;
+        }
+        const opp = u.opponent_rank ? `${escapeHtml(u.opponent)} (${ordinal(u.opponent_rank)})` : escapeHtml(u.opponent || '');
+        const court = u.court ? `Court ${u.court} vs. ` : 'vs. ';
+        return `<div class="result upcoming"><span class="result-icon">•</span><span>${court}${opp}</span></div>`;
+      }).join('');
+
+      const showResults = !!(resultsHtml || upcomingHtml);
+
+      return `<div class="team-card"><div class="team-card-inner">
+        <div class="team-card-name">${escapeHtml(s.team_name || '')}</div>
+        <div class="team-card-players">${escapeHtml(s.player_1_name || '')} &amp; ${escapeHtml(s.player_2_name || '')}</div>
+        <div class="team-card-standings">${standingsLine}</div>
+        ${todayRecord ? `<div class="team-card-today">Today: ${escapeHtml(todayRecord)}</div>` : ''}
+        ${showResults ? `<div class="team-card-results">${resultsHtml}${upcomingHtml}</div>` : ''}
+      </div></div>`;
+    }
+
+    function ordinal(n) {
+      if (n == null) return '';
+      const s = ['th', 'st', 'nd', 'rd'];
+      const v = n % 100;
+      return n + (s[(v - 20) % 10] || s[v] || s[0]);
     }
 
     init();

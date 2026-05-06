@@ -1,0 +1,477 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dill Dinkers Leagues — Clean Modern style</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,700;9..144,900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:           #fafaf7;
+    --card:         #ffffff;
+    --ink:          #111111;
+    --ink-soft:     #444444;
+    --ink-mute:     #888888;
+    --line:         #ebe9e2;
+    --line-soft:    #f3f1ea;
+    --accent:       #F58220;
+    --accent-soft:  #fff4e8;
+    --green:        #4a7c2a;
+    --red:          #b03434;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.55;
+  }
+  .serif { font-family: 'Fraunces', Georgia, serif; font-weight: 700; letter-spacing: -0.02em; }
+  .num { font-variant-numeric: tabular-nums; }
+
+  /* ===== Top bar ===== */
+  .topbar {
+    padding: 24px 40px;
+    display: flex;
+    align-items: center;
+    gap: 28px;
+    border-bottom: 1px solid var(--line);
+  }
+  .topbar .logo {
+    font-family: 'Fraunces', serif;
+    font-weight: 900;
+    font-size: 22px;
+    color: var(--ink);
+    letter-spacing: -0.02em;
+  }
+  .topbar nav { margin-left: auto; display: flex; gap: 28px; }
+  .topbar nav a {
+    color: var(--ink-soft);
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+    position: relative;
+  }
+  .topbar nav a:hover { color: var(--ink); }
+  .topbar nav a.active { color: var(--ink); }
+  .topbar nav a.active::after {
+    content: '';
+    position: absolute;
+    left: 0; right: 0; bottom: -28px;
+    height: 2px;
+    background: var(--accent);
+  }
+
+  /* ===== Hero ===== */
+  .hero {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 80px 40px 40px;
+  }
+  .hero .eyebrow {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--accent);
+    margin-bottom: 18px;
+  }
+  .hero h1 {
+    margin: 0 0 14px;
+    font-family: 'Fraunces', serif;
+    font-weight: 700;
+    font-size: 56px;
+    letter-spacing: -0.03em;
+    line-height: 1.05;
+  }
+  .hero p {
+    margin: 0;
+    font-size: 18px;
+    color: var(--ink-soft);
+    max-width: 560px;
+  }
+
+  /* ===== League list ===== */
+  .section { max-width: 1100px; margin: 0 auto; padding: 32px 40px 64px; }
+  .section-h {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 16px;
+    margin-bottom: 8px;
+  }
+  .section-h h2 {
+    margin: 0;
+    font-family: 'Fraunces', serif;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.015em;
+  }
+  .section-h .count {
+    font-size: 13px;
+    color: var(--ink-mute);
+  }
+  .league-list { }
+  .league-row {
+    display: grid;
+    grid-template-columns: 80px 1fr auto auto;
+    gap: 20px;
+    align-items: center;
+    padding: 22px 4px;
+    border-bottom: 1px solid var(--line);
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .league-row:hover { background: var(--accent-soft); }
+  .league-row .day-block {
+    text-align: center;
+  }
+  .league-row .day-block .dow {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--accent);
+  }
+  .league-row .day-block .time {
+    font-family: 'Fraunces', serif;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--ink);
+    line-height: 1.1;
+    margin-top: 2px;
+  }
+  .league-row .day-block .ampm {
+    font-size: 11px;
+    color: var(--ink-mute);
+  }
+  .league-row .name {
+    font-family: 'Fraunces', serif;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.015em;
+  }
+  .league-row .name .sub {
+    display: block;
+    margin-top: 4px;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 400;
+    color: var(--ink-mute);
+    letter-spacing: 0;
+  }
+  .league-row .format-tag {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--ink-mute);
+  }
+  .league-row .arrow {
+    color: var(--accent);
+    font-size: 18px;
+  }
+
+  /* ===== League page ===== */
+  .league-hero {
+    border-bottom: 1px solid var(--line);
+    background: var(--card);
+  }
+  .league-hero-inner {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 48px 40px 0;
+  }
+  .crumb {
+    font-size: 13px;
+    color: var(--ink-mute);
+    margin-bottom: 18px;
+  }
+  .crumb a { color: var(--ink-mute); text-decoration: none; }
+  .crumb a:hover { color: var(--accent); }
+  .league-hero h1 {
+    margin: 0 0 14px;
+    font-family: 'Fraunces', serif;
+    font-weight: 700;
+    font-size: 44px;
+    letter-spacing: -0.025em;
+    line-height: 1.1;
+  }
+  .league-hero .meta {
+    display: flex;
+    gap: 28px;
+    font-size: 14px;
+    color: var(--ink-soft);
+    margin-bottom: 32px;
+    flex-wrap: wrap;
+  }
+  .league-hero .meta .label { color: var(--ink-mute); margin-right: 6px; }
+
+  .tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--line);
+    margin: 0;
+  }
+  .tab {
+    padding: 14px 0;
+    margin-right: 32px;
+    color: var(--ink-mute);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+  }
+  .tab:hover { color: var(--ink); }
+  .tab.active { color: var(--ink); border-bottom-color: var(--accent); font-weight: 600; }
+
+  /* ===== Standings ===== */
+  .standings-wrap {
+    display: grid;
+    grid-template-columns: 1.7fr 1fr;
+    gap: 40px;
+    align-items: start;
+  }
+  .panel {
+    background: transparent;
+  }
+  .panel h3 {
+    margin: 0 0 18px;
+    font-family: 'Fraunces', serif;
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -0.015em;
+  }
+  .panel h3 .qual {
+    font-family: 'Inter', sans-serif;
+    font-weight: 400;
+    font-size: 13px;
+    color: var(--ink-mute);
+    margin-left: 10px;
+    letter-spacing: 0;
+  }
+
+  table { width: 100%; border-collapse: collapse; }
+  thead th {
+    color: var(--ink-mute);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    padding: 10px 14px 10px 0;
+    text-align: left;
+    border-bottom: 1px solid var(--line);
+  }
+  thead th.r { text-align: right; padding-right: 0; }
+  tbody td {
+    padding: 18px 14px 18px 0;
+    border-bottom: 1px solid var(--line-soft);
+    font-size: 15px;
+    vertical-align: middle;
+  }
+  tbody td.r { text-align: right; padding-right: 0; }
+  tbody tr:last-child td { border-bottom: none; }
+
+  .rank {
+    font-family: 'Fraunces', serif;
+    font-weight: 700;
+    font-size: 22px;
+    color: var(--ink);
+    width: 40px;
+  }
+  .team-cell { font-weight: 600; font-size: 16px; }
+  .team-sub { font-size: 13px; color: var(--ink-mute); font-weight: 400; margin-top: 2px; }
+  .wl { font-weight: 600; }
+  .pos { color: var(--green); }
+  .neg { color: var(--red); }
+
+  /* Weekly */
+  .weekly-table th, .weekly-table td {
+    padding: 12px 6px;
+    text-align: center;
+    font-size: 13px;
+  }
+  .weekly-table th:first-child, .weekly-table td:first-child {
+    text-align: left;
+    padding-left: 0;
+  }
+  .weekly-table td:first-child {
+    font-size: 14px;
+    font-weight: 500;
+  }
+  .weekly-table .week-w { color: var(--green); font-weight: 600; }
+  .weekly-table .week-l { color: var(--red); font-weight: 600; }
+
+  @media (max-width: 900px) {
+    .standings-wrap { grid-template-columns: 1fr; gap: 24px; }
+    .hero h1 { font-size: 38px; }
+    .league-hero h1 { font-size: 32px; }
+    .league-row { grid-template-columns: 70px 1fr auto; }
+    .league-row .format-tag { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">Dill Dinkers</div>
+  <nav>
+    <a href="#" class="active">Leagues</a>
+    <a href="#">Players</a>
+    <a href="#">About</a>
+  </nav>
+</div>
+
+<!-- ============== LEAGUE INDEX ============== -->
+<div class="hero">
+  <div class="eyebrow">Spring 2026 Season</div>
+  <h1>League<br>Standings & Schedules.</h1>
+  <p>Twelve leagues running this season — from beginner ladders to advanced partner play. Pick yours below.</p>
+</div>
+
+<div class="section">
+  <div class="section-h">
+    <h2>Active Leagues</h2>
+    <div class="count">12 leagues · Spring 2026</div>
+  </div>
+  <div class="league-list">
+    <div class="league-row">
+      <div class="day-block">
+        <div class="dow">Tue</div><div class="time">8:00</div><div class="ampm">PM</div>
+      </div>
+      <div class="name">Tuesday Night Ladder<span class="sub">Levels 3.5–4.0 · Week 4 of 8</span></div>
+      <div class="format-tag">Ladder</div>
+      <div class="arrow">→</div>
+    </div>
+    <div class="league-row">
+      <div class="day-block">
+        <div class="dow">Wed</div><div class="time">7:00</div><div class="ampm">PM</div>
+      </div>
+      <div class="name">Mixed Partner League<span class="sub">Levels 3.0–3.5 · Week 5 of 8</span></div>
+      <div class="format-tag">Partner</div>
+      <div class="arrow">→</div>
+    </div>
+    <div class="league-row">
+      <div class="day-block">
+        <div class="dow">Thu</div><div class="time">6:30</div><div class="ampm">PM</div>
+      </div>
+      <div class="name">Advanced Doubles<span class="sub">Level 4.0+ · Week 4 of 8</span></div>
+      <div class="format-tag">Partner</div>
+      <div class="arrow">→</div>
+    </div>
+    <div class="league-row">
+      <div class="day-block">
+        <div class="dow">Sun</div><div class="time">10:00</div><div class="ampm">AM</div>
+      </div>
+      <div class="name">Sunday Morning Ladder<span class="sub">Levels 2.5–3.0 · Week 6 of 8</span></div>
+      <div class="format-tag">Ladder</div>
+      <div class="arrow">→</div>
+    </div>
+  </div>
+</div>
+
+<!-- ============== LEAGUE PAGE ============== -->
+<div class="league-hero">
+  <div class="league-hero-inner">
+    <div class="crumb"><a href="#">All Leagues</a> &nbsp;/&nbsp; Wednesday Mixed Partner</div>
+    <h1>Wednesday Mixed Partner</h1>
+    <div class="meta">
+      <span><span class="label">Format</span> Partner</span>
+      <span><span class="label">Level</span> 3.0–3.5</span>
+      <span><span class="label">Plays</span> Wednesdays · 7:00 PM</span>
+      <span><span class="label">Season</span> Spring 2026 · Week 5 of 8</span>
+    </div>
+    <div class="tabs">
+      <div class="tab active">Standings</div>
+      <div class="tab">Schedule</div>
+      <div class="tab">Match Results</div>
+      <div class="tab">Teams</div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="standings-wrap">
+    <div class="panel">
+      <h3>Season Standings <span class="qual">through Week 5</span></h3>
+      <table>
+        <thead>
+          <tr>
+            <th>#</th><th>Team</th>
+            <th class="r">W–L</th><th class="r">PCT</th><th class="r">GB</th><th class="r">+/−</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="rank">1</td>
+            <td><div class="team-cell">Net Assets</div><div class="team-sub">M. Chen · J. Patel</div></td>
+            <td class="r wl">14–4</td><td class="r num">.778</td><td class="r num">—</td><td class="r pos">+38</td>
+          </tr>
+          <tr>
+            <td class="rank">2</td>
+            <td><div class="team-cell">Dink City</div><div class="team-sub">A. Rodriguez · K. O'Brien</div></td>
+            <td class="r wl">12–6</td><td class="r num">.667</td><td class="r num">2.0</td><td class="r pos">+22</td>
+          </tr>
+          <tr>
+            <td class="rank">3</td>
+            <td><div class="team-cell">Smash Bros</div><div class="team-sub">D. Kim · R. Foster</div></td>
+            <td class="r wl">11–7</td><td class="r num">.611</td><td class="r num">3.0</td><td class="r pos">+15</td>
+          </tr>
+          <tr>
+            <td class="rank">4</td>
+            <td><div class="team-cell">The Volley Llamas</div><div class="team-sub">S. Johnson · T. Nguyen</div></td>
+            <td class="r wl">10–8</td><td class="r num">.556</td><td class="r num">4.0</td><td class="r pos">+8</td>
+          </tr>
+          <tr>
+            <td class="rank">5</td>
+            <td><div class="team-cell">Pickle Rick</div><div class="team-sub">G. Martinez · P. Singh</div></td>
+            <td class="r wl">9–9</td><td class="r num">.500</td><td class="r num">5.0</td><td class="r pos">+3</td>
+          </tr>
+          <tr>
+            <td class="rank">6</td>
+            <td><div class="team-cell">Just Here for the Snacks</div><div class="team-sub">L. Anderson · M. Williams</div></td>
+            <td class="r wl">7–11</td><td class="r num">.389</td><td class="r num">7.0</td><td class="r neg">−12</td>
+          </tr>
+          <tr>
+            <td class="rank">7</td>
+            <td><div class="team-cell">Kitchen Kings</div><div class="team-sub">J. Park · E. Davis</div></td>
+            <td class="r wl">5–13</td><td class="r num">.278</td><td class="r num">9.0</td><td class="r neg">−28</td>
+          </tr>
+          <tr>
+            <td class="rank">8</td>
+            <td><div class="team-cell">Lobsters</div><div class="team-sub">B. Taylor · C. Brown</div></td>
+            <td class="r wl">4–14</td><td class="r num">.222</td><td class="r num">10.0</td><td class="r neg">−46</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="panel">
+      <h3>Weekly Record <span class="qual">W–L per session</span></h3>
+      <table class="weekly-table">
+        <thead>
+          <tr><th>Team</th><th>W1</th><th>W2</th><th>W3</th><th>W4</th><th>W5</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Net Assets</td><td class="week-w">3–1</td><td class="week-w">4–0</td><td class="week-w">3–1</td><td class="week-w">2–2</td><td class="week-w">2–2</td></tr>
+          <tr><td>Dink City</td><td class="week-w">3–1</td><td class="week-w">2–2</td><td class="week-w">3–1</td><td class="week-w">2–2</td><td class="week-w">2–2</td></tr>
+          <tr><td>Smash Bros</td><td class="week-w">2–2</td><td class="week-w">3–1</td><td class="week-l">1–3</td><td class="week-w">3–1</td><td class="week-w">2–2</td></tr>
+          <tr><td>Volley Llamas</td><td class="week-l">1–3</td><td class="week-w">3–1</td><td class="week-w">2–2</td><td class="week-w">2–2</td><td class="week-w">2–2</td></tr>
+          <tr><td>Pickle Rick</td><td class="week-w">2–2</td><td class="week-w">2–2</td><td class="week-w">2–2</td><td class="week-l">1–3</td><td class="week-w">2–2</td></tr>
+          <tr><td>Snacks</td><td class="week-l">1–3</td><td class="week-l">1–3</td><td class="week-w">2–2</td><td class="week-l">1–3</td><td class="week-w">2–2</td></tr>
+          <tr><td>Kitchen Kings</td><td class="week-l">1–3</td><td class="week-l">0–4</td><td class="week-w">2–2</td><td class="week-l">1–3</td><td class="week-l">1–3</td></tr>
+          <tr><td>Lobsters</td><td class="week-l">1–3</td><td class="week-l">1–3</td><td class="week-l">1–3</td><td class="week-l">0–4</td><td class="week-l">1–3</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

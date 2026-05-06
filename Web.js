@@ -7,15 +7,33 @@
 function doGet(e) {
   const params = (e && e.parameter) || {};
   const page = (params.page || 'home').toLowerCase();
+  // JSON endpoint for the public site (leagues.dilldinkersct.com). No auth —
+  // ContentService responses include CORS headers when deployed as
+  // "Anyone (even anonymous) can access".
+  if (page === 'json') return renderJson_(params);
   const user = getCurrentUser_();
   switch (page) {
-    case 'home':     return renderHome_(user);
-    case 'admin':    return renderAdmin_(user, params);
-    case 'operator': return renderOperator_(user, params);
-    case 'display':  return renderDisplay_(user, params);
-    case 'player':   return renderPlayer_(user, params);
-    default:         return htmlError_('Unknown page: ' + page);
+    case 'home':      return renderHome_(user);
+    case 'admin':     return renderAdmin_(user, params);
+    case 'league':    return renderLeagueAdmin_(user, params);
+    case 'operator':  return renderOperator_(user, params);
+    case 'display':   return renderDisplay_(user, params);
+    case 'standings': return renderStandings_(user, params);
+    case 'player':    return renderPlayer_(user, params);
+    default:          return htmlError_('Unknown page: ' + page);
   }
+}
+
+function renderJson_(params) {
+  let body;
+  try {
+    const data = publicJsonRouter_(params);
+    body = JSON.stringify({ ok: true, data: JSON.parse(JSON.stringify(data)) });
+  } catch (err) {
+    body = JSON.stringify({ ok: false, error: String(err && err.message || err) });
+  }
+  return ContentService.createTextOutput(body)
+    .setMimeType(ContentService.MimeType.JSON);
 }
 
 function renderHome_(user) {
@@ -51,6 +69,26 @@ function renderDisplay_(user, params)   {
     .setTitle(CONFIG.APP_NAME + ' — Display')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1');
 }
+function renderStandings_(user, params) {
+  const t = HtmlService.createTemplateFromFile('Public');
+  t.user = user;
+  t.appName = CONFIG.APP_NAME;
+  return t.evaluate()
+    .setTitle(CONFIG.APP_NAME + ' — Standings')
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+}
+function renderLeagueAdmin_(user, params) {
+  const t = HtmlService.createTemplateFromFile('LeagueAdmin');
+  t.user = user;
+  t.appName = CONFIG.APP_NAME;
+  // Apps Script reserves `?id=` internally for its own routing — that param
+  // never reaches e.parameter. Use `?lid=` (with `?league_id=` as alias).
+  t.leagueId = params.lid || params.league_id || '';
+  t.subTab   = (params.tab || 'players').toLowerCase();
+  return t.evaluate()
+    .setTitle(CONFIG.APP_NAME + ' — League Admin')
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+}
 function renderPlayer_(user, params)    { return htmlStub_('Player',   user); }
 
 function htmlStub_(label, user) {
@@ -81,4 +119,18 @@ function escapeHtml_(s) {
 
 function include_(name) {
   return HtmlService.createHtmlOutputFromFile(name).getContent();
+}
+
+/**
+ * Returns the deployed web-app URL so client-side nav can drive the outer
+ * (script.google.com) frame rather than the inner googleusercontent.com iframe.
+ *
+ * NOT cached — `/dev` and `/exec` are different deployments of the same
+ * script, and a CacheService hit populated by one would be served to the
+ * other, resulting in nav links pointing at the wrong deployment. Clients
+ * also try to derive the URL from `document.referrer` first, so this server
+ * call is just a fallback path.
+ */
+function getAppUrl() {
+  return ScriptApp.getService().getUrl();
 }
