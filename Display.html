@@ -736,9 +736,14 @@
     }
 
     function renderPartner(data) {
-      const N = data.length || 1;
+      // Lock card order to team-name alphabetical. Sorting by rank made cards
+      // shuffle every time a score was entered, which was disorienting on the
+      // TV mid-session.
+      const sorted = (data || []).slice().sort((a, b) =>
+        String(a.team_name || '').localeCompare(String(b.team_name || '')));
+      const N = sorted.length || 1;
       const best = pickGridLayout(N);
-      const cards = data.map(s => renderTeamCard(s)).join('');
+      const cards = sorted.map(s => renderTeamCard(s)).join('');
       // Drop a session-info card into the empty slot when the picker leaves
       // one (e.g. N=5 → 3×2, N=7 → 4×2, N=11 → 4×3, N=13 → 5×3 has two empty).
       const empty = best.cols * best.rows - N;
