@@ -1346,6 +1346,12 @@
       paired.forEach(p => {
         if (p.absent_player_id)     pairedAbsent[p.absent_player_id] = p;
         if (p.substitute_player_id) pairedSub[p.substitute_player_id] = p;
+        // Guest subs were created with a fresh player_id on the server; the
+        // CR external_subs row still has player_id:null after refresh, so
+        // also key by name so we can match-and-hide them from the list.
+        if (p.substitute_player_name) {
+          pairedSub['name:' + String(p.substitute_player_name).trim().toLowerCase()] = p;
+        }
       });
 
       // No-shows: rostered players flagged as absent who aren't already paired.
@@ -1365,7 +1371,11 @@
 
       // Subs: external_subs not yet paired.
       const subs = (att.external_subs || [])
-        .filter(s => !pairedSub[s.player_id || ''])
+        .filter(s => {
+          if (s.player_id && pairedSub[s.player_id]) return false;
+          if (s.full_name && pairedSub['name:' + String(s.full_name).trim().toLowerCase()]) return false;
+          return true;
+        })
         .map(s => ({
           player_id:     s.player_id,
           full_name:     s.full_name,
@@ -1399,7 +1409,11 @@
       document.getElementById('partnerSubsCount').textContent = '(' + subs.length + ')';
       if (subs.length) {
         subsEl.innerHTML = subs.map(s => `
-          <div class="sub-card" draggable="true" data-pid="${escapeHtml(s.player_id || '')}" data-name="${escapeHtml(s.full_name)}">
+          <div class="sub-card" draggable="true"
+               data-pid="${escapeHtml(s.player_id || '')}"
+               data-name="${escapeHtml(s.full_name)}"
+               data-member-number="${escapeHtml(s.member_number || '')}"
+               data-is-temp="${s.is_temp ? '1' : ''}">
             <strong>${escapeHtml(s.full_name)}</strong>
             ${s.is_temp ? '<span class="muted" style="font-size:11px;margin-left:6px">(guest)</span>' : ''}
           </div>`).join('');
@@ -1427,8 +1441,10 @@
       document.querySelectorAll('#partnerSubsList .sub-card').forEach(card => {
         card.addEventListener('dragstart', e => {
           e.dataTransfer.setData('text/plain', JSON.stringify({
-            pid:  card.dataset.pid,
-            name: card.dataset.name,
+            pid:           card.dataset.pid,
+            name:          card.dataset.name,
+            member_number: card.dataset.memberNumber || '',
+            is_temp:       card.dataset.isTemp === '1',
           }));
           e.dataTransfer.effectAllowed = 'move';
           card.classList.add('dragging');
@@ -1436,23 +1452,30 @@
         card.addEventListener('dragend', () => card.classList.remove('dragging'));
       });
       document.querySelectorAll('#partnerNoshowsList .noshow-card').forEach(target => {
-        target.addEventListener('dragover', e => { e.preventDefault(); target.classList.add('drag-over'); });
+        // Note: dragenter also needs preventDefault() in some browsers for drop
+        // to actually fire. Without it the cursor shows the no-drop icon and
+        // the drop event never reaches the handler.
+        target.addEventListener('dragenter', e => { e.preventDefault(); });
+        target.addEventListener('dragover',  e => { e.preventDefault(); target.classList.add('drag-over'); });
         target.addEventListener('dragleave', () => target.classList.remove('drag-over'));
         target.addEventListener('drop', e => {
           e.preventDefault();
           target.classList.remove('drag-over');
           let payload = {};
           try { payload = JSON.parse(e.dataTransfer.getData('text/plain') || '{}'); } catch (err) {}
-          if (!payload.pid) return;
-          pairPartnerSub(payload.pid, payload.name,
-            target.dataset.absentPid, target.dataset.absentName);
+          if (!payload.pid && !payload.name) {
+            showErr('Could not read the dragged sub. Try again from the sub list.');
+            return;
+          }
+          pairPartnerSub(payload, target.dataset.absentPid, target.dataset.absentName);
         });
       });
     }
 
-    function pairPartnerSub(subPid, subName, absentPid, absentName) {
+    function pairPartnerSub(sub, absentPid, absentName) {
+      if (!CURRENT_LEAGUE) { showErr('No league selected.'); return; }
       const date = getSessionDate();
-      if (!CURRENT_LEAGUE || !date) return;
+      if (!date) { showErr('Pick a session date (or week with a date) before pairing subs.'); return; }
       google.script.run
         .withSuccessHandler(r => {
           if (!r.ok) { showErr(r.error); return; }
@@ -1462,12 +1485,17 @@
         })
         .withFailureHandler(showErr)
         .api_recordSub({
-          league_id:            CURRENT_LEAGUE.league_id,
-          play_date:            date,
-          week_number:          getWeek(),
-          absent_player_id:     absentPid,
-          substitute_player_id: subPid,
-          notes:                'Operator partner sub-pair UI',
+          league_id:                 CURRENT_LEAGUE.league_id,
+          play_date:                 date,
+          week_number:               getWeek(),
+          absent_player_id:          absentPid,
+          // For roster subs we send the player_id; for guest/temp subs (no
+          // player_id) we send name + CR member number and the server
+          // auto-creates a guest Players row keyed off the member number.
+          substitute_player_id:      sub.pid || '',
+          substitute_full_name:      sub.name || '',
+          substitute_member_number:  sub.member_number || '',
+          notes:                     'Operator partner sub-pair UI',
         });
     }
 

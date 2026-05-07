@@ -52,6 +52,58 @@ function upsertPlayer_(input) {
   return player;
 }
 
+/**
+ * Find-or-create a guest player. Used when an external sub (CourtReserve
+ * attendance with no roster match) gets paired into a session — they need
+ * a Players row to be referenced by Substitutions, but they don't have an
+ * email and shouldn't be deduped against rostered players.
+ *
+ * Dedup key: club_member_id when present, else lowercased full_name (only
+ * matching existing rows where is_guest is truthy, so a guest can never
+ * accidentally collide with a real roster entry).
+ */
+function upsertGuestPlayer_(input) {
+  const fullName = String(input.full_name || '').trim();
+  if (!fullName) throw new Error('Guest needs a full_name');
+  const memId = String(input.member_number || input.club_member_id || '').trim();
+
+  const all = getObjects_('Players');
+  const guestMatch = all.find(p => {
+    // Sheet booleans round-trip as either real booleans or the string 'TRUE'
+    // (lowercase variants too if hand-edited) — see CLAUDE.md "quirks".
+    const v = p.is_guest;
+    const isGuest = v === true || v === 'TRUE' || v === 'true';
+    if (!isGuest) return false;
+    if (memId && String(p.club_member_id || '').trim() === memId) return true;
+    if (!memId && String(p.full_name || '').trim().toLowerCase() === fullName.toLowerCase()) return true;
+    return false;
+  });
+  if (guestMatch) return guestMatch;
+
+  const player_id = makeId_('player');
+  const parts = fullName.split(/\s+/);
+  const player = {
+    player_id:      player_id,
+    full_name:      fullName,
+    first_name:     parts[0] || '',
+    last_name:      parts.length > 1 ? parts.slice(1).join(' ') : '',
+    email:          '',
+    phone:          '',
+    gender:         '',
+    dupr_id:        '',
+    club_member_id: memId,
+    level:          input.level || '',
+    active:         true,
+    notes:          'Guest sub — auto-created from CourtReserve attendance',
+    is_guest:       true,
+    created_at:     nowStamp_(),
+  };
+  appendObjects_('Players', [player]);
+  audit_('player_create_guest', 'player', player_id, null,
+    { full_name: fullName, member_number: memId });
+  return player;
+}
+
 function findPlayerByEmail_(email) {
   if (!email) return null;
   const e = String(email).toLowerCase().trim();

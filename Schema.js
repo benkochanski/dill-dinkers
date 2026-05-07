@@ -53,7 +53,7 @@ const SCHEMA = {
     columns: [
       'player_id', 'full_name', 'first_name', 'last_name', 'email', 'phone',
       'gender', 'dupr_id', 'club_member_id', 'level', 'active', 'notes',
-      'created_at',
+      'is_guest', 'created_at',
     ],
   },
 
