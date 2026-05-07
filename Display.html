@@ -468,26 +468,26 @@
         return;
       }
       const rows = teams.map(t => {
-        const today_results = [];
-        const today_upcoming = [];
-        (t.rounds || []).forEach(r => {
-          if (r.kind === 'bye') {
-            today_upcoming.push('bye');
-          } else if (r.kind === 'scheduled') {
-            today_upcoming.push({
-              court: r.court,
-              opponent: r.opponent_name,
-              opponent_rank: r.opponent_rank,
-            });
-          } else if (r.kind === 'played') {
-            today_results.push({
-              won: !!r.won,
-              opponent: r.opponent_name,
-              opponent_rank: r.opponent_rank,
-              our_score: r.my_score,
-              their_score: r.opp_score,
-            });
-          }
+        // Preserve the team's round sequence (1..R) verbatim — including bye
+        // in its actual slot. Splitting into played/upcoming buckets used to
+        // float the bye to the bottom, which made each team's schedule look
+        // like it was changing as games were played.
+        const today_rounds = (t.rounds || []).map(r => {
+          if (r.kind === 'bye')       return { round: r.round, kind: 'bye' };
+          if (r.kind === 'scheduled') return {
+            round: r.round, kind: 'scheduled',
+            court: r.court,
+            opponent: r.opponent_name,
+            opponent_rank: r.opponent_rank,
+          };
+          /* played */                return {
+            round: r.round, kind: 'played',
+            won: !!r.won,
+            opponent: r.opponent_name,
+            opponent_rank: r.opponent_rank,
+            our_score: r.my_score,
+            their_score: r.opp_score,
+          };
         });
         const wkW = (t.week && t.week.wins)   || 0;
         const wkL = (t.week && t.week.losses) || 0;
@@ -502,8 +502,7 @@
           games_back:     (t.season && t.season.games_back)  || 0,
           point_diff:     (t.season && t.season.point_diff)  || 0,
           today_record:   `${wkW} - ${wkL}`,
-          today_results:  today_results,
-          today_upcoming: today_upcoming,
+          today_rounds:   today_rounds,
         };
       });
       document.getElementById('content').innerHTML = renderPartner(rows);
@@ -769,40 +768,41 @@
       // Optional per-session fields. Server can populate these later; the card
       // gracefully omits the band if absent.
       //   today_record: "1 - 3"
-      //   today_results: [{ won: bool, opponent: "Dinkin Pinktini's", opponent_rank: 1, our_score: 4, their_score: 11 }, ...]
-      //   today_upcoming: [{ court: 3, opponent: "Super DUPR", opponent_rank: 10 } | "bye", ...]
+      //   today_rounds: [{ round, kind: 'played'|'scheduled'|'bye', ... }, ...]
+      // Rounds render in their fixed sequence so a bye stays in its original
+      // slot — operators were confused when entering scores reshuffled the
+      // round order on the card.
       const todayRecord = s.today_record || '';
-      const results = Array.isArray(s.today_results) ? s.today_results : [];
-      const upcoming = Array.isArray(s.today_upcoming) ? s.today_upcoming : [];
+      const rounds = Array.isArray(s.today_rounds) ? s.today_rounds : [];
 
-      const resultsHtml = results.map(r => {
+      const roundsHtml = rounds.map(r => {
+        if (r.kind === 'bye') {
+          return `<div class="result upcoming"><span class="result-icon">•</span><span>Bye</span></div>`;
+        }
+        if (r.kind === 'scheduled') {
+          const opp = r.opponent_rank ? `${escapeHtml(r.opponent)} (${ordinal(r.opponent_rank)})` : escapeHtml(r.opponent || '');
+          const court = r.court ? `Court ${r.court} vs. ` : 'vs. ';
+          return `<div class="result upcoming"><span class="result-icon">•</span><span>${court}${opp}</span></div>`;
+        }
+        // played
         const verb = r.won ? 'Beat' : 'Lost to';
         const cls = r.won ? 'win' : 'loss';
         const sym = r.won ? '✓' : '×';
         const score = (r.our_score != null && r.their_score != null)
-          ? ` ${r.won ? Math.max(r.our_score, r.their_score) : Math.max(r.our_score, r.their_score)}-${r.won ? Math.min(r.our_score, r.their_score) : Math.min(r.our_score, r.their_score)}`
+          ? ` ${Math.max(r.our_score, r.their_score)}-${Math.min(r.our_score, r.their_score)}`
           : '';
         const opp = r.opponent_rank ? `${escapeHtml(r.opponent)} (${ordinal(r.opponent_rank)})` : escapeHtml(r.opponent || '');
         return `<div class="result"><span class="result-icon ${cls}">${sym}</span><span>${verb} ${opp}${score}</span></div>`;
       }).join('');
 
-      const upcomingHtml = upcoming.map(u => {
-        if (u === 'bye' || (u && u.bye)) {
-          return `<div class="result upcoming"><span class="result-icon">•</span><span>Bye</span></div>`;
-        }
-        const opp = u.opponent_rank ? `${escapeHtml(u.opponent)} (${ordinal(u.opponent_rank)})` : escapeHtml(u.opponent || '');
-        const court = u.court ? `Court ${u.court} vs. ` : 'vs. ';
-        return `<div class="result upcoming"><span class="result-icon">•</span><span>${court}${opp}</span></div>`;
-      }).join('');
-
-      const showResults = !!(resultsHtml || upcomingHtml);
+      const showResults = !!roundsHtml;
 
       return `<div class="team-card"><div class="team-card-inner">
         <div class="team-card-name">${escapeHtml(s.team_name || '')}</div>
         <div class="team-card-players">${escapeHtml(s.player_1_name || '')} &amp; ${escapeHtml(s.player_2_name || '')}</div>
         <div class="team-card-standings">${standingsLine}</div>
         ${todayRecord ? `<div class="team-card-today">Today: ${escapeHtml(todayRecord)}</div>` : ''}
-        ${showResults ? `<div class="team-card-results">${resultsHtml}${upcomingHtml}</div>` : ''}
+        ${showResults ? `<div class="team-card-results">${roundsHtml}</div>` : ''}
       </div></div>`;
     }
 
