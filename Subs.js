@@ -19,12 +19,27 @@ function recordSubstitution_(input) {
   const errs = [];
   if (!input.league_id) errs.push('league_id required');
   if (!input.absent_player_id) errs.push('absent_player_id required');
-  if (!input.substitute_player_id) errs.push('substitute_player_id required');
+  // When the sub came from CourtReserve attendance and isn't on any roster,
+  // the operator only has a name (and optional CR member number). Auto-create
+  // a guest Players row in that case so the Substitutions row can reference
+  // a real player_id.
+  if (!input.substitute_player_id && !String(input.substitute_full_name || '').trim()) {
+    errs.push('substitute_player_id or substitute_full_name required');
+  }
   if (errs.length) throw new Error(errs.join('; '));
+
+  let subPlayerId = input.substitute_player_id;
+  if (!subPlayerId) {
+    const guest = upsertGuestPlayer_({
+      full_name:     input.substitute_full_name,
+      member_number: input.substitute_member_number,
+    });
+    subPlayerId = guest.player_id;
+  }
 
   const players = getObjects_('Players');
   const absent = players.find(p => p.player_id === input.absent_player_id);
-  const sub    = players.find(p => p.player_id === input.substitute_player_id);
+  const sub    = players.find(p => p.player_id === subPlayerId);
   if (!absent) throw new Error('absent player not found');
   if (!sub)    throw new Error('substitute player not found');
 
