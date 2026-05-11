@@ -240,6 +240,7 @@ function leagueHeader(league, currentTab) {
   const tabs = [
     { name: 'Season Standings', tab: '' },
     ...(league.format_type === 'partner' ? [{ name: 'Schedule', tab: 'schedule' }] : []),
+    ...(league.format_type === 'ladder' ? [{ name: 'Weekly Standings', tab: 'wstandings' }] : []),
     { name: league.format_type === 'ladder' ? 'Weekly Results' : 'Match Results', tab: 'results' },
     ...(league.format_type === 'partner' ? [{ name: 'Teams', tab: 'teams' }] : [])
   ];
@@ -475,23 +476,9 @@ async function viewResults(slug, weekParam) {
   });
 }
 
-function renderLadderWeeklyResults(league, slug, results, weekParam) {
-  const byWeek = new Map();
-  for (const r of results) {
-    if (!byWeek.has(r.week)) byWeek.set(r.week, []);
-    byWeek.get(r.week).push(r);
-  }
-  const weeks = [...byWeek.keys()].sort((a, b) => a - b);
-  const currentWeek = weekParam ? Number(weekParam) : weeks[weeks.length - 1];
-  const weekGames = byWeek.get(currentWeek) || [];
-
-  const weekNav = `<div class="week-subnav">${weeks.map(w =>
-    `<a class="week-link${w === currentWeek ? ' active' : ''}" href="#/${esc(slug)}/results/${w}">Week ${w}</a>`
-  ).join('')}</div>`;
-
-  // Weekly player standings computed from this week's games.
+function weeklyPlayerStats(games) {
   const playerStats = {};
-  weekGames.forEach(g => {
+  games.forEach(g => {
     const t1won = Number(g.t1_score) > Number(g.t2_score);
     (g.t1_players || []).forEach(name => {
       if (!name) return;
@@ -506,21 +493,63 @@ function renderLadderWeeklyResults(league, slug, results, weekParam) {
       if (!t1won) playerStats[name].wins++; else playerStats[name].losses++;
     });
   });
-  const sortedPlayers = Object.values(playerStats)
-    .sort((a, b) => b.wins - a.wins || b.points - a.points || a.name.localeCompare(b.name));
+  return Object.values(playerStats).sort((a, b) => b.wins - a.wins || b.points - a.points || a.name.localeCompare(b.name));
+}
 
-  const standingsHtml = `<div class="panel">
-    <div class="panel-h"><h3>Week ${currentWeek} Standings</h3></div>
-    <table>
-      <thead><tr><th>#</th><th>Player</th><th class="r">W–L</th><th class="r">Pts</th></tr></thead>
-      <tbody>${sortedPlayers.map((p, i) => `<tr>
-        <td class="${rankCls(i + 1)}">${i + 1}</td>
-        <td>${esc(p.name)}</td>
-        <td class="r wl">${p.wins}–${p.losses}</td>
-        <td class="r num">${p.points}</td>
-      </tr>`).join('')}</tbody>
-    </table>
-  </div>`;
+async function viewWeeklyStandings(slug, weekParam) {
+  await withLeague(slug, async (league) => {
+    render(shell(leagueHeader(league, 'wstandings') + `<div class="section"><div class="loading">Loading…</div></div>`));
+    let data;
+    try { data = await api('results', { lid: league.league_id }); }
+    catch (e) { return render(shell(leagueHeader(league, 'wstandings') + `<div class="section"><div class="err">${esc(e.message)}</div></div>`)); }
+    const results = data.results || [];
+    if (!results.length) {
+      return render(shell(leagueHeader(league, 'wstandings') + `<div class="section"><div class="empty">No completed games yet.</div></div>`));
+    }
+    const byWeek = new Map();
+    for (const r of results) {
+      if (!byWeek.has(r.week)) byWeek.set(r.week, []);
+      byWeek.get(r.week).push(r);
+    }
+    const weeks = [...byWeek.keys()].sort((a, b) => a - b);
+    const currentWeek = weekParam ? Number(weekParam) : weeks[weeks.length - 1];
+    const weekGames = byWeek.get(currentWeek) || [];
+    const sortedPlayers = weeklyPlayerStats(weekGames);
+
+    const weekNav = `<div class="week-subnav">${weeks.map(w =>
+      `<a class="week-link${w === currentWeek ? ' active' : ''}" href="#/${esc(slug)}/wstandings/${w}">Week ${w}</a>`
+    ).join('')}</div>`;
+
+    const body = `<div class="panel">
+      <div class="panel-h"><h3>Week ${currentWeek} Standings</h3></div>
+      <table>
+        <thead><tr><th>#</th><th>Player</th><th class="r">W–L</th><th class="r">Pts</th></tr></thead>
+        <tbody>${sortedPlayers.map((p, i) => `<tr>
+          <td class="${rankCls(i + 1)}">${i + 1}</td>
+          <td>${esc(p.name)}</td>
+          <td class="r wl">${p.wins}–${p.losses}</td>
+          <td class="r num">${p.points}</td>
+        </tr>`).join('')}</tbody>
+      </table>
+    </div>`;
+
+    render(shell(leagueHeader(league, 'wstandings') + weekNav + `<div class="section">${body}</div>`));
+  });
+}
+
+function renderLadderWeeklyResults(league, slug, results, weekParam) {
+  const byWeek = new Map();
+  for (const r of results) {
+    if (!byWeek.has(r.week)) byWeek.set(r.week, []);
+    byWeek.get(r.week).push(r);
+  }
+  const weeks = [...byWeek.keys()].sort((a, b) => a - b);
+  const currentWeek = weekParam ? Number(weekParam) : weeks[weeks.length - 1];
+  const weekGames = byWeek.get(currentWeek) || [];
+
+  const weekNav = `<div class="week-subnav">${weeks.map(w =>
+    `<a class="week-link${w === currentWeek ? ' active' : ''}" href="#/${esc(slug)}/results/${w}">Week ${w}</a>`
+  ).join('')}</div>`;
 
   // Games grouped by half → group (already sorted by server).
   const byHalf = new Map();
@@ -557,8 +586,7 @@ function renderLadderWeeklyResults(league, slug, results, weekParam) {
     ${halvesHtml}
   </div>`;
 
-  render(shell(leagueHeader(league, 'results') + weekNav +
-    `<div class="section"><div class="two-col">${standingsHtml}${gamesHtml}</div></div>`));
+  render(shell(leagueHeader(league, 'results') + weekNav + `<div class="section">${gamesHtml}</div>`));
 }
 
 function renderPartnerResults(league, results) {
@@ -734,8 +762,9 @@ function route() {
   // /, /:slug, /:slug/schedule, /:slug/results, /:slug/teams, /:slug/teams/:tid
   if (parts.length === 0) return viewLeagues();
   const [slug, sub, tid] = parts;
-  if (sub === 'schedule') return viewSchedule(slug);
-  if (sub === 'results')  return viewResults(slug, tid);
+  if (sub === 'schedule')    return viewSchedule(slug);
+  if (sub === 'wstandings') return viewWeeklyStandings(slug, tid);
+  if (sub === 'results')    return viewResults(slug, tid);
   if (sub === 'teams' && tid) return viewTeam(slug, tid);
   if (sub === 'teams') return viewTeams(slug);
   return viewStandings(slug);
