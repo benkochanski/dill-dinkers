@@ -375,24 +375,43 @@ async function viewStandings(slug) {
       </div></div>`;
     } else {
       // Ladder
-      const rows = standings.map(s => `<tr>
-        <td class="${rankCls(s.rank)}">${s.rank}</td>
-        <td>
-          <div class="team-cell">${esc(s.full_name)}</div>
-          ${s.level ? `<div class="team-sub">${esc(s.level)}</div>` : ''}
-        </td>
-        <td class="r wl">${wl(s.wins, s.losses)}</td>
-        <td class="r num">${(s.win_pct * 100).toFixed(1)}%</td>
-        <td class="r num">${(s.point_pct * 100).toFixed(1)}%</td>
-        <td class="r" style="color: var(--orange); font-weight: 800;">${s.score.toFixed(1)}</td>
-      </tr>`).join('');
-      body = `<div class="section"><div class="panel">
+      const weekNums = data.weeks || [];
+      const rows = standings.map(s => {
+        const gp = s.games_played || 0;
+        const maxPts = gp * 11;
+        const weekCells = weekNums.map(w => {
+          const v = (s.weekly_wins || [])[weekNums.indexOf(w)];
+          return `<td class="r num">${v != null ? v : '<span class="muted">—</span>'}</td>`;
+        }).join('');
+        return `<tr>
+          <td class="${rankCls(s.rank)}">${s.rank}</td>
+          <td>
+            <div class="team-cell">${esc(s.full_name)}</div>
+            ${s.level ? `<div class="team-sub">${esc(s.level)}</div>` : ''}
+          </td>
+          <td class="r num">${s.wins} / ${gp}</td>
+          <td class="r num">${(s.w_bonus || 0).toFixed(2)}</td>
+          <td class="r num">${(s.win_pct * 100).toFixed(1)}%</td>
+          <td class="r num">${s.points} / ${maxPts}</td>
+          <td class="r num">${(s.p_bonus || 0).toFixed(2)}</td>
+          <td class="r num">${(s.point_pct * 100).toFixed(1)}%</td>
+          <td class="r" style="color:var(--orange);font-weight:800">${s.score.toFixed(1)}</td>
+          ${weekCells}
+        </tr>`;
+      }).join('');
+      const weekHeaders = weekNums.map(w => `<th class="r">Wk ${w}</th>`).join('');
+      body = `<div class="section"><div style="overflow-x:auto"><div class="panel">
         <div class="panel-h"><h3>Season Standings</h3><span class="pill">Composite Score</span></div>
         <table>
-          <thead><tr><th>#</th><th>Player</th><th class="r">W–L</th><th class="r">W%</th><th class="r">P%</th><th class="r">Score</th></tr></thead>
+          <thead><tr>
+            <th>#</th><th>Player</th>
+            <th class="r">Wins</th><th class="r">W Bonus</th><th class="r">W%</th>
+            <th class="r">Points</th><th class="r">P Bonus</th><th class="r">P%</th>
+            <th class="r">Score</th>${weekHeaders}
+          </tr></thead>
           <tbody>${rows}</tbody>
         </table>
-      </div></div>`;
+      </div></div></div>`;
     }
     render(shell(leagueHeader(league, '') + body));
   });
