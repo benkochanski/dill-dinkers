@@ -400,21 +400,22 @@ async function viewStandings(slug) {
           ${weekCells}
         </tr>`;
       }).join('');
-      const weekHeaders = weekNums.map(w => `<th class="r">Wk ${w}</th>`).join('');
       const weekColspan = weekNums.length;
+      const groupHeaderStyle = `background:var(--orange-soft);color:var(--orange);font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:0.12em;padding:7px 14px;border-bottom:1px solid var(--border)`;
+      const sepStyle = `border-left:2px solid var(--orange-dim)`;
       body = `<div class="section"><div style="overflow-x:auto"><div class="panel">
         <div class="panel-h"><h3>Season Standings</h3><span class="pill">Composite Score</span></div>
         <table>
           <thead>
             <tr>
-              <th colspan="9"></th>
-              ${weekColspan ? `<th colspan="${weekColspan}" class="r" style="border-left:2px solid var(--border);color:var(--orange)">Weekly Ranks</th>` : ''}
+              <th colspan="9" style="${groupHeaderStyle}">Season Standings</th>
+              ${weekColspan ? `<th colspan="${weekColspan}" style="${groupHeaderStyle};${sepStyle};text-align:right">Weekly Ranks</th>` : ''}
             </tr>
             <tr>
               <th>#</th><th>Player</th>
               <th class="r">Wins</th><th class="r">W Bonus</th><th class="r">W%</th>
               <th class="r">Points</th><th class="r">P Bonus</th><th class="r">P%</th>
-              <th class="r">Score</th>${weekNums.map((w, i) => `<th class="r"${i === 0 ? ' style="border-left:2px solid var(--border)"' : ''}>Wk ${w}</th>`).join('')}
+              <th class="r">Score</th>${weekNums.map((w, i) => `<th class="r"${i === 0 ? ` style="${sepStyle}"` : ''}>Wk ${w}</th>`).join('')}
             </tr>
           </thead>
           <tbody>${rows}</tbody>
