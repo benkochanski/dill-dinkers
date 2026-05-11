@@ -380,8 +380,8 @@ async function viewStandings(slug) {
         const gp = s.games_played || 0;
         const maxPts = gp * 11;
         const weekCells = weekNums.map(w => {
-          const v = (s.weekly_wins || [])[weekNums.indexOf(w)];
-          return `<td class="r num">${v != null ? v : '<span class="muted">—</span>'}</td>`;
+          const v = (s.weekly_rank || [])[weekNums.indexOf(w)];
+          return `<td class="r num">${v != null ? '#' + v : '<span class="muted">—</span>'}</td>`;
         }).join('');
         return `<tr>
           <td class="${rankCls(s.rank)}">${s.rank}</td>
