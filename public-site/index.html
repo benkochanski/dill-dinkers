@@ -379,10 +379,9 @@ async function viewStandings(slug) {
       const rows = standings.map(s => {
         const gp = s.games_played || 0;
         const maxPts = gp * 11;
-        const weekCells = weekNums.map((w, i) => {
+        const weekCells = weekNums.map(w => {
           const v = (s.weekly_rank || [])[weekNums.indexOf(w)];
-          const sep = i === 0 ? ' style="border-left:2px solid var(--border)"' : '';
-          return `<td class="r num"${sep}>${v != null ? '#' + v : '<span class="muted">—</span>'}</td>`;
+          return `<td class="r num">${v != null ? '#' + v : '<span class="muted">—</span>'}</td>`;
         }).join('');
         return `<tr>
           <td class="${rankCls(s.rank)}">${s.rank}</td>
@@ -397,27 +396,20 @@ async function viewStandings(slug) {
           <td class="r num">${(s.p_bonus || 0).toFixed(2)}</td>
           <td class="r num">${(s.point_pct * 100).toFixed(1)}%</td>
           <td class="r" style="color:var(--orange);font-weight:800">${s.score.toFixed(1)}</td>
-          ${weekCells}
+          ${weekNums.length ? `<td style="border-left:2px solid var(--orange-dim)"></td>` : ''}${weekCells}
         </tr>`;
       }).join('');
-      const weekColspan = weekNums.length;
-      const groupHeaderStyle = `background:var(--orange-soft);color:var(--orange);font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:0.12em;padding:7px 14px;border-bottom:1px solid var(--border)`;
       const sepStyle = `border-left:2px solid var(--orange-dim)`;
       body = `<div class="section"><div style="overflow-x:auto"><div class="panel">
-        <div class="panel-h"><h3>Season Standings</h3><span class="pill">Composite Score</span></div>
+        <div class="panel-h"><h3>Season Standings</h3></div>
         <table>
-          <thead>
-            <tr>
-              <th colspan="9" style="${groupHeaderStyle}">Season Standings</th>
-              ${weekColspan ? `<th colspan="${weekColspan}" style="${groupHeaderStyle};${sepStyle};text-align:right">Weekly Ranks</th>` : ''}
-            </tr>
-            <tr>
-              <th>#</th><th>Player</th>
-              <th class="r">Wins</th><th class="r">W Bonus</th><th class="r">W%</th>
-              <th class="r">Points</th><th class="r">P Bonus</th><th class="r">P%</th>
-              <th class="r">Score</th>${weekNums.map((w, i) => `<th class="r"${i === 0 ? ` style="${sepStyle}"` : ''}>Wk ${w}</th>`).join('')}
-            </tr>
-          </thead>
+          <thead><tr>
+            <th>#</th><th>Player</th>
+            <th class="r">Wins</th><th class="r">W Bonus</th><th class="r">W%</th>
+            <th class="r">Points</th><th class="r">P Bonus</th><th class="r">P%</th>
+            <th class="r">Score</th>
+            ${weekNums.length ? `<th style="${sepStyle};color:var(--orange)">Weekly Ranks</th>` + weekNums.map(w => `<th class="r">Wk ${w}</th>`).join('') : ''}
+          </tr></thead>
           <tbody>${rows}</tbody>
         </table>
       </div></div></div>`;
