@@ -140,6 +140,7 @@
   .week-header-row { padding: 14px 16px 4px; background: var(--bg-elev); border-bottom: 1px solid var(--border); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; color: var(--text-muted); }
 
   .week-subnav { display: flex; gap: 8px; flex-wrap: wrap; padding: 16px 24px 0; max-width: 1280px; margin: 0 auto; }
+  .date-pill { display: inline-block; font-size: 11px; font-weight: 700; color: var(--text-muted); background: var(--bg-elev); border: 1px solid var(--border); border-radius: 3px; padding: 1px 5px; margin: 0 1px; }
   .week-link { padding: 6px 14px; border-radius: 4px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); background: var(--card); border: 1px solid var(--border); text-decoration: none; transition: all 0.12s; }
   .week-link:hover { color: var(--text); border-color: var(--orange); }
   .week-link.active { color: var(--orange); border-color: var(--orange); background: var(--orange-soft); }
@@ -253,7 +254,7 @@ function leagueHeader(league, currentTab) {
       <div class="meta-row">
         <span><span class="label">Format</span> <span class="badge ${league.format_type}">${league.format_type}</span></span>
         ${league.level ? `<span><span class="label">Level</span> ${esc(league.level)}</span>` : ''}
-        ${when ? `<span><span class="label">Schedule</span> ${esc(when)}</span>` : ''}
+        ${when ? `<span><span class="label">Schedule</span> ${esc(when)}${league.session_dates && league.session_dates.length ? ' &nbsp;·&nbsp; ' + league.session_dates.map(d => `<span class="date-pill">${esc(d)}</span>`).join(' ') : ''}</span>` : ''}
         ${league.season_label ? `<span><span class="label">Season</span> ${esc(league.season_label)}</span>` : ''}
         ${league.current_week && league.weeks_count ? `<span><span class="label">Week</span> ${league.current_week} of ${league.weeks_count}</span>` : ''}
       </div>
