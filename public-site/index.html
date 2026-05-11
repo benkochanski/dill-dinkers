@@ -138,6 +138,12 @@
   .stat-block .stat-val { font-size: 22px; font-weight: 800; margin-top: 2px; }
 
   .week-header-row { padding: 14px 16px 4px; background: var(--bg-elev); border-bottom: 1px solid var(--border); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; color: var(--text-muted); }
+
+  .week-subnav { display: flex; gap: 8px; flex-wrap: wrap; padding: 16px 24px 0; max-width: 1280px; margin: 0 auto; }
+  .week-link { padding: 6px 14px; border-radius: 4px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); background: var(--card); border: 1px solid var(--border); text-decoration: none; transition: all 0.12s; }
+  .week-link:hover { color: var(--text); border-color: var(--orange); }
+  .week-link.active { color: var(--orange); border-color: var(--orange); background: var(--orange-soft); }
+  .group-header { padding: 10px 14px; background: var(--bg-elev); border-bottom: 1px solid var(--border); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); }
 </style>
 </head>
 <body>
@@ -234,7 +240,7 @@ function leagueHeader(league, currentTab) {
   const tabs = [
     { name: 'Standings', tab: '' },
     ...(league.format_type === 'partner' ? [{ name: 'Schedule', tab: 'schedule' }] : []),
-    { name: 'Match Results', tab: 'results' },
+    { name: league.format_type === 'ladder' ? 'Weekly Results' : 'Match Results', tab: 'results' },
     ...(league.format_type === 'partner' ? [{ name: 'Teams', tab: 'teams' }] : [])
   ];
   const cleaned = cleanName(league.full_name || league.name);
@@ -431,7 +437,7 @@ async function viewSchedule(slug) {
   });
 }
 
-async function viewResults(slug) {
+async function viewResults(slug, weekParam) {
   await withLeague(slug, async (league) => {
     render(shell(leagueHeader(league, 'results') + `<div class="section"><div class="loading">Loading results…</div></div>`));
     let data;
@@ -441,46 +447,133 @@ async function viewResults(slug) {
     if (!results.length) {
       return render(shell(leagueHeader(league, 'results') + `<div class="section"><div class="empty">No completed games yet.</div></div>`));
     }
-    const byWeek = new Map();
-    for (const r of results) {
-      if (!byWeek.has(r.week)) byWeek.set(r.week, []);
-      byWeek.get(r.week).push(r);
+    if (league.format_type === 'ladder') {
+      renderLadderWeeklyResults(league, slug, results, weekParam);
+    } else {
+      renderPartnerResults(league, results);
     }
-    const isPartner = league.format_type === 'partner';
-    const body = `<div class="section">${[...byWeek.entries()].map(([week, games]) => `
-      <div class="panel section-card">
-        <div class="panel-h">
-          <h3>Week ${week}${games[0]?.play_date ? ' · ' + shortDate(games[0].play_date) : ''}</h3>
-          <span class="pill">${games.length} game${games.length === 1 ? '' : 's'}</span>
-        </div>
-        <table>
-          <thead><tr>
-            <th class="c">R</th>${!isPartner ? `<th class="c">Group</th>` : ''}
-            <th>Team 1</th><th class="c">Score</th><th>Team 2</th>
-          </tr></thead>
-          <tbody>${games.map(g => `
-            <tr>
-              <td class="c muted">${g.round || '—'}</td>
-              ${!isPartner ? `<td class="c muted">${g.group ?? '—'}</td>` : ''}
-              <td>
-                ${g.t1_team_id ? `<div class="team-cell"><a href="#/${esc(league.slug)}/teams/${esc(g.t1_team_id)}">${esc(g.t1_name)}</a></div>` : ''}
-                ${g.t1_players?.length ? `<div class="team-sub">${esc(g.t1_players.join(' · '))}</div>` : ''}
-              </td>
-              <td class="c">
-                <span class="score ${g.winner === 1 ? 'score-win' : g.winner === 2 ? 'score-loss' : ''}">${g.t1_score}</span>
-                <span class="muted"> – </span>
-                <span class="score ${g.winner === 2 ? 'score-win' : g.winner === 1 ? 'score-loss' : ''}">${g.t2_score}</span>
-              </td>
-              <td>
-                ${g.t2_team_id ? `<div class="team-cell"><a href="#/${esc(league.slug)}/teams/${esc(g.t2_team_id)}">${esc(g.t2_name)}</a></div>` : ''}
-                ${g.t2_players?.length ? `<div class="team-sub">${esc(g.t2_players.join(' · '))}</div>` : ''}
-              </td>
-            </tr>`).join('')}
-          </tbody>
-        </table>
-      </div>`).join('')}</div>`;
-    render(shell(leagueHeader(league, 'results') + body));
   });
+}
+
+function renderLadderWeeklyResults(league, slug, results, weekParam) {
+  const byWeek = new Map();
+  for (const r of results) {
+    if (!byWeek.has(r.week)) byWeek.set(r.week, []);
+    byWeek.get(r.week).push(r);
+  }
+  const weeks = [...byWeek.keys()].sort((a, b) => a - b);
+  const currentWeek = weekParam ? Number(weekParam) : weeks[weeks.length - 1];
+  const weekGames = byWeek.get(currentWeek) || [];
+
+  const weekNav = `<div class="week-subnav">${weeks.map(w =>
+    `<a class="week-link${w === currentWeek ? ' active' : ''}" href="#/${esc(slug)}/results/${w}">Week ${w}</a>`
+  ).join('')}</div>`;
+
+  // Weekly player standings computed from this week's games.
+  const playerStats = {};
+  weekGames.forEach(g => {
+    const t1won = Number(g.t1_score) > Number(g.t2_score);
+    (g.t1_players || []).forEach(name => {
+      if (!name) return;
+      if (!playerStats[name]) playerStats[name] = { name, wins: 0, losses: 0, points: 0 };
+      playerStats[name].points += Number(g.t1_score);
+      if (t1won) playerStats[name].wins++; else playerStats[name].losses++;
+    });
+    (g.t2_players || []).forEach(name => {
+      if (!name) return;
+      if (!playerStats[name]) playerStats[name] = { name, wins: 0, losses: 0, points: 0 };
+      playerStats[name].points += Number(g.t2_score);
+      if (!t1won) playerStats[name].wins++; else playerStats[name].losses++;
+    });
+  });
+  const sortedPlayers = Object.values(playerStats)
+    .sort((a, b) => b.wins - a.wins || b.points - a.points || a.name.localeCompare(b.name));
+
+  const standingsHtml = `<div class="panel">
+    <div class="panel-h"><h3>Week ${currentWeek} Standings</h3></div>
+    <table>
+      <thead><tr><th>#</th><th>Player</th><th class="r">W–L</th><th class="r">Pts</th></tr></thead>
+      <tbody>${sortedPlayers.map((p, i) => `<tr>
+        <td class="${rankCls(i + 1)}">${i + 1}</td>
+        <td>${esc(p.name)}</td>
+        <td class="r wl">${p.wins}–${p.losses}</td>
+        <td class="r num">${p.points}</td>
+      </tr>`).join('')}</tbody>
+    </table>
+  </div>`;
+
+  // Games grouped by half → group (already sorted by server).
+  const byHalf = new Map();
+  weekGames.forEach(g => {
+    const h = g.half || 1;
+    if (!byHalf.has(h)) byHalf.set(h, new Map());
+    const grp = g.group ?? 0;
+    if (!byHalf.get(h).has(grp)) byHalf.get(h).set(grp, []);
+    byHalf.get(h).get(grp).push(g);
+  });
+  const halvesHtml = [...byHalf.keys()].sort((a, b) => a - b).map(h => {
+    const groups = [...byHalf.get(h).keys()].sort((a, b) => a - b);
+    return groups.map(grp => {
+      const grpGames = byHalf.get(h).get(grp);
+      return `<div class="group-header">Half ${h} · Group ${grp}</div>
+        <table>
+          <thead><tr><th class="c">R</th><th>Team 1</th><th class="c">Score</th><th>Team 2</th></tr></thead>
+          <tbody>${grpGames.map(g => `<tr>
+            <td class="c muted">${g.round || '—'}</td>
+            <td class="team-sub">${esc((g.t1_players || []).join(' · '))}</td>
+            <td class="c">
+              <span class="score ${g.winner === 1 ? 'score-win' : 'score-loss'}">${g.t1_score}</span>
+              <span class="muted"> – </span>
+              <span class="score ${g.winner === 2 ? 'score-win' : 'score-loss'}">${g.t2_score}</span>
+            </td>
+            <td class="team-sub">${esc((g.t2_players || []).join(' · '))}</td>
+          </tr>`).join('')}</tbody>
+        </table>`;
+    }).join('');
+  }).join('');
+
+  const gamesHtml = `<div class="panel">
+    <div class="panel-h"><h3>Week ${currentWeek} Games</h3><span class="pill">${weekGames.length} game${weekGames.length === 1 ? '' : 's'}</span></div>
+    ${halvesHtml}
+  </div>`;
+
+  render(shell(leagueHeader(league, 'results') + weekNav +
+    `<div class="section"><div class="two-col">${standingsHtml}${gamesHtml}</div></div>`));
+}
+
+function renderPartnerResults(league, results) {
+  const byWeek = new Map();
+  for (const r of results) {
+    if (!byWeek.has(r.week)) byWeek.set(r.week, []);
+    byWeek.get(r.week).push(r);
+  }
+  const body = `<div class="section">${[...byWeek.entries()].map(([week, games]) => `
+    <div class="panel section-card">
+      <div class="panel-h">
+        <h3>Week ${week}${games[0]?.play_date ? ' · ' + shortDate(games[0].play_date) : ''}</h3>
+        <span class="pill">${games.length} game${games.length === 1 ? '' : 's'}</span>
+      </div>
+      <table>
+        <thead><tr><th class="c">R</th><th>Team 1</th><th class="c">Score</th><th>Team 2</th></tr></thead>
+        <tbody>${games.map(g => `<tr>
+          <td class="c muted">${g.round || '—'}</td>
+          <td>
+            <div class="team-cell"><a href="#/${esc(league.slug)}/teams/${esc(g.t1_team_id)}">${esc(g.t1_name)}</a></div>
+            ${g.t1_players?.length ? `<div class="team-sub">${esc(g.t1_players.join(' · '))}</div>` : ''}
+          </td>
+          <td class="c">
+            <span class="score ${g.winner === 1 ? 'score-win' : 'score-loss'}">${g.t1_score}</span>
+            <span class="muted"> – </span>
+            <span class="score ${g.winner === 2 ? 'score-win' : 'score-loss'}">${g.t2_score}</span>
+          </td>
+          <td>
+            <div class="team-cell"><a href="#/${esc(league.slug)}/teams/${esc(g.t2_team_id)}">${esc(g.t2_name)}</a></div>
+            ${g.t2_players?.length ? `<div class="team-sub">${esc(g.t2_players.join(' · '))}</div>` : ''}
+          </td>
+        </tr>`).join('')}</tbody>
+      </table>
+    </div>`).join('')}</div>`;
+  render(shell(leagueHeader(league, 'results') + body));
 }
 
 async function viewTeams(slug) {
@@ -622,7 +715,7 @@ function route() {
   if (parts.length === 0) return viewLeagues();
   const [slug, sub, tid] = parts;
   if (sub === 'schedule') return viewSchedule(slug);
-  if (sub === 'results')  return viewResults(slug);
+  if (sub === 'results')  return viewResults(slug, tid);
   if (sub === 'teams' && tid) return viewTeam(slug, tid);
   if (sub === 'teams') return viewTeams(slug);
   return viewStandings(slug);
