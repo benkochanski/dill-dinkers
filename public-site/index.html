@@ -379,9 +379,10 @@ async function viewStandings(slug) {
       const rows = standings.map(s => {
         const gp = s.games_played || 0;
         const maxPts = gp * 11;
-        const weekCells = weekNums.map(w => {
+        const weekCells = weekNums.map((w, i) => {
           const v = (s.weekly_rank || [])[weekNums.indexOf(w)];
-          return `<td class="r num">${v != null ? '#' + v : '<span class="muted">—</span>'}</td>`;
+          const sep = i === 0 ? ' style="border-left:2px solid var(--border)"' : '';
+          return `<td class="r num"${sep}>${v != null ? '#' + v : '<span class="muted">—</span>'}</td>`;
         }).join('');
         return `<tr>
           <td class="${rankCls(s.rank)}">${s.rank}</td>
@@ -400,15 +401,22 @@ async function viewStandings(slug) {
         </tr>`;
       }).join('');
       const weekHeaders = weekNums.map(w => `<th class="r">Wk ${w}</th>`).join('');
+      const weekColspan = weekNums.length;
       body = `<div class="section"><div style="overflow-x:auto"><div class="panel">
         <div class="panel-h"><h3>Season Standings</h3><span class="pill">Composite Score</span></div>
         <table>
-          <thead><tr>
-            <th>#</th><th>Player</th>
-            <th class="r">Wins</th><th class="r">W Bonus</th><th class="r">W%</th>
-            <th class="r">Points</th><th class="r">P Bonus</th><th class="r">P%</th>
-            <th class="r">Score</th>${weekHeaders}
-          </tr></thead>
+          <thead>
+            <tr>
+              <th colspan="9"></th>
+              ${weekColspan ? `<th colspan="${weekColspan}" class="r" style="border-left:2px solid var(--border);color:var(--orange)">Weekly Ranks</th>` : ''}
+            </tr>
+            <tr>
+              <th>#</th><th>Player</th>
+              <th class="r">Wins</th><th class="r">W Bonus</th><th class="r">W%</th>
+              <th class="r">Points</th><th class="r">P Bonus</th><th class="r">P%</th>
+              <th class="r">Score</th>${weekNums.map((w, i) => `<th class="r"${i === 0 ? ' style="border-left:2px solid var(--border)"' : ''}>Wk ${w}</th>`).join('')}
+            </tr>
+          </thead>
           <tbody>${rows}</tbody>
         </table>
       </div></div></div>`;
