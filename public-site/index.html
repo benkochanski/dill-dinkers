@@ -238,7 +238,7 @@ function shell(body) {
 
 function leagueHeader(league, currentTab) {
   const tabs = [
-    { name: 'Standings', tab: '' },
+    { name: 'Season Standings', tab: '' },
     ...(league.format_type === 'partner' ? [{ name: 'Schedule', tab: 'schedule' }] : []),
     { name: league.format_type === 'ladder' ? 'Weekly Results' : 'Match Results', tab: 'results' },
     ...(league.format_type === 'partner' ? [{ name: 'Teams', tab: 'teams' }] : [])
