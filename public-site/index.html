@@ -82,7 +82,8 @@
 
   table { width: 100%; border-collapse: collapse; }
   thead th { background: var(--bg-elev); color: var(--text-dim); font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; }
-  thead tr.title-row th { font-size: 13px; font-weight: 700; color: var(--orange); text-transform: none; letter-spacing: normal; padding: 12px 16px; }
+  thead tr.title-row th { font-size: 13px; font-weight: 700; color: var(--text); text-transform: none; letter-spacing: normal; padding: 12px 16px; }
+  thead tr.col-headers th { color: var(--orange); }
   thead th.r { text-align: right; }
   thead th.c { text-align: center; }
   tbody td { padding: 12px 14px; border-bottom: 1px solid var(--border-soft); font-size: 14px; vertical-align: middle; }
@@ -412,7 +413,7 @@ async function viewStandings(slug) {
               <th colspan="9">Season Standings</th>
               ${weekNums.length ? `<th colspan="${weekNums.length}" style="${sep}">Weekly Ranks</th>` : ''}
             </tr>
-            <tr>
+            <tr class="col-headers">
               <th>#</th><th>Player</th>
               <th class="r">Wins</th><th class="r">W Bonus</th><th class="r">W%</th>
               <th class="r">Points</th><th class="r">P Bonus</th><th class="r">P%</th>
