@@ -492,14 +492,16 @@ function weeklyPlayerStats(games) {
     const t1won = Number(g.t1_score) > Number(g.t2_score);
     (g.t1_players || []).forEach(name => {
       if (!name) return;
-      if (!playerStats[name]) playerStats[name] = { name, wins: 0, losses: 0, points: 0 };
+      if (!playerStats[name]) playerStats[name] = { name, wins: 0, losses: 0, points: 0, games_played: 0 };
       playerStats[name].points += Number(g.t1_score);
+      playerStats[name].games_played++;
       if (t1won) playerStats[name].wins++; else playerStats[name].losses++;
     });
     (g.t2_players || []).forEach(name => {
       if (!name) return;
-      if (!playerStats[name]) playerStats[name] = { name, wins: 0, losses: 0, points: 0 };
+      if (!playerStats[name]) playerStats[name] = { name, wins: 0, losses: 0, points: 0, games_played: 0 };
       playerStats[name].points += Number(g.t2_score);
+      playerStats[name].games_played++;
       if (!t1won) playerStats[name].wins++; else playerStats[name].losses++;
     });
   });
@@ -595,15 +597,32 @@ function renderLadderWeeklyResults(league, slug, results, weekParam) {
   const standingsHtml = `<div class="panel">
     <table>
       <thead>
-        <tr class="title-row"><th colspan="4">Week ${currentWeek} Standings</th></tr>
-        <tr class="col-headers"><th>#</th><th>Player</th><th class="r">W–L</th><th class="r">Pts</th></tr>
+        <tr class="title-row"><th colspan="9">Week ${currentWeek} Standings</th></tr>
+        <tr class="col-headers">
+          <th>#</th><th>Player</th>
+          <th class="r">Wins</th><th class="r">W Bonus</th><th class="r">W%</th>
+          <th class="r">Points</th><th class="r">P Bonus</th><th class="r">P%</th>
+          <th class="r">Score</th>
+        </tr>
       </thead>
-      <tbody>${sortedPlayers.map((p, i) => `<tr>
-        <td class="${rankCls(i + 1)}">${i + 1}</td>
-        <td>${esc(p.name)}</td>
-        <td class="r wl">${p.wins}–${p.losses}</td>
-        <td class="r num">${p.points}</td>
-      </tr>`).join('')}</tbody>
+      <tbody>${sortedPlayers.map((p, i) => {
+        const gp = p.games_played || 0;
+        const maxPts = gp * 11;
+        const winPct = gp ? p.wins / gp : 0;
+        const ptPct  = maxPts ? p.points / maxPts : 0;
+        const score  = (0.6 * winPct + 0.4 * ptPct) * 100;
+        return `<tr>
+          <td class="${rankCls(i + 1)}">${i + 1}</td>
+          <td>${esc(p.name)}</td>
+          <td class="r num">${p.wins} / ${gp}</td>
+          <td class="r num">0.00</td>
+          <td class="r num">${(winPct * 100).toFixed(1)}%</td>
+          <td class="r num">${p.points} / ${maxPts}</td>
+          <td class="r num">0.00</td>
+          <td class="r num">${(ptPct * 100).toFixed(1)}%</td>
+          <td class="r" style="color:var(--orange);font-weight:800">${score.toFixed(1)}</td>
+        </tr>`;
+      }).join('')}</tbody>
     </table>
   </div>`;
 
