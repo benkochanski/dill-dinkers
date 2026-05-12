@@ -593,9 +593,11 @@ function renderLadderWeeklyResults(league, slug, results, weekParam) {
 
   const sortedPlayers = weeklyPlayerStats(weekGames);
   const standingsHtml = `<div class="panel">
-    <div class="panel-h"><h3>Week ${currentWeek} Standings</h3></div>
     <table>
-      <thead><tr><th>#</th><th>Player</th><th class="r">W–L</th><th class="r">Pts</th></tr></thead>
+      <thead>
+        <tr class="title-row"><th colspan="4">Week ${currentWeek} Standings</th></tr>
+        <tr class="col-headers"><th>#</th><th>Player</th><th class="r">W–L</th><th class="r">Pts</th></tr>
+      </thead>
       <tbody>${sortedPlayers.map((p, i) => `<tr>
         <td class="${rankCls(i + 1)}">${i + 1}</td>
         <td>${esc(p.name)}</td>
