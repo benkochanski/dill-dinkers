@@ -141,6 +141,7 @@
 
   .week-subnav { display: flex; gap: 8px; flex-wrap: wrap; padding: 16px 24px 0; max-width: 1280px; margin: 0 auto; }
   .date-pill { display: inline-block; font-size: 11px; font-weight: 700; color: var(--text-muted); background: var(--bg-elev); border: 1px solid var(--border); border-radius: 3px; padding: 1px 5px; margin: 0 1px; }
+  .date-pill.active { color: var(--orange); border-color: var(--orange); background: var(--orange-soft); }
   .week-link { padding: 6px 14px; border-radius: 4px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); background: var(--card); border: 1px solid var(--border); text-decoration: none; transition: all 0.12s; }
   .week-link:hover { color: var(--text); border-color: var(--orange); }
   .week-link.active { color: var(--orange); border-color: var(--orange); background: var(--orange-soft); }
@@ -253,7 +254,7 @@ function leagueHeader(league, currentTab) {
       <div class="meta-row">
         <span><span class="label">Format</span> <span class="badge ${league.format_type}">${league.format_type}</span></span>
         ${league.level ? `<span><span class="label">Level</span> ${esc(league.level)}</span>` : ''}
-        ${when ? `<span><span class="label">Schedule</span> ${esc(when)}${league.session_dates && league.session_dates.length ? ' &nbsp;·&nbsp; ' + league.session_dates.map(d => `<span class="date-pill">${esc(d)}</span>`).join(' ') : ''}</span>` : ''}
+        ${when ? `<span><span class="label">Schedule</span> ${esc(when)}${league.session_dates && league.session_dates.length ? ' &nbsp;·&nbsp; ' + league.session_dates.map(d => `<span class="date-pill${d.week === league.current_week ? ' active' : ''}">${esc(d.date)}</span>`).join(' ') : ''}</span>` : ''}
         ${league.season_label ? `<span><span class="label">Season</span> ${esc(league.season_label)}</span>` : ''}
         ${league.current_week && league.weeks_count ? `<span><span class="label">Week</span> ${league.current_week} of ${league.weeks_count}</span>` : ''}
       </div>
@@ -383,7 +384,7 @@ async function viewStandings(slug) {
         const sep = weekNums.length ? ' style="border-left:2px solid var(--orange-dim)"' : '';
         const weekCells = weekNums.map((w, i) => {
           const v = (s.weekly_rank || [])[weekNums.indexOf(w)];
-          return `<td class="r num"${i === 0 ? sep : ''}>${v != null ? '#' + v : '<span class="muted">—</span>'}</td>`;
+          return `<td class="r num"${i === 0 ? sep : ''}>${v != null ? v : '<span class="muted">—</span>'}</td>`;
         }).join('');
         return `<tr>
           <td class="${rankCls(s.rank)}">${s.rank}</td>
@@ -401,25 +402,21 @@ async function viewStandings(slug) {
           ${weekCells}
         </tr>`;
       }).join('');
-      const wkColspan = weekNums.length;
       const sep = `border-left:2px solid var(--orange-dim)`;
       const wkW = `min-width:56px;width:56px`;
       body = `<div class="section"><div style="overflow-x:auto"><div class="panel">
-        <div class="panel-h"><h3>Season Standings</h3></div>
+        <div class="panel-h">
+          <h3>Season Standings</h3>
+          ${weekNums.length ? `<h3 style="${sep};padding-left:16px;margin-left:auto">Weekly Ranks</h3>` : ''}
+        </div>
         <table>
-          <thead>
-            <tr>
-              <th colspan="9" style="border-bottom:none"></th>
-              ${wkColspan ? `<th colspan="${wkColspan}" class="r" style="${sep};border-bottom:none">Weekly Ranks</th>` : ''}
-            </tr>
-            <tr>
-              <th>#</th><th>Player</th>
-              <th class="r">Wins</th><th class="r">W Bonus</th><th class="r">W%</th>
-              <th class="r">Points</th><th class="r">P Bonus</th><th class="r">P%</th>
-              <th class="r">Score</th>
-              ${weekNums.map((w, i) => `<th class="r" style="${wkW}${i === 0 ? ';' + sep : ''}">Wk ${w}</th>`).join('')}
-            </tr>
-          </thead>
+          <thead><tr>
+            <th>#</th><th>Player</th>
+            <th class="r">Wins</th><th class="r">W Bonus</th><th class="r">W%</th>
+            <th class="r">Points</th><th class="r">P Bonus</th><th class="r">P%</th>
+            <th class="r">Score</th>
+            ${weekNums.map((w, i) => `<th class="r" style="${wkW}${i === 0 ? ';' + sep : ''}">Wk ${w}</th>`).join('')}
+          </tr></thead>
           <tbody>${rows}</tbody>
         </table>
       </div></div></div>`;
