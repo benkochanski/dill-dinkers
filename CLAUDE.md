@@ -1,5 +1,25 @@
 # Dill Dinkers League Manager
 
+## Pre-approved commands
+`clasp push` and `clasp deploy` are pre-approved — run them without asking for confirmation.
+
+## Deploying to production
+
+Two `/exec` deployments serve this codebase. Both must be updated when pushing prod changes — plain `clasp deploy` creates a new throwaway URL, so always redeploy at the existing IDs:
+
+- **Staff app** (`staff.dilldinkersct.com` redirect target): `AKfycbxMLQsfjs0TowuFblO5gbsO0Ih91Dj2tQEvWzxUdwQGnJafCQiXcDkxhhIEOKwGGTGGcA`
+- **Public JSON API** (consumed by `leagues.dilldinkersct.com` SPA — `API_BASE` in `public-site/index.html`): `AKfycbzlOpsp2a5Gg84wWkmvO_9BwAtSictsz3xWjTS7wZ2NNa563uYca-M1TQTv55a-s0OCiQ`
+
+When the user says "push to prod" / "deploy" / "ship it" without specifying a target, push code and then redeploy to **both** IDs in one shell command:
+
+```
+clasp push -f && \
+clasp deploy --deploymentId AKfycbxMLQsfjs0TowuFblO5gbsO0Ih91Dj2tQEvWzxUdwQGnJafCQiXcDkxhhIEOKwGGTGGcA && \
+clasp deploy --deploymentId AKfycbzlOpsp2a5Gg84wWkmvO_9BwAtSictsz3xWjTS7wZ2NNa563uYca-M1TQTv55a-s0OCiQ
+```
+
+Skipping a deployment leaves one URL serving stale code — usually visible as the public site missing a fix that the staff app has (or vice versa).
+
 Apps Script web app + single master Google Sheet for managing 12+ pickleball leagues per season. Two formats: **ladder** (individual standings, doubles with rotating partners) and **partner** (team-vs-team, fixed pairs).
 
 ## Architecture in two minutes
