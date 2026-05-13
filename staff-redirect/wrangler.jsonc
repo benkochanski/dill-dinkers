@@ -1,0 +1,6 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "dill-dinkers-staff-redirect",
+  "main": "index.js",
+  "compatibility_date": "2026-05-06"
+}
