@@ -621,7 +621,7 @@ function renderLadderWeeklyResults(league, slug, results, weekParam) {
         </tr>`;
       }).join('')}</tbody>
     </table>
-    ${anySubs ? '<div style="padding:10px 14px;font-size:12px;color:var(--text-muted);border-top:1px solid var(--border-soft)"><span style="color:var(--orange)">*</span> Substitute — not on the league roster for this week.</div>' : ''}
+    ${anySubs ? '<div style="padding:10px 14px;font-size:12px;color:var(--text-muted);border-top:1px solid var(--border-soft)"><span style="color:var(--orange)">*</span> Substitute — not included in season standings.</div>' : ''}
   </div>`;
 
   const gamesHtml = `<div class="panel" style="flex:1 1 0;min-width:0;overflow-x:auto">
