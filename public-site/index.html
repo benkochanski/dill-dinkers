@@ -626,13 +626,13 @@ function renderLadderWeeklyResults(league, slug, results, weekParam) {
     </table>
   </div>`;
 
-  const gamesHtml = `<div class="panel">
+  const gamesHtml = `<div class="panel" style="max-width:720px;margin:0 auto">
     <div class="panel-h"><h3>Week ${currentWeek} Games</h3><span class="pill">${weekGames.length} game${weekGames.length === 1 ? '' : 's'}</span></div>
     ${halvesHtml}
   </div>`;
 
   render(shell(leagueHeader(league, 'results') + weekNav +
-    `<div class="section"><div class="two-col">${standingsHtml}${gamesHtml}</div></div>`));
+    `<div class="section">${standingsHtml}<div style="margin-top:16px">${gamesHtml}</div></div>`));
 }
 
 function renderPartnerResults(league, results) {

@@ -2,6 +2,6 @@ const STAFF_URL = 'https://script.google.com/macros/s/AKfycbxMLQsfjs0TowuFblO5gb
 
 export default {
   async fetch(request) {
-    return Response.redirect(STAFF_URL, 301);
+    return Response.redirect(STAFF_URL, 302);
   },
 };

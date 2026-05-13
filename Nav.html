@@ -4,6 +4,7 @@
   <a data-page="admin">Admin</a>
   <a data-page="operator">Operator</a>
   <a data-page="display">Display</a>
+  <a id="logoutLink" style="margin-left:auto;color:var(--text-muted);cursor:pointer">Sign out</a>
 </nav>
 <style>
   .page-nav {
@@ -35,37 +36,58 @@
 </style>
 <script>
   (function () {
-    // Highlight the current page immediately.
-    var NAV_PAGE = new URLSearchParams(window.location.search).get('page') || 'home';
+    var URL_PARAMS = new URLSearchParams(window.location.search);
+    var NAV_PAGE = URL_PARAMS.get('page') || 'home';
+    var STAFF_TOKEN = URL_PARAMS.get('t') || '';
+
+    // Persist the token so it survives navigation between pages.
+    if (STAFF_TOKEN) {
+      try { localStorage.setItem('dd_staff_token', STAFF_TOKEN); } catch (e) {}
+    } else {
+      try { STAFF_TOKEN = localStorage.getItem('dd_staff_token') || ''; } catch (e) {}
+    }
+    // Expose for inline page scripts that need to pass it (e.g. logout).
+    window.STAFF_TOKEN = STAFF_TOKEN;
+
     document.querySelectorAll('.page-nav [data-page]').forEach(function (a) {
       if (a.getAttribute('data-page') === NAV_PAGE) a.classList.add('active');
     });
 
     // HtmlService sandboxes pages in a googleusercontent.com iframe. Relative
     // ?page= hrefs navigate the inner iframe rather than the outer
-    // script.google.com window, producing a blank screen. We need the outer
-    // page's URL so we can drive `window.top.location.href` to the right
-    // /dev or /exec deployment.
-    //
-    // The iframe's `document.referrer` IS the top frame's URL (set by Apps
-    // Script when it loads us), so we can derive the deployment URL purely
-    // client-side. This stays correct whether the user is on /dev or /exec —
-    // no server call, no localStorage cache that can drift.
+    // script.google.com window. Derive the outer URL from referrer.
     function _wireNav(appUrl) {
       document.querySelectorAll('.page-nav [data-page]').forEach(function (a) {
         var pg = a.getAttribute('data-page');
         a.addEventListener('click', function (e) {
           e.preventDefault();
-          window.top.location.href = appUrl + '?page=' + pg;
+          var url = appUrl + '?page=' + pg;
+          // Public pages don't need the token; staff pages do.
+          if (pg !== 'standings' && STAFF_TOKEN) url += '&t=' + encodeURIComponent(STAFF_TOKEN);
+          window.top.location.href = url;
         });
       });
+      var logout = document.getElementById('logoutLink');
+      if (logout) {
+        logout.addEventListener('click', function (e) {
+          e.preventDefault();
+          try { localStorage.removeItem('dd_staff_token'); } catch (err) {}
+          if (typeof google !== 'undefined' && google.script && google.script.run && STAFF_TOKEN) {
+            google.script.run
+              .withSuccessHandler(function () { window.top.location.href = appUrl; })
+              .withFailureHandler(function () { window.top.location.href = appUrl; })
+              .api_logout(STAFF_TOKEN);
+          } else {
+            window.top.location.href = appUrl;
+          }
+        });
+      }
     }
     var ref = document.referrer || '';
     var m = ref.match(/^(.+\/macros\/(?:s\/[^/]+|[^/]+)\/(?:dev|exec))/);
     if (m && m[1]) {
       _wireNav(m[1]);
     } else if (typeof google !== 'undefined' && google.script && google.script.run) {
-      // Fallback if referrer is missing for some reason — ask the server.
       google.script.run.withSuccessHandler(_wireNav).getAppUrl();
     }
   }());

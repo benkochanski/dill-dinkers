@@ -108,10 +108,13 @@ function computeLadderStandings_(league_id) {
     return s;
   });
 
-  // Drop any "rostered but never played" rows so we match the reference
-  // sheet (only ranked players appear).
-  const ranked = out.filter(s => s.games_played > 0);
-  ranked.sort((a, b) => b.score - a.score);
+  // Sort by score desc, then alphabetically by name so unplayed players
+  // (score 0) land at the bottom in a stable, predictable order.
+  const ranked = out.slice();
+  ranked.sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score;
+    return String(a.full_name).localeCompare(String(b.full_name));
+  });
   ranked.forEach((s, i) => { s.rank = i + 1; });
   return ranked;
 }

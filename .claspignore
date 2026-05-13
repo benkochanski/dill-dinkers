@@ -11,6 +11,8 @@
 **/.DS_Store
 # Public site (SvelteKit on Cloudflare Pages) — not Apps Script code
 public-site/**
+# Staff redirect Cloudflare Worker — not Apps Script code
+staff-redirect/**
 # Design mockups
 mockups/**
 # Logo source folder + any zips

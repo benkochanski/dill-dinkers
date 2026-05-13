@@ -7,10 +7,11 @@
 function doGet(e) {
   const params = (e && e.parameter) || {};
   const page = (params.page || 'home').toLowerCase();
-  // JSON endpoint for the public site (leagues.dilldinkersct.com). No auth —
-  // ContentService responses include CORS headers when deployed as
-  // "Anyone (even anonymous) can access".
+  // Public, no-auth endpoints.
   if (page === 'json') return renderJson_(params);
+  if (page === 'standings') return renderStandings_(getCurrentUser_(), params);
+  // Everything else is staff-only — password gate.
+  if (!isStaffTokenValid_(params.t)) return renderLogin_(params);
   const user = getCurrentUser_();
   switch (page) {
     case 'home':      return renderHome_(user);
@@ -18,11 +19,29 @@ function doGet(e) {
     case 'league':    return renderLeagueAdmin_(user, params);
     case 'operator':  return renderOperator_(user, params);
     case 'display':   return renderDisplay_(user, params);
-    case 'standings': return renderStandings_(user, params);
     case 'player':    return renderPlayer_(user, params);
     default:          return htmlError_('Unknown page: ' + page);
   }
 }
+
+function renderLogin_(params, errorMessage) {
+  const t = HtmlService.createTemplateFromFile('Login');
+  t.appName = CONFIG.APP_NAME;
+  t.returnPage = (params.page || 'home').toLowerCase();
+  const passthrough = {};
+  Object.keys(params).forEach(k => {
+    if (k !== 't' && k !== 'page' && k !== 'password' && k !== 'action' && k !== 'return_page' && k !== 'return_params') {
+      passthrough[k] = params[k];
+    }
+  });
+  t.returnParams = JSON.stringify(passthrough);
+  t.errorMessage = errorMessage || '';
+  t.appUrl = ScriptApp.getService().getUrl();
+  return t.evaluate()
+    .setTitle(CONFIG.APP_NAME + ' — Sign In')
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+}
+
 
 function renderJson_(params) {
   let body;

@@ -9,6 +9,16 @@
  * Players.js, Games.js, Standings.js. This file is the trust boundary.
  */
 
+/* ----- Staff password gate ----- */
+
+function api_login(password) {
+  return wrap_(() => staffLogin_(password));
+}
+
+function api_logout(token) {
+  return wrap_(() => staffLogout_(token));
+}
+
 function api_listLeagues() {
   return wrap_(() => {
     const user = getCurrentUser_();
@@ -175,6 +185,81 @@ function api_populateLeagueScheduleFromAttendance(league_id) {
     const user = getCurrentUser_();
     requireRole_(user, ['admin'], league_id);
     return populateLeagueScheduleFromAttendance_(league_id);
+  });
+}
+
+/**
+ * Sync League_Schedule weeks from CR_Attendance for ALL active ladder leagues.
+ * Safe to call repeatedly — idempotent per league.
+ * Returns { synced: [{ league_id, name, added, total }], errors: [...] }
+ */
+function api_syncAllLeagueWeeksFromAttendance() {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin']);
+    return syncAllLeagueWeeks_();
+  });
+}
+
+/**
+ * Server-side bulk sync — also called by the daily time trigger.
+ */
+function syncAllLeagueWeeks_() {
+  const leagues = getObjects_('Leagues').filter(
+    l => l.format_type === 'ladder' && l.status === 'active'
+  );
+  const synced = [];
+  const errors = [];
+  leagues.forEach(l => {
+    try {
+      const r = populateLeagueScheduleFromAttendance_(l.league_id);
+      synced.push({ league_id: l.league_id, name: l.name, added: r.added, total: r.existing_weeks + r.added });
+    } catch (e) {
+      errors.push({ league_id: l.league_id, name: l.name, error: String(e.message || e) });
+    }
+  });
+  return { synced, errors };
+}
+
+
+/**
+ * Add a single week with a specific play_date to League_Schedule.
+ * Idempotent — if that date already exists, returns added:0.
+ * Returns { added, week_number, total }.
+ */
+function api_addLeagueWeek(league_id, play_date) {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin'], league_id);
+    if (!play_date) throw new Error('play_date is required');
+    const dateStr = String(play_date).slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) throw new Error('Invalid date: ' + play_date);
+
+    const existing = getObjects_('League_Schedule').filter(s => s.league_id === league_id);
+    // Check for duplicate date.
+    const alreadyHas = existing.some(s => {
+      const d = s.play_date instanceof Date
+        ? Utilities.formatDate(s.play_date, CONFIG.TIMEZONE, 'yyyy-MM-dd')
+        : String(s.play_date || '').slice(0, 10);
+      return d === dateStr;
+    });
+    if (alreadyHas) return { added: 0, week_number: null, total: existing.length };
+
+    const weekNumber = existing.length + 1;
+    const row = {
+      schedule_id: makeId_('schedule'),
+      league_id:   league_id,
+      week_number: weekNumber,
+      week_starts: '',
+      week_ends:   '',
+      play_date:   dateStr,
+      skip_week:   false,
+      notes:       'manual',
+    };
+    appendObjects_('League_Schedule', [row]);
+    cacheBust_('league:' + league_id + ':full');
+    audit_('league_schedule_add_week', 'league', league_id, null, { week_number: weekNumber, play_date: dateStr });
+    return { added: 1, week_number: weekNumber, total: existing.length + 1 };
   });
 }
 
@@ -413,7 +498,16 @@ function api_setupSession(league_id, week_number, half, attending_player_ids, co
   return wrap_(() => {
     const user = getCurrentUser_();
     requireRole_(user, ['admin', 'operator'], league_id);
-    return setupSession_(league_id, week_number, half, attending_player_ids, court_numbers);
+    const result = setupSession_(league_id, week_number, half, attending_player_ids, court_numbers);
+    // Count how many completed games were already present (preserved by the data layer).
+    const halfNum = normalizeHalf_(half);
+    result.completed_games_preserved = getObjects_('Games').filter(g =>
+      g.league_id === league_id &&
+      Number(g.week_number) === Number(week_number) &&
+      normalizeHalf_(g.half) === halfNum &&
+      g.status === 'complete'
+    ).length;
+    return result;
   });
 }
 
@@ -430,8 +524,16 @@ function api_clearSession(league_id, week_number, half) {
     const user = getCurrentUser_();
     requireRole_(user, ['admin', 'operator'], league_id);
     // half null => clears both halves of the week.
+    // Completed games are preserved by the data layer regardless.
     clearSessionGroups_(league_id, week_number, half == null ? null : half);
-    return { cleared: true };
+    const halfNum = half == null ? null : normalizeHalf_(half);
+    const preserved = getObjects_('Games').filter(g => {
+      if (g.league_id !== league_id) return false;
+      if (Number(g.week_number) !== Number(week_number)) return false;
+      if (halfNum != null && normalizeHalf_(g.half) !== halfNum) return false;
+      return g.status === 'complete';
+    }).length;
+    return { cleared: true, completed_games_preserved: preserved };
   });
 }
 
@@ -453,7 +555,23 @@ function api_saveLadderSessionGame(input) {
   return wrap_(() => {
     const user = getCurrentUser_();
     requireRole_(user, ['admin', 'operator'], input && input.league_id);
-    return saveLadderSessionGame_(input);
+    const game = saveLadderSessionGame_(input);
+    const session = getSession_(input.league_id, input.week_number, input.half, input.court_numbers || []);
+    const standings = recomputeStandings_(input.league_id);
+    return { game, session, standings };
+  });
+}
+
+function api_resetLadderGame(game_id, court_numbers) {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    const game = getObjects_('Games').find(x => x.game_id === game_id);
+    if (!game) throw new Error('Game not found');
+    requireRole_(user, ['admin', 'operator'], game.league_id);
+    voidGame_(game_id, 'operator reset');
+    const session = getSession_(game.league_id, game.week_number, game.half, court_numbers || []);
+    const standings = recomputeStandings_(game.league_id);
+    return { session, standings };
   });
 }
 
@@ -963,6 +1081,14 @@ function api_exportCsv(league_id, kind, opts) {
                   Utilities.formatDate(new Date(), CONFIG.TIMEZONE, 'yyyyMMdd_HHmmss') +
                   '.csv';
     return { filename: fname, csv: csv };
+  });
+}
+
+function api_duprDebug(league_id, week_number) {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin'], league_id);
+    return duprDebug_(league_id, Number(week_number) || null);
   });
 }
 
