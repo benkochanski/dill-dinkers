@@ -488,22 +488,18 @@ async function viewResults(slug, weekParam) {
 
 function weeklyPlayerStats(games) {
   const playerStats = {};
+  function bump(name, isSub, score, won) {
+    if (!name) return;
+    if (!playerStats[name]) playerStats[name] = { name, wins: 0, losses: 0, points: 0, games_played: 0, is_sub: false };
+    playerStats[name].points += Number(score);
+    playerStats[name].games_played++;
+    if (won) playerStats[name].wins++; else playerStats[name].losses++;
+    if (isSub) playerStats[name].is_sub = true;
+  }
   games.forEach(g => {
     const t1won = Number(g.t1_score) > Number(g.t2_score);
-    (g.t1_players || []).forEach(name => {
-      if (!name) return;
-      if (!playerStats[name]) playerStats[name] = { name, wins: 0, losses: 0, points: 0, games_played: 0 };
-      playerStats[name].points += Number(g.t1_score);
-      playerStats[name].games_played++;
-      if (t1won) playerStats[name].wins++; else playerStats[name].losses++;
-    });
-    (g.t2_players || []).forEach(name => {
-      if (!name) return;
-      if (!playerStats[name]) playerStats[name] = { name, wins: 0, losses: 0, points: 0, games_played: 0 };
-      playerStats[name].points += Number(g.t2_score);
-      playerStats[name].games_played++;
-      if (!t1won) playerStats[name].wins++; else playerStats[name].losses++;
-    });
+    (g.t1_players || []).forEach((name, i) => bump(name, (g.t1_player_subs || [])[i], g.t1_score, t1won));
+    (g.t2_players || []).forEach((name, i) => bump(name, (g.t2_player_subs || [])[i], g.t2_score, !t1won));
   });
   return Object.values(playerStats).sort((a, b) => b.wins - a.wins || b.points - a.points || a.name.localeCompare(b.name));
 }
@@ -594,6 +590,7 @@ function renderLadderWeeklyResults(league, slug, results, weekParam) {
   }).join('');
 
   const sortedPlayers = weeklyPlayerStats(weekGames);
+  const anySubs = sortedPlayers.some(p => p.is_sub);
   const standingsHtml = `<div class="panel" style="flex:0 0 auto">
     <table style="width:auto">
       <thead>
@@ -613,7 +610,7 @@ function renderLadderWeeklyResults(league, slug, results, weekParam) {
         const score  = (0.6 * winPct + 0.4 * ptPct) * 100;
         return `<tr>
           <td class="${rankCls(i + 1)}">${i + 1}</td>
-          <td>${esc(p.name)}</td>
+          <td>${esc(p.name)}${p.is_sub ? '<span style="color:var(--orange)" title="Substitute">*</span>' : ''}</td>
           <td class="r num">${p.wins} / ${gp}</td>
           <td class="r num">0.00</td>
           <td class="r num">${(winPct * 100).toFixed(1)}%</td>
@@ -624,6 +621,7 @@ function renderLadderWeeklyResults(league, slug, results, weekParam) {
         </tr>`;
       }).join('')}</tbody>
     </table>
+    ${anySubs ? '<div style="padding:10px 14px;font-size:12px;color:var(--text-muted);border-top:1px solid var(--border-soft)"><span style="color:var(--orange)">*</span> Substitute — not on the league roster for this week.</div>' : ''}
   </div>`;
 
   const gamesHtml = `<div class="panel" style="flex:1 1 0;min-width:0;overflow-x:auto">
