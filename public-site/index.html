@@ -454,9 +454,9 @@ async function viewSchedule(slug) {
                 <td class="c muted">${m.court ?? '—'}</td>
                 <td class="team-cell">${m.t1_team_id ? `<a href="#/${esc(league.slug)}/teams/${esc(m.t1_team_id)}">${esc(m.t1_name)}</a>` : esc(m.t1_name)}</td>
                 <td class="c">${m.played ? `
-                  <span class="score ${m.t1_score > m.t2_score ? 'score-win' : m.t1_score < m.t2_score ? 'score-loss' : ''}">${m.t1_score}</span>
+                  <span class="score ${m.winner === 1 ? 'score-win' : m.winner === 2 ? 'score-loss' : ''}">${m.t1_score}</span>
                   <span class="muted"> – </span>
-                  <span class="score ${m.t2_score > m.t1_score ? 'score-win' : m.t2_score < m.t1_score ? 'score-loss' : ''}">${m.t2_score}</span>
+                  <span class="score ${m.winner === 2 ? 'score-win' : m.winner === 1 ? 'score-loss' : ''}">${m.t2_score}</span>
                 ` : `<span class="pill-badge scheduled">Scheduled</span>`}</td>
                 <td class="team-cell">${m.t2_team_id ? `<a href="#/${esc(league.slug)}/teams/${esc(m.t2_team_id)}">${esc(m.t2_name)}</a>` : esc(m.t2_name)}</td>
               </tr>`).join('')}
@@ -479,29 +479,54 @@ async function viewResults(slug, weekParam) {
       return render(shell(leagueHeader(league, 'results') + `<div class="section"><div class="empty">No completed games yet.</div></div>`));
     }
     if (league.format_type === 'ladder') {
-      renderLadderWeeklyResults(league, slug, results, weekParam);
+      renderLadderWeeklyResults(league, slug, results, weekParam, data.bonus_config, data.bonus_starts_week);
     } else {
       renderPartnerResults(league, results);
     }
   });
 }
 
-function weeklyPlayerStats(games) {
+function weeklyPlayerStats(games, bonusCfg, bonusStartsWeek) {
+  const cfg = bonusCfg || {};
+  const startsWeek = Number(bonusStartsWeek) || 3;
   const playerStats = {};
-  function bump(name, isSub, score, won) {
+  function bump(name, isSub, score, won, group, week) {
     if (!name) return;
-    if (!playerStats[name]) playerStats[name] = { name, wins: 0, losses: 0, points: 0, games_played: 0, is_sub: false };
-    playerStats[name].points += Number(score);
-    playerStats[name].games_played++;
-    if (won) playerStats[name].wins++; else playerStats[name].losses++;
-    if (isSub) playerStats[name].is_sub = true;
+    if (!playerStats[name]) {
+      playerStats[name] = { name, wins: 0, losses: 0, points: 0, games_played: 0,
+                            w_bonus: 0, p_bonus: 0, is_sub: false };
+    }
+    const s = playerStats[name];
+    s.points += Number(score);
+    s.games_played++;
+    if (won) s.wins++; else s.losses++;
+    if (isSub) s.is_sub = true;
+    // Bonus accrues from bonus_starts_week onward, scaled by group multiplier.
+    if (Number(week) >= startsWeek && group != null) {
+      const c = cfg[String(group)];
+      if (c) {
+        s.p_bonus += Number(c.p_multiplier_per_game) || 0;
+        if (won) s.w_bonus += Number(c.w_multiplier_per_win) || 0;
+      }
+    }
   }
   games.forEach(g => {
     const t1won = Number(g.t1_score) > Number(g.t2_score);
-    (g.t1_players || []).forEach((name, i) => bump(name, (g.t1_player_subs || [])[i], g.t1_score, t1won));
-    (g.t2_players || []).forEach((name, i) => bump(name, (g.t2_player_subs || [])[i], g.t2_score, !t1won));
+    (g.t1_players || []).forEach((name, i) =>
+      bump(name, (g.t1_player_subs || [])[i], g.t1_score, t1won, g.group, g.week));
+    (g.t2_players || []).forEach((name, i) =>
+      bump(name, (g.t2_player_subs || [])[i], g.t2_score, !t1won, g.group, g.week));
   });
-  return Object.values(playerStats).sort((a, b) => b.wins - a.wins || b.points - a.points || a.name.localeCompare(b.name));
+  // Sort by bonus-adjusted score so the weekly table order matches the math.
+  return Object.values(playerStats).map(p => {
+    const gp = p.games_played || 0;
+    const maxPts = gp * 11;
+    p.win_pct   = gp ? (p.wins   + p.w_bonus) / gp : 0;
+    p.point_pct = maxPts ? (p.points + p.p_bonus) / maxPts : 0;
+    p.score     = (0.6 * p.win_pct + 0.4 * p.point_pct) * 100;
+    return p;
+  }).sort((a, b) =>
+    b.score - a.score || b.wins - a.wins || b.points - a.points || a.name.localeCompare(b.name));
 }
 
 async function viewWeeklyStandings(slug, weekParam) {
@@ -545,7 +570,7 @@ async function viewWeeklyStandings(slug, weekParam) {
   });
 }
 
-function renderLadderWeeklyResults(league, slug, results, weekParam) {
+function renderLadderWeeklyResults(league, slug, results, weekParam, bonusCfg, bonusStartsWeek) {
   const byWeek = new Map();
   for (const r of results) {
     if (!byWeek.has(r.week)) byWeek.set(r.week, []);
@@ -589,7 +614,7 @@ function renderLadderWeeklyResults(league, slug, results, weekParam) {
     }).join('');
   }).join('');
 
-  const sortedPlayers = weeklyPlayerStats(weekGames);
+  const sortedPlayers = weeklyPlayerStats(weekGames, bonusCfg, bonusStartsWeek);
   const anySubs = sortedPlayers.some(p => p.is_sub);
   const standingsHtml = `<div class="panel" style="flex:0 0 auto">
     <table style="width:auto">
@@ -605,19 +630,16 @@ function renderLadderWeeklyResults(league, slug, results, weekParam) {
       <tbody>${sortedPlayers.map((p, i) => {
         const gp = p.games_played || 0;
         const maxPts = gp * 11;
-        const winPct = gp ? p.wins / gp : 0;
-        const ptPct  = maxPts ? p.points / maxPts : 0;
-        const score  = (0.6 * winPct + 0.4 * ptPct) * 100;
         return `<tr>
           <td class="${rankCls(i + 1)}">${i + 1}</td>
           <td>${esc(p.name)}${p.is_sub ? '<span style="color:var(--orange)" title="Substitute">*</span>' : ''}</td>
           <td class="r num">${p.wins} / ${gp}</td>
-          <td class="r num">0.00</td>
-          <td class="r num">${(winPct * 100).toFixed(1)}%</td>
+          <td class="r num">${(p.w_bonus || 0).toFixed(2)}</td>
+          <td class="r num">${(p.win_pct * 100).toFixed(1)}%</td>
           <td class="r num">${p.points} / ${maxPts}</td>
-          <td class="r num">0.00</td>
-          <td class="r num">${(ptPct * 100).toFixed(1)}%</td>
-          <td class="r" style="color:var(--orange);font-weight:800">${score.toFixed(1)}</td>
+          <td class="r num">${(p.p_bonus || 0).toFixed(2)}</td>
+          <td class="r num">${(p.point_pct * 100).toFixed(1)}%</td>
+          <td class="r" style="color:var(--orange);font-weight:800">${p.score.toFixed(1)}</td>
         </tr>`;
       }).join('')}</tbody>
     </table>
@@ -647,11 +669,15 @@ function renderPartnerResults(league, results) {
       </div>
       <table>
         <thead><tr><th class="c">R</th><th>Team 1</th><th class="c">Score</th><th>Team 2</th></tr></thead>
-        <tbody>${games.map(g => `<tr>
+        <tbody>${games.map(g => {
+          const playerLine = (names, subs) => (names || []).map((n, i) =>
+            esc(n) + ((subs || [])[i] ? '<span style="color:var(--orange)" title="Substitute">*</span>' : '')
+          ).join(' · ');
+          return `<tr>
           <td class="c muted">${g.round || '—'}</td>
           <td>
             <div class="team-cell"><a href="#/${esc(league.slug)}/teams/${esc(g.t1_team_id)}">${esc(g.t1_name)}</a></div>
-            ${g.t1_players?.length ? `<div class="team-sub">${esc(g.t1_players.join(' · '))}</div>` : ''}
+            ${g.t1_players?.length ? `<div class="team-sub">${playerLine(g.t1_players, g.t1_player_subs)}</div>` : ''}
           </td>
           <td class="c">
             <span class="score ${g.winner === 1 ? 'score-win' : 'score-loss'}">${g.t1_score}</span>
@@ -660,12 +686,19 @@ function renderPartnerResults(league, results) {
           </td>
           <td>
             <div class="team-cell"><a href="#/${esc(league.slug)}/teams/${esc(g.t2_team_id)}">${esc(g.t2_name)}</a></div>
-            ${g.t2_players?.length ? `<div class="team-sub">${esc(g.t2_players.join(' · '))}</div>` : ''}
+            ${g.t2_players?.length ? `<div class="team-sub">${playerLine(g.t2_players, g.t2_player_subs)}</div>` : ''}
           </td>
-        </tr>`).join('')}</tbody>
+        </tr>`;
+        }).join('')}</tbody>
       </table>
     </div>`).join('')}</div>`;
-  render(shell(leagueHeader(league, 'results') + body));
+  const anySubs = [...byWeek.values()].some(games => games.some(g =>
+    (g.t1_player_subs || []).some(Boolean) || (g.t2_player_subs || []).some(Boolean)
+  ));
+  const footnote = anySubs
+    ? '<div style="padding:10px 14px;font-size:12px;color:var(--text-muted);margin-top:8px"><span style="color:var(--orange)">*</span> Substitute</div>'
+    : '';
+  render(shell(leagueHeader(league, 'results') + body + footnote));
 }
 
 async function viewTeams(slug) {
