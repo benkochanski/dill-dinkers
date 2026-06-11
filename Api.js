@@ -584,6 +584,23 @@ function api_addManualSub(league_id, full_name, level) {
   });
 }
 
+// Write-in subs must resolve to a real CourtReserve member.
+function api_searchMembers(query) {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin', 'operator']);
+    return searchMembers_(query, 15);
+  });
+}
+
+function api_addMemberSub(league_id, cr_member_id, level) {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin', 'operator'], league_id);
+    return addMemberSub_(league_id, cr_member_id, level);
+  });
+}
+
 function api_listRoster(league_id) {
   return wrap_(() => {
     const user = getCurrentUser_();

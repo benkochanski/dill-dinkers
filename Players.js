@@ -1596,6 +1596,61 @@ function addManualSub_(league_id, full_name, level) {
 }
 
 /**
+ * Search the CourtReserve member directory (CR_Members) by name or email.
+ * Returns up to `limit` ranked matches. Powers the operator "write-in sub"
+ * picker so every sub resolves to a real cr_member_id (no more free-typed,
+ * non-member orphan rows).
+ */
+function searchMembers_(query, limit) {
+  const q = String(query || '').trim().toLowerCase();
+  if (q.length < 2) return [];
+  limit = limit || 15;
+  const members = getObjects_('CR_Members');
+  const matches = [];
+  for (let i = 0; i < members.length; i++) {
+    const m = members[i];
+    const first = String(m.first_name || '').trim();
+    const last  = String(m.last_name  || '').trim();
+    const full  = (first + ' ' + last).trim();
+    const email = String(m.email || '').trim();
+    const fl = full.toLowerCase(), ll = last.toLowerCase(), el = email.toLowerCase();
+    let score = -1;
+    if (fl.indexOf(q) === 0)       score = 0;
+    else if (ll.indexOf(q) === 0)  score = 1;
+    else if (fl.indexOf(q) !== -1) score = 2;
+    else if (el.indexOf(q) !== -1) score = 3;
+    if (score < 0) continue;
+    matches.push({ score: score,
+      cr_member_id: String(m.cr_member_id || '').trim(),
+      full_name: full, email: email,
+      membership_number: String(m.membership_number || '').trim(),
+      status: String(m.membership_status || '').trim() });
+    if (matches.length > 400) break;
+  }
+  matches.sort((a, b) => a.score - b.score || a.full_name.localeCompare(b.full_name));
+  return matches.slice(0, limit).map(x => ({
+    cr_member_id: x.cr_member_id, full_name: x.full_name,
+    email: x.email, membership_number: x.membership_number, status: x.status }));
+}
+
+/**
+ * Add a write-in sub that MUST be a real CourtReserve member. Resolves the
+ * member to a Players row keyed by cr_member_id (creating/enriching it if
+ * needed). Replaces the free-text path that created orphan, non-member rows.
+ */
+function addMemberSub_(league_id, cr_member_id, level) {
+  const crid = String(cr_member_id || '').trim();
+  if (!crid) throw new Error('Select a member');
+  const m = crMemberRow_(crid);
+  if (!m) throw new Error('Not a valid CourtReserve member');
+  const name = (String(m.first_name || '').trim() + ' ' + String(m.last_name || '').trim()).trim();
+  const p = upsertGuestPlayer_({ cr_member_id: crid, club_member_id: crid, full_name: name, level: level });
+  audit_('member_sub_add', 'player', p.player_id, null,
+    { league_id: league_id, cr_member_id: crid, level: level || '' });
+  return { player_id: p.player_id, full_name: p.full_name || name, level: p.level || level || '' };
+}
+
+/**
  * Hard-reset a ladder league's roster: drop ALL existing Rosters rows for the
  * league, then re-run `syncLadderRosterFromAttendance_`. Use when an earlier
  * sync (with the now-fixed name matcher) cross-contaminated the roster with
