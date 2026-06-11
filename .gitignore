@@ -22,3 +22,10 @@ public-site/.svelte-kit/
 public-site/build/
 public-site/.cloudflare/
 public-site/.wrangler/
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
+.env*
+!.env.example
