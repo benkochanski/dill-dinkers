@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <style>
+    :root {
+      --brand: #e07a3c;
+      --brand-dark: #b85e25;
+      --bg: #fafaf7;
+      --card: #fff;
+      --border: #e8e4dc;
+      --text: #2a2a28;
+      --muted: #7a7670;
+    }
+    html, body { margin: 0; padding: 0; background: var(--bg); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; color: var(--text); height: 100%; }
+    body { display: flex; align-items: center; justify-content: center; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 36px 32px; width: 360px; box-shadow: 0 6px 24px rgba(0,0,0,0.04); }
+    h1 { margin: 0 0 4px; font-size: 22px; }
+    .sub { color: var(--muted); font-size: 13px; margin: 0 0 24px; }
+    label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+    input { width: 100%; padding: 10px 12px; font-size: 14px; border: 1px solid var(--border); border-radius: 6px; box-sizing: border-box; margin-bottom: 14px; }
+    input:focus { outline: none; border-color: var(--brand); }
+    button { width: 100%; padding: 11px; font-size: 14px; font-weight: 600; background: var(--brand); color: #fff; border: none; border-radius: 6px; cursor: pointer; }
+    button:hover { background: var(--brand-dark); }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .msg { margin-top: 12px; font-size: 13px; min-height: 16px; text-align: center; }
+    .msg.err { color: #c93030; }
+    .msg.ok  { color: #2a8a2a; }
+    .tag { display: inline-block; background: #fff4e5; color: var(--brand-dark); padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; }
+  </style>
+</head>
+<body>
+  <form class="card" onsubmit="return doLogin(event)">
+    <p class="tag">SANDBOX</p>
+    <h1><?= appName ?></h1>
+    <p class="sub">Test admin sign-in</p>
+    <label for="email">Email</label>
+    <input id="email" type="email" autocomplete="username" required autofocus>
+    <label for="password">Password</label>
+    <input id="password" type="password" autocomplete="current-password" required>
+    <button id="submitBtn" type="submit">Sign in</button>
+    <p id="msg" class="msg"></p>
+  </form>
+  <script>
+    var APP_URL = <?!= JSON.stringify(appUrl) ?>;
+    var RETURN_PAGE = <?!= JSON.stringify(returnPage || 'home') ?>;
+
+    function doLogin(ev) {
+      ev.preventDefault();
+      var email = document.getElementById('email').value.trim();
+      var pwd = document.getElementById('password').value;
+      var btn = document.getElementById('submitBtn');
+      var msg = document.getElementById('msg');
+      btn.disabled = true;
+      msg.className = 'msg';
+      msg.textContent = 'Signing in…';
+      google.script.run
+        .withSuccessHandler(function (r) {
+          if (!r.ok) {
+            msg.className = 'msg err';
+            msg.textContent = r.error || 'Sign-in failed';
+            btn.disabled = false;
+            return;
+          }
+          var t = r.data.token;
+          try { localStorage.setItem('dd_sandbox_token', t); } catch (e) {}
+          msg.className = 'msg ok';
+          msg.innerHTML = '';
+          // Apps Script's iframe sandbox blocks top-frame navigation from
+          // async callbacks (user activation has expired). Auto-submit and
+          // window.top.location.href both fail silently. Instead, render
+          // a visible link the user clicks — the click provides fresh
+          // user activation that's allowed to navigate the top frame.
+          var url = APP_URL + '?page=' + encodeURIComponent(RETURN_PAGE) + '&t=' + encodeURIComponent(t);
+          var a = document.createElement('a');
+          a.href = url;
+          a.target = '_top';
+          a.textContent = '✓ Signed in — click here to continue';
+          a.style.cssText = 'display:inline-block;background:#2a8a2a;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none;font-weight:600;font-size:14px';
+          msg.appendChild(a);
+          // Try the async redirect too — if the iframe sandbox happens to
+          // permit it (varies by browser/version), the user never sees the
+          // link. If not, the link is the fallback.
+          setTimeout(function () {
+            try { window.top.location.href = url; } catch (e) {}
+          }, 100);
+        })
+        .withFailureHandler(function (e) {
+          msg.className = 'msg err';
+          msg.textContent = (e && e.message) || String(e);
+          btn.disabled = false;
+        })
+        .api_login(email, pwd);
+      return false;
+    }
+  </script>
+</body>
+</html>

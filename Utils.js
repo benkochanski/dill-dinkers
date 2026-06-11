@@ -210,6 +210,9 @@ function bumpLeagueVersion_(league_id) {
   const s = _readLeagueState_(league_id);
   s.version = (Number(s.version) || 0) + 1;
   _writeLeagueState_(league_id, s);
+  // Push the new state out to Firebase so Display tabs see it via WebSocket.
+  // No-op if Firebase isn't configured (Script Properties unset).
+  try { publishLeagueState_(league_id); } catch (e) { /* swallow */ }
 }
 
 function setActiveHalf_(league_id, week, half, courts) {
@@ -224,6 +227,7 @@ function setActiveHalf_(league_id, week, half, courts) {
       : String(courts).split(/[,\s]+/).map(Number).filter(n => n > 0);
   }
   _writeLeagueState_(league_id, s);
+  try { publishLeagueState_(league_id); } catch (e) { /* swallow */ }
 }
 
 function getLeagueState_(league_id) {

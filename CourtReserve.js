@@ -1077,9 +1077,12 @@ function bulkRebuildLeagueFromCR_(league) {
   // master list (a player may already exist from another league).
   const allPlayers = getObjects_('Players');
   const playerByEmail = {};
+  const playerByCrId  = {};   // player_id (== cr_member_id) -> player
   allPlayers.forEach(p => {
     const e = (p.email || '').toLowerCase().trim();
     if (e) playerByEmail[e] = p;
+    const pid = String(p.player_id || '').trim();
+    if (pid) playerByCrId[pid] = p;
   });
 
   const newPlayers = [];          // to append at end
@@ -1093,18 +1096,19 @@ function bulkRebuildLeagueFromCR_(league) {
 
   function ensurePlayer(input) {
     const email = (input.email || '').toLowerCase().trim();
-    if (email && playerByEmail[email]) {
-      // Existing player — update club_member_id if missing.
-      const existing = playerByEmail[email];
-      // (We don't write back updates here to keep this purely additive; the
-      //  next CR pull will refresh fields via upsertPlayer_ if needed.)
+    // Canonical key = cr_member_id (CourtReserve OrganizationMemberId).
+    const canonical = canonicalMemberId_(input);
+    // Dedup by canonical cr_member_id first, then email.
+    const existing = (canonical && playerByCrId[canonical])
+                  || (email && playerByEmail[email]) || null;
+    if (existing) {
       playersExistingCount++;
       return existing;
     }
     const fullName = (input.full_name ||
       ((input.first_name || '') + ' ' + (input.last_name || ''))).trim();
     const player = {
-      player_id:      makeId_('player'),
+      player_id:      canonical || makeId_('player'),
       full_name:      fullName,
       first_name:     input.first_name || (fullName.split(/\s+/)[0] || ''),
       last_name:      input.last_name  || (fullName.split(/\s+/).slice(1).join(' ') || ''),
@@ -1112,13 +1116,14 @@ function bulkRebuildLeagueFromCR_(league) {
       phone:          input.phone || '',
       gender:         '',
       dupr_id:        '',
-      club_member_id: input.club_member_id || '',
+      club_member_id: canonical || input.club_member_id || '',
       level:          '',
       active:         true,
       notes:          '',
       created_at:     stamp,
     };
     if (email) playerByEmail[email] = player;
+    if (canonical) playerByCrId[canonical] = player;
     newPlayers.push(player);
     playersAddedCount++;
     return player;
@@ -1306,19 +1311,21 @@ function listLeaguePlayersFromCR_(league_id) {
 
   // ATTENDANCE-DRIVEN BRANCH: build rows from unique attendance entries.
   if (uniqueAttend.length) {
-    // Resolve DUPR overrides + team-name overrides. Override sheets may not
-    // exist on fresh installs — treat as empty.
+    // Single source of truth for DUPR: Players.dupr_id, looked up by
+    // club_member_id (preferred) or email.
     const duprByKey = {};
-    try {
-      getObjects_('Player_DUPR_Overrides').forEach(o => {
-        if (o.cr_member_id) duprByKey['m:' + String(o.cr_member_id)] = o.dupr_id || '';
-        if (o.email)        duprByKey['e:' + String(o.email).toLowerCase().trim()] = o.dupr_id || '';
-      });
-    } catch (e) { /* sheet missing — fine */ }
+    getObjects_('Players').forEach(p => {
+      const d = (p.dupr_id || '').trim();
+      if (!d) return;
+      const mid = String(p.club_member_id || '').trim();
+      const em  = String(p.email || '').toLowerCase().trim();
+      if (mid) duprByKey['m:' + mid] = d;
+      if (em)  duprByKey['e:' + em]  = d;
+    });
     function resolveDupr(member_id, email) {
-      if (member_id && duprByKey['m:' + String(member_id)] != null) return duprByKey['m:' + String(member_id)];
+      if (member_id && duprByKey['m:' + String(member_id).trim()]) return duprByKey['m:' + String(member_id).trim()];
       const e = (email || '').toLowerCase().trim();
-      if (e && duprByKey['e:' + e] != null) return duprByKey['e:' + e];
+      if (e && duprByKey['e:' + e]) return duprByKey['e:' + e];
       return '';
     }
     // Build a map member_id → attendance entry for partner lookup.
@@ -1419,11 +1426,16 @@ function listLeaguePlayersFromCR_(league_id) {
     };
   }
 
-  // Build override lookup tables.
-  const duprByKey = {};   // cr_member_id OR lowercased email → dupr_id
-  getObjects_('Player_DUPR_Overrides').forEach(o => {
-    if (o.cr_member_id) duprByKey['m:' + String(o.cr_member_id)] = o.dupr_id || '';
-    if (o.email)        duprByKey['e:' + String(o.email).toLowerCase().trim()] = o.dupr_id || '';
+  // Single source of truth for DUPR: Players.dupr_id, looked up by
+  // club_member_id (preferred) or email.
+  const duprByKey = {};
+  getObjects_('Players').forEach(p => {
+    const d = (p.dupr_id || '').trim();
+    if (!d) return;
+    const mid = String(p.club_member_id || '').trim();
+    const em  = String(p.email || '').toLowerCase().trim();
+    if (mid) duprByKey['m:' + mid] = d;
+    if (em)  duprByKey['e:' + em]  = d;
   });
   const teamNamesByReg = {};
   getObjects_('Team_Name_Overrides').forEach(o => {
@@ -1431,9 +1443,9 @@ function listLeaguePlayersFromCR_(league_id) {
   });
 
   function resolveDupr(member_id, email) {
-    if (member_id && duprByKey['m:' + String(member_id)] != null) return duprByKey['m:' + String(member_id)];
+    if (member_id && duprByKey['m:' + String(member_id).trim()]) return duprByKey['m:' + String(member_id).trim()];
     const e = (email || '').toLowerCase().trim();
-    if (e && duprByKey['e:' + e] != null) return duprByKey['e:' + e];
+    if (e && duprByKey['e:' + e]) return duprByKey['e:' + e];
     return '';
   }
 
@@ -1484,36 +1496,94 @@ function listLeaguePlayersFromCR_(league_id) {
 }
 
 /**
- * Upsert a Player_DUPR_Overrides row. Either cr_member_id or email must be
- * provided (both is fine — we key by member_id when present).
+ * Set DUPR ID for a player. Single source of truth is the Players tab — this
+ * resolves the Players row by club_member_id (preferred) or email and writes
+ * `dupr_id` there. If no Players row exists yet (e.g. a CR registrant who
+ * hasn't been brought onto the league roster), one is created from CR data.
+ *
+ * Either cr_member_id or email must be provided.
  */
 function setPlayerDuprOverride_(input) {
-  const memberId = input.cr_member_id ? String(input.cr_member_id) : '';
+  const memberId = input.cr_member_id ? String(input.cr_member_id).trim() : '';
   const email    = (input.email || '').toLowerCase().trim();
   if (!memberId && !email) throw new Error('cr_member_id or email required');
-  const key = memberId ? ('m:' + memberId) : ('e:' + email);
   const dupr = (input.dupr_id || '').trim();
   const stamp = nowStamp_();
   const me = activeUserEmail_();
 
-  const existing = getObjects_('Player_DUPR_Overrides').find(o => o.key === key);
-  if (existing) {
-    updateWhere_('Player_DUPR_Overrides', o => o.key === key, o => {
-      o.dupr_id    = dupr;
-      o.updated_at = stamp;
-      o.updated_by = me;
-      // Keep both keys in sync if we have them.
-      if (memberId && !o.cr_member_id) o.cr_member_id = memberId;
-      if (email    && !o.email)         o.email = email;
-    });
-  } else {
-    appendObjects_('Player_DUPR_Overrides', [{
-      key, cr_member_id: memberId, email, dupr_id: dupr,
-      updated_at: stamp, updated_by: me,
-    }]);
+  const players = getObjects_('Players');
+  let target = null;
+  if (memberId) {
+    target = players.find(p => String(p.club_member_id || '').trim() === memberId);
   }
-  audit_('dupr_override_set', 'player', key, null, { dupr_id: dupr });
-  return { key, dupr_id: dupr };
+  if (!target && email) {
+    target = players.find(p => String(p.email || '').toLowerCase().trim() === email);
+  }
+
+  if (target) {
+    const before = Object.assign({}, target);
+    updateWhere_('Players',
+      p => p.player_id === target.player_id,
+      p => {
+        p.dupr_id = dupr;
+        // Backfill the key we matched on so future lookups still hit.
+        if (memberId && !p.club_member_id) p.club_member_id = memberId;
+        if (email    && !p.email)          p.email = email;
+      });
+    audit_('player_dupr_update', 'player', target.player_id, before, { dupr_id: dupr });
+    return { player_id: target.player_id, dupr_id: dupr };
+  }
+
+  // No Players row yet — create a minimal one so the DUPR has somewhere to live.
+  let firstName = (input.first_name || '').trim();
+  let lastName  = (input.last_name  || '').trim();
+  let fullName  = (input.full_name  || '').trim();
+  if (!fullName && (firstName || lastName)) fullName = (firstName + ' ' + lastName).trim();
+
+  // Fallback: pull name from CR data if caller didn't pass it.
+  if (!fullName && memberId) {
+    try {
+      const att = getObjects_('CR_Attendance').find(a => String(a.member_number || '').trim() === memberId);
+      if (att) {
+        firstName = firstName || (att.first_name || '');
+        lastName  = lastName  || (att.last_name  || '');
+        fullName  = ((firstName + ' ' + lastName).trim()) || fullName;
+      }
+    } catch (e) {}
+  }
+  if (!fullName) {
+    try {
+      const reg = getObjects_('CR_Registrations').find(r =>
+        (memberId && String(r.cr_member_id || '').trim() === memberId) ||
+        (email    && String(r.email || '').toLowerCase().trim() === email));
+      if (reg) {
+        firstName = firstName || (reg.first_name || '');
+        lastName  = lastName  || (reg.last_name  || '');
+        fullName  = ((firstName + ' ' + lastName).trim()) || fullName;
+      }
+    } catch (e) {}
+  }
+  if (!fullName) fullName = email || ('Member ' + memberId);
+
+  const _canonical = canonicalMemberId_({ club_member_id: memberId, email: email });
+  const newPlayer = {
+    player_id:      _canonical || makeId_('player'),
+    full_name:      fullName,
+    first_name:     firstName || (fullName.split(/\s+/)[0] || ''),
+    last_name:      lastName  || (fullName.split(/\s+/).slice(1).join(' ') || ''),
+    email:          email,
+    phone:          '',
+    gender:         '',
+    dupr_id:        dupr,
+    club_member_id: _canonical || memberId,
+    level:          '',
+    active:         true,
+    notes:          'auto-created via DUPR edit',
+    created_at:     stamp,
+  };
+  appendObjects_('Players', [newPlayer]);
+  audit_('player_create_for_dupr', 'player', newPlayer.player_id, null, { dupr_id: dupr, source: 'league_admin_dupr_edit' });
+  return { player_id: newPlayer.player_id, dupr_id: dupr };
 }
 
 /** Upsert a Team_Name_Overrides row by cr_reg_id. */
@@ -1611,8 +1681,11 @@ function materializePairingsToTeams_(league_id) {
 
   const existingPlayers = getObjects_('Players');
   const playerByMember = {};
+  const playerByName   = {};   // fallback for sub-rows created without a member_id
   existingPlayers.forEach(p => {
     if (p.club_member_id) playerByMember[String(p.club_member_id)] = p;
+    const nk = String(p.full_name || '').trim().toLowerCase();
+    if (nk && !playerByName[nk]) playerByName[nk] = p;
   });
 
   const attendance = getObjects_('CR_Attendance');
@@ -1636,8 +1709,27 @@ function materializePairingsToTeams_(league_id) {
     const fullName = att
       ? ((att.first_name || '') + ' ' + (att.last_name || '')).trim()
       : '(member ' + m + ')';
+    // Fall back to a name match before creating a new row — covers the case
+    // where the same person was first seen as a sub (no member_id captured),
+    // then later appears in Team_Pairings with a member_id. Backfill the
+    // existing row with the member_id so future calls hit the fast path.
+    const nk = fullName.toLowerCase();
+    if (nk && playerByName[nk]) {
+      const existing = playerByName[nk];
+      if (!String(existing.club_member_id || '').trim()) {
+        updateWhere_('Players',
+          p => p.player_id === existing.player_id,
+          p => { p.club_member_id = m; });
+        existing.club_member_id = m;
+      }
+      playerByMember[m] = existing;
+      return existing;
+    }
+    // `m` is a member_number (membership_number) — resolve to the canonical
+    // cr_member_id so the new player keys consistently with the rest.
+    const _canon = canonicalMemberId_({ member_number: m, club_member_id: m });
     const player = {
-      player_id:      makeId_('player'),
+      player_id:      _canon || makeId_('player'),
       full_name:      fullName || ('(member ' + m + ')'),
       first_name:     att ? (att.first_name || '') : '',
       last_name:      att ? (att.last_name  || '') : '',
@@ -1645,13 +1737,14 @@ function materializePairingsToTeams_(league_id) {
       phone:          '',
       gender:         '',
       dupr_id:        '',
-      club_member_id: m,
+      club_member_id: _canon || m,
       level:          '',
       active:         true,
       notes:          'auto from Team_Pairings',
       created_at:     stamp,
     };
     playerByMember[m] = player;
+    if (nk) playerByName[nk] = player;
     newPlayers.push(player);
     return player;
   }
@@ -2217,12 +2310,12 @@ function pullAttendanceToStaging_(filters) {
     http_status: 200,
     count:       deduped.length,
     status:      'ok',
-    message:     'raw=' + rawRecords.length + ' no_shows=' + noShows.length +
+    message:     'raw=' + rawRecords.length + ' kept=' + kept.length +
                  ' league_filtered=' + records.length + ' deduped=' + deduped.length +
                  ' added=' + toAppend.length + ' updated=' + updates.length,
   });
 
-  return { added: toAppend.length, updated: updates.length, total: deduped.length, raw: rawRecords.length, no_shows: noShows.length };
+  return { added: toAppend.length, updated: updates.length, total: deduped.length, raw: rawRecords.length, kept: kept.length };
 }
 
 /**
@@ -2295,58 +2388,40 @@ function pullAttendanceForLeagueDate_(league_id, date) {
     return true;
   });
 
-  // Upsert into CR_Attendance.
-  const existing = getObjects_('CR_Attendance');
-  const byKey = {};
-  existing.forEach(r => {
-    byKey[_crAttendanceDedupKey_(r.member_number, r.event_name, r.reservation_start)] = r;
+  // Replace all CR_Attendance rows for this league+date with the fresh pull.
+  // This ensures cancellations are reflected — removed registrations won't
+  // re-appear from a previous pull.
+  const allAttendance = getObjects_('CR_Attendance');
+  const kept = allAttendance.filter(r => {
+    const rs = r.reservation_start instanceof Date
+      ? Utilities.formatDate(r.reservation_start, CONFIG.TIMEZONE, 'yyyy-MM-dd')
+      : String(r.reservation_start || '').slice(0, 10);
+    if (rs !== dateStr) return true;
+    return !_crEventNameMatches_(r.event_name, targetName);
   });
 
-  const toAppend = [];
-  const updates  = [];
+  const stamp = nowStamp_();
+  const toAppend = deduped.map(rec => ({
+    attendance_id:         makeId_('audit'),
+    member_number:         String(rec.MemberNumber || '').trim(),
+    first_name:            rec.MemberFirstName || '',
+    last_name:             rec.MemberLastName  || '',
+    event_name:            rec.EventName       || '',
+    registration_type:     rec.RegistrationTypeDisplay || '',
+    reservation_start:     rec.ReservationStartDateTime || '',
+    reservation_end:       rec.ReservationEndDateTime   || '',
+    is_guest:              rec.IsGuest         || '',
+    type:                  rec.Type            || '',
+    imported_at:           stamp,
+    check_in_status:       rec.CheckInStatusName  || '',
+    check_in_type:         rec.CheckInType        || '',
+    checkin_datetime:      rec.CheckinDateTime    || '',
+    checked_in_by:         rec.CheckedinByName    || '',
+    reservation_display:   rec.ReservationDateTimeDisplay || '',
+    registered_on_display: rec.RegisteredOnDateTimeDisplay || '',
+  }));
 
-  deduped.forEach(rec => {
-    const key   = _crAttendanceDedupKey_(rec.MemberNumber, rec.EventName, rec.ReservationStartDateTime);
-    const prev  = byKey[key];
-    const patch = {
-      imported_at:           nowStamp_(),
-      check_in_status:       rec.CheckInStatusName  || '',
-      check_in_type:         rec.CheckInType        || '',
-      checkin_datetime:      rec.CheckinDateTime    || '',
-      checked_in_by:         rec.CheckedinByName    || '',
-      reservation_display:   rec.ReservationDateTimeDisplay || '',
-      registered_on_display: rec.RegisteredOnDateTimeDisplay || '',
-    };
-    if (prev) {
-      updates.push({ attendance_id: prev.attendance_id, patch });
-    } else {
-      const newRow = Object.assign({
-        attendance_id:     makeId_('audit'),
-        member_number:     String(rec.MemberNumber || '').trim(),
-        first_name:        rec.MemberFirstName || '',
-        last_name:         rec.MemberLastName  || '',
-        event_name:        rec.EventName       || '',
-        registration_type: rec.RegistrationTypeDisplay || '',
-        reservation_start: rec.ReservationStartDateTime || '',
-        reservation_end:   rec.ReservationEndDateTime   || '',
-        is_guest:          rec.IsGuest         || '',
-        type:              rec.Type            || '',
-      }, patch);
-      toAppend.push(newRow);
-      byKey[key] = newRow;
-    }
-  });
-
-  if (toAppend.length) appendObjects_('CR_Attendance', toAppend);
-  if (updates.length) {
-    // Batch all updates into a single tab-wide read+write — one updateWhere_
-    // call regardless of update count.
-    const patchById = {};
-    updates.forEach(u => { patchById[u.attendance_id] = u.patch; });
-    updateWhere_('CR_Attendance',
-      r => !!patchById[r.attendance_id],
-      r => Object.assign(r, patchById[r.attendance_id]));
-  }
+  overwriteObjects_('CR_Attendance', kept.concat(toAppend));
 
   crLogSync_({
     kind:        'pull_attendance_targeted',
@@ -2356,8 +2431,7 @@ function pullAttendanceForLeagueDate_(league_id, date) {
     count:       deduped.length,
     status:      'ok',
     message:     `league=${league.name} date=${dateStr} eventId=${league.cr_event_id || '(none)'} ` +
-                 `raw=${rawRecords.length} matched=${filtered.length} ` +
-                 `added=${toAppend.length} updated=${updates.length}`,
+                 `raw=${rawRecords.length} matched=${filtered.length} written=${toAppend.length}`,
   });
 
   const result = {
@@ -2366,8 +2440,7 @@ function pullAttendanceForLeagueDate_(league_id, date) {
     cr_event_id:  league.cr_event_id || '',
     raw_rows:     rawRecords.length,
     matched_rows: filtered.length,
-    added:        toAppend.length,
-    updated:      updates.length,
+    written:      toAppend.length,
   };
 
   // For ladder leagues, also sync the Rosters table from the freshly-pulled

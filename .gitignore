@@ -22,3 +22,10 @@ public-site/.svelte-kit/
 public-site/build/
 public-site/.cloudflare/
 public-site/.wrangler/
+
+# Claude Code local config
+.claude/
+
+# Local tournament data dumps (large, not source)
+tournament-*.csv
+pickleball-tournaments*.csv

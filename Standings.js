@@ -17,11 +17,16 @@ const POINTS_PER_GAME = 11;
 function recomputeStandings_(league_id) {
   const league = getLeagueById_(league_id);
   if (!league) throw new Error('League not found: ' + league_id);
-  switch (league.format_type) {
-    case 'ladder':  return computeLadderStandings_(league_id);
-    case 'partner': return computePartnerStandings_(league_id);
-    default:        throw new Error('Unsupported format_type: ' + league.format_type);
-  }
+  // Key includes the league's version stamp, which every game mutator bumps —
+  // so the cache auto-invalidates on save/update/void without manual busts.
+  const v = getLeagueVersion_(league_id);
+  return cacheGet_('standings:' + league_id + ':' + v, 600, () => {
+    switch (league.format_type) {
+      case 'ladder':  return computeLadderStandings_(league_id);
+      case 'partner': return computePartnerStandings_(league_id);
+      default:        throw new Error('Unsupported format_type: ' + league.format_type);
+    }
+  });
 }
 
 /* ------------------------------------------------------------------ */
@@ -44,6 +49,17 @@ function computeLadderStandings_(league_id) {
   const playerById = {};
   players.forEach(p => { playerById[p.player_id] = p; });
 
+  // Build CR_Attendance name map so guest Players rows with a "Guest <mn>"
+  // placeholder name get upgraded to their real first-last name when CR has it.
+  const crByMemberNum = {};
+  getObjects_('CR_Attendance').forEach(a => {
+    const mn = String(a.member_number || '').trim();
+    if (mn && !crByMemberNum[mn]) {
+      const fn = (String(a.first_name || '').trim() + ' ' + String(a.last_name || '').trim()).trim();
+      if (fn) crByMemberNum[mn] = fn;
+    }
+  });
+
   const roster = getObjects_('Rosters')
     .filter(r => r.league_id === league_id && r.status === 'active');
 
@@ -60,18 +76,49 @@ function computeLadderStandings_(league_id) {
     }
   });
 
+  // Build the set of "originally scheduled" 4 players per (week, half, group).
+  // Any game whose 4 actual players don't exactly match this set was swapped
+  // (sub came in, single-game override, etc.) and is excluded from season
+  // standings entirely — it still counts for today's standings.
+  const groupSlotKey_ = (wk, half, grp) =>
+    String(wk) + '|' + normalizeHalf_(half) + '|' + String(grp);
+  const groupSlots = {};
+  getObjects_('Session_Groups').forEach(r => {
+    if (r.league_id !== league_id) return;
+    if (!r.player_id || r.group_number == null || r.week_number == null) return;
+    // Use current player_id (post-match-swap): match-scope swaps make the new
+    // player the slot resident and their games SHOULD count for season. Only
+    // game-scope overrides cause a mismatch with what was actually played.
+    const k = groupSlotKey_(r.week_number, r.half, r.group_number);
+    (groupSlots[k] = groupSlots[k] || new Set()).add(r.player_id);
+  });
+  function gameMatchesScheduledFour_(g) {
+    if (g.group_number == null || g.group_number === '') return true;  // non-group game — leave it
+    const k = groupSlotKey_(g.week_number, g.half, g.group_number);
+    const scheduled = groupSlots[k];
+    if (!scheduled || scheduled.size !== 4) return true;  // no scheduled set on file — don't punish
+    const actual = [g.t1_player_1_id, g.t1_player_2_id, g.t2_player_1_id, g.t2_player_2_id]
+      .filter(Boolean);
+    if (actual.length !== 4) return false;
+    for (const pid of actual) if (!scheduled.has(pid)) return false;
+    return true;
+  }
+
   // Initialize one row per rostered player so people who haven't played
   // yet still appear (with zeros).
   const stats = {};
   const playerGames = {};  // player_id -> list of games they played in
   roster.forEach(r => {
-    stats[r.player_id] = newPlayerStats_(r.player_id, playerById[r.player_id], r.level);
+    stats[r.player_id] = newPlayerStats_(r.player_id, playerById[r.player_id], r.level, crByMemberNum);
     playerGames[r.player_id] = [];
   });
 
   // Walk every game and credit each of the 4 players, skipping any player
   // who was acting as a substitute in that week.
   games.forEach(g => {
+    // Skip games where any of the 4 players differ from the scheduled
+    // round-robin lineup — those count for today's standings only.
+    if (!gameMatchesScheduledFour_(g)) return;
     const wk = String(g.week_number);
     const t1 = [g.t1_player_1_id, g.t1_player_2_id].filter(Boolean);
     const t2 = [g.t2_player_1_id, g.t2_player_2_id].filter(Boolean);
@@ -119,10 +166,10 @@ function computeLadderStandings_(league_id) {
   return ranked;
 }
 
-function newPlayerStats_(player_id, player, level) {
+function newPlayerStats_(player_id, player, level, crByMemberNum) {
   return {
     player_id:     player_id,
-    full_name:     player ? player.full_name : '(unknown)',
+    full_name:     player ? displayPlayerName_(player, crByMemberNum) : '(unknown)',
     level:         (player && player.level) || level || '',
     games_played:  0,
     wins:          0,
@@ -248,14 +295,17 @@ function computePartnerStandings_(league_id) {
     stats[t.team_id] = newTeamStats_(t, playerById);
   });
 
+  const forced = getPartnerForcedLossMap_(league_id);
   games.forEach(g => {
     if (!g.t1_team_id || !g.t2_team_id) return;
     const s1 = Number(g.t1_score), s2 = Number(g.t2_score);
     if (Number.isNaN(s1) || Number.isNaN(s2)) return;
     if (!stats[g.t1_team_id]) stats[g.t1_team_id] = newTeamStats_({ team_id: g.t1_team_id, league_id, team_name: '(unknown)' }, playerById);
     if (!stats[g.t2_team_id]) stats[g.t2_team_id] = newTeamStats_({ team_id: g.t2_team_id, league_id, team_name: '(unknown)' }, playerById);
-    creditTeam_(stats[g.t1_team_id], s1, s2, g.week_number);
-    creditTeam_(stats[g.t2_team_id], s2, s1, g.week_number);
+    const t1F = isPartnerForcedLoss_(forced, g.t1_team_id, g.week_number);
+    const t2F = isPartnerForcedLoss_(forced, g.t2_team_id, g.week_number);
+    creditTeam_(stats[g.t1_team_id], s1, s2, g.week_number, t1F, t2F);
+    creditTeam_(stats[g.t2_team_id], s2, s1, g.week_number, t2F, t1F);
   });
 
   const out = Object.keys(stats).map(tid => {
@@ -301,11 +351,53 @@ function newTeamStats_(team, playerById) {
   };
 }
 
-function creditTeam_(s, my_score, their_score, week_number) {
+function creditTeam_(s, my_score, their_score, week_number, iForced, theyForced) {
   s.games_played += 1;
   s.points_for += my_score;
   s.points_against += their_score;
-  if (my_score > their_score) s.wins += 1;
+  if (iForced) s.losses += 1;
+  else if (theyForced) s.wins += 1;
+  else if (my_score > their_score) s.wins += 1;
   else if (my_score < their_score) s.losses += 1;
   if (week_number !== '' && week_number != null) s.weeks[String(week_number)] = true;
+}
+
+/**
+ * For partner leagues, returns map team_id → { week: true } for any week in
+ * which the team has ≥2 absent players. Those games are forced losses for that
+ * team regardless of score (scores still count for +/- and DUPR).
+ */
+function getPartnerForcedLossMap_(league_id) {
+  const teams = getObjects_('Teams').filter(t => t.league_id === league_id);
+  const teamByPlayer = {};
+  teams.forEach(t => {
+    if (t.player_1_id) teamByPlayer[t.player_1_id] = t.team_id;
+    if (t.player_2_id) teamByPlayer[t.player_2_id] = t.team_id;
+  });
+  const counts = {};
+  getObjects_('Substitutions').forEach(s => {
+    if (s.league_id !== league_id) return;
+    if (!s.absent_player_id) return;
+    if (s.week_number == null || s.week_number === '') return;
+    const tid = teamByPlayer[s.absent_player_id];
+    if (!tid) return;
+    const wk = String(s.week_number);
+    if (!counts[tid]) counts[tid] = {};
+    counts[tid][wk] = (counts[tid][wk] || 0) + 1;
+  });
+  const forced = {};
+  Object.keys(counts).forEach(tid => {
+    Object.keys(counts[tid]).forEach(wk => {
+      if (counts[tid][wk] >= 2) {
+        if (!forced[tid]) forced[tid] = {};
+        forced[tid][wk] = true;
+      }
+    });
+  });
+  return forced;
+}
+
+function isPartnerForcedLoss_(forcedMap, team_id, week_number) {
+  if (!forcedMap || !team_id || week_number == null || week_number === '') return false;
+  return !!(forcedMap[team_id] && forcedMap[team_id][String(week_number)]);
 }

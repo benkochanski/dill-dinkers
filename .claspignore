@@ -13,6 +13,8 @@
 public-site/**
 # Staff redirect Cloudflare Worker — not Apps Script code
 staff-redirect/**
+# Local sandbox / scratch
+sandbox/**
 # Design mockups
 mockups/**
 # Logo source folder + any zips

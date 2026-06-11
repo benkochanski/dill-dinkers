@@ -1,0 +1,187 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title><?= appName ?> — Leagues</title>
+  <?!= include_('Styles') ?>
+  <style>
+    body { max-width: 1100px; margin: 0 auto; padding: 0 20px 60px; }
+    h1 { margin: 14px 0 6px; font-size: 22px; }
+    .sub { color: var(--text-muted); margin: 0 0 18px; font-size: 13px; }
+
+    .leagues-table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      font-size: 14px;
+    }
+    .leagues-table th {
+      text-align: left;
+      padding: 10px 14px;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      background: var(--bg-subtle);
+      border-bottom: 1px solid var(--border);
+      font-weight: 700;
+    }
+    .leagues-table td {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+    .leagues-table tr.row-link {
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+    .leagues-table tr.row-link:hover { background: var(--brand-orange-soft); }
+    .leagues-table tr:last-child td { border-bottom: none; }
+    .lg-name { font-weight: 700; color: var(--brand-black); }
+    .lg-levels { color: var(--text); }
+    .lg-meta { color: var(--text-muted); font-size: 13px; }
+    .format-pill {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: lowercase;
+      background: var(--bg-subtle);
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+    }
+    .format-pill.ladder { background: var(--brand-orange-soft); color: var(--brand-orange-dark); border-color: transparent; }
+    .format-pill.partner { background: var(--brand-green-soft); color: var(--brand-green-dark); border-color: transparent; }
+    .empty {
+      padding: 28px 16px;
+      text-align: center;
+      color: var(--text-muted);
+    }
+    .err { color: var(--error); padding: 12px 0; }
+  </style>
+</head>
+<body>
+  <div class="app-header">
+    <?!= include_('Logo') ?>
+    <span class="who">Signed in as <code><?= user.email || 'anonymous' ?></code> · <?= user.roles.join(', ') || 'no roles' ?></span>
+  </div>
+
+  <?!= include_('Nav') ?>
+
+  <h1>Current Leagues</h1>
+  <p class="sub">Click any league to open its season schedule.</p>
+
+  <div id="content"><span class="muted">Loading…</span></div>
+
+  <script>
+    function escapeHtml(s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, c =>
+        ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    let CACHED_APP_URL = null;
+    function withAppUrl_(cb) {
+      if (CACHED_APP_URL) { cb(CACHED_APP_URL); return; }
+      var ref = document.referrer || '';
+      var m = ref.match(/^(.+\/macros\/(?:s\/[^/]+|[^/]+)\/(?:dev|exec))/);
+      if (m && m[1]) { CACHED_APP_URL = m[1]; cb(m[1]); return; }
+      google.script.run
+        .withSuccessHandler(u => { CACHED_APP_URL = u; cb(u); })
+        .withFailureHandler(err => alert('Could not resolve app URL: ' + err))
+        .getAppUrl();
+    }
+
+    function openLeague(league_id) {
+      withAppUrl_(u => { window.top.location.href = u + '?page=league&lid=' + encodeURIComponent(league_id) + '&tab=schedule'; });
+    }
+
+    /**
+     * Group leagues by short name. Each group becomes one row, with the
+     * levels aggregated (e.g. "3.0 / 3.5") and day/time/format inherited
+     * from the first sibling. Clicking the row opens the first league_id —
+     * if multiple share a name, the first is the canonical entry point.
+     */
+    function groupLeagues(leagues) {
+      const byName = new Map();
+      leagues.forEach(l => {
+        const key = (l.name || '').trim() || '(unnamed)';
+        if (!byName.has(key)) byName.set(key, []);
+        byName.get(key).push(l);
+      });
+      const out = [];
+      byName.forEach((rows, name) => {
+        const levels = Array.from(new Set(rows.map(r => (r.level || '').trim()).filter(Boolean))).sort();
+        const days   = Array.from(new Set(rows.map(r => (r.day_of_week || '').trim()).filter(Boolean)));
+        const times  = Array.from(new Set(rows.map(r => (r.start_time || '').trim()).filter(Boolean)));
+        const fmts   = Array.from(new Set(rows.map(r => (r.format_type || '').trim()).filter(Boolean)));
+        out.push({
+          name: name,
+          levels: levels.join(' / '),
+          day: days.join(', '),
+          time: times.join(', '),
+          format: fmts.join(' / '),
+          rows: rows,
+          primary_id: rows[0].league_id,
+        });
+      });
+      out.sort((a, b) => a.name.localeCompare(b.name));
+      return out;
+    }
+
+    function render(leagues) {
+      const el = document.getElementById('content');
+      // Only show active (current) leagues. If 'status' is missing, treat as active.
+      const current = leagues.filter(l => {
+        const s = String(l.status || 'active').toLowerCase();
+        return s !== 'archived' && s !== 'inactive' && s !== 'closed';
+      });
+      if (!current.length) {
+        el.innerHTML = '<div class="empty">No current leagues.</div>';
+        return;
+      }
+      const groups = groupLeagues(current);
+      const rows = groups.map(g => {
+        const fmtClass = /partner/i.test(g.format) ? 'partner' : /ladder/i.test(g.format) ? 'ladder' : '';
+        return `<tr class="row-link" data-lid="${escapeHtml(g.primary_id)}">
+          <td class="lg-name">${escapeHtml(g.name)}</td>
+          <td class="lg-levels">${escapeHtml(g.levels) || '<span class="muted">—</span>'}</td>
+          <td class="lg-meta">${escapeHtml(g.day) || '<span class="muted">—</span>'}</td>
+          <td class="lg-meta">${escapeHtml(g.time) || '<span class="muted">—</span>'}</td>
+          <td><span class="format-pill ${fmtClass}">${escapeHtml(g.format) || '—'}</span></td>
+        </tr>`;
+      }).join('');
+      el.innerHTML = `<table class="leagues-table">
+        <thead><tr>
+          <th>League</th><th>Levels</th><th>Day</th><th>Time</th><th>Format</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+      el.querySelectorAll('tr.row-link').forEach(tr => {
+        tr.addEventListener('click', () => openLeague(tr.getAttribute('data-lid')));
+      });
+    }
+
+    function init() {
+      google.script.run
+        .withSuccessHandler(r => {
+          if (!r || !r.ok) {
+            document.getElementById('content').innerHTML =
+              '<p class="err">' + escapeHtml((r && r.error) || 'Failed to load leagues') + '</p>';
+            return;
+          }
+          render(r.data || []);
+        })
+        .withFailureHandler(e => {
+          document.getElementById('content').innerHTML =
+            '<p class="err">' + escapeHtml(String(e && e.message || e)) + '</p>';
+        })
+        .api_listLeagues();
+    }
+    init();
+  </script>
+</body>
+</html>

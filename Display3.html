@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Display — <?= appName ?></title>
+  <title>Group Layout Preview — <?= appName ?></title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -587,6 +587,148 @@
     .team-card-results .result.upcoming { color: #555; }
     .team-card-results .result.upcoming .result-icon { background: #b9b9b9; }
     @media (min-width: 1400px) { td { font-size: 18px; } h1 { font-size: 48px; } }
+
+    /* ── Layout-preview carousel (this page only) ────────────────────────
+       Renders ONE full-screen group-card layout at a time. Click anywhere
+       (or the ‹ › chips / arrow keys) to rotate through group counts. */
+    .qr-corner { display: none; }   /* not relevant on the preview page */
+    /* Full-bleed clickable layer so a click anywhere advances the layout. */
+    .gallery-stage { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; cursor: pointer; }
+    .gallery-stage .session-grid { cursor: pointer; }
+    /* Floating layout indicator + prev/next, bottom-center. */
+    .gallery-nav {
+      position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
+      z-index: 300; display: flex; align-items: center; gap: 14px;
+      background: rgba(20, 26, 45, 0.92); border: 1px solid var(--dark-border);
+      border-radius: 999px; padding: 8px 14px;
+      box-shadow: 0 8px 28px rgba(0,0,0,0.5);
+      font-family: 'Inter', sans-serif; user-select: none;
+    }
+    .gallery-nav button {
+      width: 34px; height: 34px; border-radius: 50%;
+      border: 1px solid var(--dark-border); background: var(--dark-card);
+      color: #fff; font-size: 18px; font-weight: 800; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; line-height: 1;
+    }
+    .gallery-nav button:hover { background: var(--brand-orange); border-color: var(--brand-orange); }
+    .gallery-nav .gn-label { color: #fff; font-weight: 800; font-size: 16px; white-space: nowrap; }
+    .gallery-nav .gn-dims { color: var(--brand-orange); font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; }
+    .gallery-nav .gn-hint { color: var(--dark-text-muted); font-size: 11px; }
+    .gallery-nav .gn-sep { width: 1px; height: 24px; background: var(--dark-border); }
+    .gallery-styleseg { display: flex; gap: 4px; }
+    .gallery-styleseg button {
+      width: auto; height: 30px; padding: 0 12px; border-radius: 999px;
+      border: 1px solid var(--dark-border); background: var(--dark-card);
+      color: #fff; font-weight: 700; font-size: 12px; cursor: pointer;
+    }
+    .gallery-styleseg button.active { background: var(--brand-orange); border-color: var(--brand-orange); }
+    .gallery-styleseg button:hover:not(.active) { background: var(--dark-bg); }
+
+    /* ════ CARD STYLE A — "Hero" (current round dominates) ════════════════ */
+    .gc-hero .gch-inner { flex:1; min-height:0; display:flex; flex-direction:column;
+      font-size: clamp(12px, min(4.2cqi, 7cqb), 120px); overflow:hidden; }
+    .gc-hero .gch-group { font-size:0.42em; font-weight:800; color:var(--dark-text-muted);
+      text-transform:uppercase; letter-spacing:0.1em; margin-bottom:0.15em; }
+    .gc-hero .gch-hero { flex:0 0 auto; background:rgba(141,198,63,0.12);
+      border-left:0.12em solid var(--brand-green); border-radius:0.12em;
+      padding:0.3em 0.45em; margin-bottom:0.3em; }
+    .gc-hero .gch-hero.bye { background:rgba(255,255,255,0.04); border-left-color:var(--dark-text-muted); }
+    .gc-hero .gch-court { display:flex; align-items:baseline; gap:0.3em; margin-bottom:0.12em; }
+    .gc-hero .gch-court .lbl { font-size:0.42em; font-weight:700; color:var(--dark-text-muted);
+      text-transform:uppercase; letter-spacing:0.08em; }
+    .gc-hero .gch-court .num { font-size:1.3em; font-weight:900; color:var(--brand-orange); line-height:1; }
+    .gc-hero .gch-court .rnd { font-size:0.42em; font-weight:700; color:var(--dark-text-muted); margin-left:auto; }
+    .gc-hero .gch-match { display:flex; align-items:center; gap:0.35em; }
+    .gc-hero .gch-team { display:flex; flex-direction:column; flex:1; min-width:0; line-height:1.1;
+      font-size:0.6em; font-weight:700; color:#e6edf5; }
+    .gc-hero .gch-team span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .gc-hero .gch-team:first-child { text-align:right; }
+    .gc-hero .gch-team.win { color:#fff; font-weight:900; }
+    .gc-hero .gch-team.lose { color:var(--dark-text-muted); font-weight:600; }
+    .gc-hero .gch-score { font-size:0.7em; font-weight:900; color:#fff; display:flex; gap:0.12em; align-items:baseline; }
+    .gc-hero .gch-score .dash { color:var(--dark-text-muted); }
+    .gc-hero .gch-score .l { color:var(--dark-text-muted); }
+    .gc-hero .gch-score.pending { font-size:0.42em; color:var(--dark-text-muted); font-weight:600; }
+    .gc-hero .gch-byebig { font-size:0.5em; font-weight:800; color:var(--dark-text-muted); }
+    .gc-hero .gch-rest { flex:1; min-height:0; display:flex; flex-direction:column;
+      border-top:1px solid rgba(255,255,255,0.08); }
+    .gc-hero .gch-rrow { flex:1 1 0; min-height:0; display:grid;
+      grid-template-columns:1.6em 1.6em 1fr auto; gap:0.3em; align-items:center;
+      font-size:0.34em; color:var(--dark-text-muted);
+      border-top:1px solid rgba(255,255,255,0.04); padding:0 0.1em; }
+    .gc-hero .gch-rrow:first-child { border-top:none; }
+    .gc-hero .gch-rrow .rr { font-weight:800; color:var(--brand-orange); }
+    .gc-hero .gch-rrow.future .rr { color:var(--dark-text-muted); }
+    .gc-hero .gch-rrow .rn { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .gc-hero .gch-rrow .rs { font-weight:800; color:#fff; text-align:right; }
+    .gc-hero .gch-rrow.done { opacity:0.65; }
+
+    /* ════ CARD STYLE B — "Court-first" (giant court number) ══════════════ */
+    .gc-court .gcc-inner { flex:1; min-height:0; display:flex; flex-direction:column;
+      font-size: clamp(12px, min(4.2cqi, 7cqb), 120px); overflow:hidden; }
+    .gc-court .gcc-group { font-size:0.42em; font-weight:800; color:var(--dark-text-muted);
+      text-transform:uppercase; letter-spacing:0.1em; margin-bottom:0.15em; }
+    .gc-court .gcc-hero { flex:0 0 auto; display:flex; align-items:center; gap:0.5em;
+      background:rgba(141,198,63,0.12); border-radius:0.12em; padding:0.25em 0.45em; margin-bottom:0.3em; }
+    .gc-court .gcc-hero.bye { background:rgba(255,255,255,0.04); }
+    .gc-court .gcc-bignum { display:flex; flex-direction:column; align-items:center; line-height:0.82; flex:0 0 auto; }
+    .gc-court .gcc-bignum .c { font-size:0.3em; font-weight:800; color:var(--dark-text-muted); letter-spacing:0.1em; }
+    .gc-court .gcc-bignum .n { font-size:2.1em; font-weight:900; color:var(--brand-orange); }
+    .gc-court .gcc-hero.bye .gcc-bignum { font-size:0.85em; font-weight:900; color:var(--dark-text-muted); }
+    .gc-court .gcc-side { flex:1; min-width:0; display:flex; flex-direction:column; line-height:1.12; }
+    .gc-court .gcc-rnd { font-size:0.34em; font-weight:700; color:var(--dark-text-muted);
+      text-transform:uppercase; letter-spacing:0.06em; }
+    .gc-court .gcc-team { font-size:0.5em; font-weight:800; color:#e6edf5;
+      overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .gc-court .gcc-team.win { color:#fff; }
+    .gc-court .gcc-team.lose { color:var(--dark-text-muted); }
+    .gc-court .gcc-vs { font-size:0.3em; color:var(--dark-text-muted); font-weight:600; }
+    .gc-court .gcc-sc { font-size:0.5em; font-weight:900; color:#fff; }
+    .gc-court .gcc-sc .l { color:var(--dark-text-muted); }
+    .gc-court .gcc-sc.pending { font-size:0.32em; font-weight:600; color:var(--dark-text-muted); }
+    .gc-court .gcc-list { flex:1; min-height:0; display:flex; flex-direction:column;
+      border-top:1px solid rgba(255,255,255,0.08); }
+    .gc-court .gcc-row { flex:1 1 0; min-height:0; display:grid;
+      grid-template-columns:1.9em 1.4em 1fr auto; gap:0.3em; align-items:center;
+      font-size:0.34em; color:var(--dark-text-muted);
+      border-top:1px solid rgba(255,255,255,0.04); }
+    .gc-court .gcc-row:first-child { border-top:none; }
+    .gc-court .gcc-chip { font-weight:900; color:var(--brand-orange); background:rgba(245,130,32,0.15);
+      border-radius:0.3em; text-align:center; padding:0.05em 0; }
+    .gc-court .gcc-row.future .gcc-chip { color:var(--dark-text-muted); background:rgba(255,255,255,0.05); }
+    .gc-court .gcc-rr { font-weight:700; }
+    .gc-court .gcc-nm { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .gc-court .gcc-rs { font-weight:800; color:#fff; text-align:right; }
+    .gc-court .gcc-row.done { opacity:0.65; }
+
+    /* ════ CARD STYLE C — "Minimal list" (gradient, stripped chrome) ══════ */
+    .gc-min .gcm-inner { flex:1; min-height:0; display:flex; flex-direction:column;
+      font-size: clamp(12px, min(4cqi, 6.5cqb), 120px); overflow:hidden; }
+    .gc-min .gcm-group { font-size:0.5em; font-weight:800; color:var(--dark-text-muted);
+      text-transform:uppercase; letter-spacing:0.1em; margin-bottom:0.15em; }
+    .gc-min .gcm-row { flex:1 1 0; min-height:0; display:grid;
+      grid-template-columns:1.6em 1.6em 1fr; gap:0.4em; align-items:center;
+      border-top:1px solid rgba(255,255,255,0.06); padding:0 0.1em; }
+    .gc-min .gcm-row:first-of-type { border-top:none; }
+    .gc-min .gcm-r { font-weight:800; color:var(--brand-orange); font-size:0.5em; }
+    .gc-min .gcm-c { font-weight:700; color:var(--dark-text-muted); font-size:0.45em; }
+    .gc-min .gcm-match { display:grid; grid-template-columns:1fr auto 1fr; gap:0.3em; align-items:center; min-width:0; }
+    .gc-min .gcm-team { font-size:0.5em; font-weight:700; color:#e6edf5;
+      overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .gc-min .gcm-team:first-child { text-align:right; }
+    .gc-min .gcm-team.win { color:#fff; font-weight:900; }
+    .gc-min .gcm-team.lose { color:var(--dark-text-muted); }
+    .gc-min .gcm-score { display:flex; gap:0.3em; font-weight:900; font-size:0.5em; color:#fff; justify-content:center; }
+    .gc-min .gcm-score .l { color:var(--dark-text-muted); }
+    .gc-min .gcm-score.empty { color:#345; font-weight:600; }
+    .gc-min .gcm-row.done { opacity:0.5; flex:0.8 1 0; }
+    .gc-min .gcm-row.done .gcm-r { color:var(--dark-text-muted); }
+    .gc-min .gcm-row.done .gcm-team { font-size:0.42em; }
+    .gc-min .gcm-row.future { opacity:0.85; }
+    .gc-min .gcm-row.current { background:rgba(141,198,63,0.12);
+      box-shadow:inset 0.18em 0 0 var(--brand-green); border-radius:0.1em; flex:1.9 1 0; }
+    .gc-min .gcm-row.current .gcm-r { color:#fff; }
+    .gc-min .gcm-row.current .gcm-team { font-size:0.66em; }
   </style>
 </head>
 <body>
@@ -682,6 +824,7 @@
     try {
       const _scoreCh = new BroadcastChannel('dill_scores');
       _scoreCh.onmessage = function(e) {
+        return;  // PREVIEW PAGE: ignore live score broadcasts — keep render frozen.
         if (!CURRENT_LEAGUE) return;
         const d = e && e.data || {};
         if (d.league_id && d.league_id !== CURRENT_LEAGUE.league_id) return;
@@ -732,6 +875,7 @@
     }
 
     function subscribeFirebase_(league_id) {
+      return;  // PREVIEW PAGE: no live Firebase pushes — keeps the render frozen.
       if (!FIREBASE_DB_URL) { setLiveStatus_('off'); return; }
       if (!ensureFirebaseInit_()) { setLiveStatus_('error'); return; }
       setLiveStatus_('connecting');
@@ -759,11 +903,7 @@
     let LAST_DAY_STANDINGS = null;
     let LAST_PARTNER_WEEK = null;
     let LAST_COMMAND_TS = 0;
-    // localStorage (NOT sessionStorage): in the HtmlService sandbox iframe,
-    // sessionStorage doesn't survive window.location.reload(), so LAST_COMMAND_TS
-    // reset to 0 each reload and a stale reload command looped forever (white screen).
-    try { LAST_COMMAND_TS = Number(localStorage.getItem('dd_display_cmd_ts') || 0); } catch (e) {}
-    const PAGE_LOADED_AT = Date.now();
+    try { LAST_COMMAND_TS = Number(sessionStorage.getItem('dd_display_cmd_ts') || 0); } catch (e) {}
 
     function applyFirebasePush_(data) {
       if (!CURRENT_LEAGUE) return;
@@ -773,17 +913,10 @@
       const cmd = data && data.command;
       if (cmd && cmd.kind === 'reload' && Number(cmd.ts) > LAST_COMMAND_TS) {
         const ts = Number(cmd.ts);
+        try { sessionStorage.setItem('dd_display_cmd_ts', String(ts)); } catch (e) {}
         LAST_COMMAND_TS = ts;
-        try { localStorage.setItem('dd_display_cmd_ts', String(ts)); } catch (e) {}
-        // Anti-loop guard (storage-independent): a stale reload command is
-        // delivered on the very first Firebase snapshot (~1-3s after load).
-        // Acting on it reloads straight back into the same command → infinite
-        // white loop. Only honor a reload that arrives well after this page
-        // loaded — i.e. a genuine operator refresh of an already-running TV.
-        if (Date.now() - PAGE_LOADED_AT > 6000) {
-          window.location.reload();
-          return;
-        }
+        window.location.reload();
+        return;
       }
       const s = data.state || {};
       // Mirror week / half / courts the same way the version poll does.
@@ -827,30 +960,17 @@
         refreshContent();
         return;
       }
+      if (data.session && data.session.session) LAST_SESSION = data.session.session;
       if (data.standings && data.standings.rows) LAST_STANDINGS = data.standings.rows;
       // Today's standings push: published by api_recomputeStandings after every
       // save. Without this the panel would only refresh on the 60s fallback poll.
       if (data.day_standings && data.day_standings.rows) LAST_DAY_STANDINGS = data.day_standings.rows;
       const snap = data.snapshot || null;
-
-      // Freshest-session-wins. `/session` is rewritten on every save; the
-      // `/snapshot` bundle is only rewritten at half-setup — never on a save.
-      // Applying them in document order (snapshot last) let a STALE snapshot
-      // overwrite a just-saved `/session`, blanking the board's scores and group
-      // standings (and it stuck until something else cleared the snapshot). So
-      // compare updated_at and keep the newest. A fresh half-setup snapshot still
-      // wins at halftime because its timestamp is newer than the prior half's
-      // lingering `/session`.
-      const _sessTs = (data.session && data.session.session) ? String(data.session.updated_at || '') : null;
-      const _snapTs = (snap && snap.kind === 'ladder' && snap.session) ? String(snap.updated_at || '') : null;
-      if (_sessTs !== null && (_snapTs === null || _sessTs >= _snapTs)) {
-        LAST_SESSION = data.session.session;
-      } else if (_snapTs !== null) {
-        LAST_SESSION = snap.session;
+      if (snap && snap.kind === 'ladder') {
+        if (snap.session) LAST_SESSION = snap.session;
         if (snap.standings) LAST_STANDINGS = snap.standings;
         if (snap.day_standings) LAST_DAY_STANDINGS = snap.day_standings;
-      }
-      if (snap && snap.kind === 'partner') {
+      } else if (snap && snap.kind === 'partner') {
         if (snap.week_view) LAST_PARTNER_WEEK = snap.week_view;
         if (snap.standings) LAST_STANDINGS = snap.standings;
       }
@@ -964,10 +1084,10 @@
       // When Firebase is active, fall back polls only fire as a safety net
       // (30s for version, 5min for full refresh). Without Firebase, keep the
       // existing fast cadence so the Display still feels responsive.
-      const versionMs  = FIREBASE_DB_URL ? 30000 : VERSION_POLL_MS;
-      const fallbackMs = FIREBASE_DB_URL ? 300000 : FALLBACK_POLL_MS;
-      setInterval(checkLeagueVersion, versionMs);
-      setInterval(refreshContent, fallbackMs);
+      // PREVIEW PAGE: no live polling. This is a static design sandbox — once
+      // the session loads it must stay put so you can study it. The live
+      // version-poll / fallback-refresh intervals are intentionally NOT started
+      // here (they caused the cards to flicker/disappear on each poll).
     }
 
     function checkLeagueVersion() {
@@ -1359,25 +1479,194 @@
       return;
     }
 
-    // Re-fit on window resize (TV picture changes, browser zoom, etc).
+    // Re-fit on window resize (TV picture changes, browser zoom, etc). The
+    // gallery's thumbnail scale is computed from the viewport, so re-render
+    // from the cached session instead of just re-fitting the header.
+    let _resizeTimer = null;
     window.addEventListener('resize', () => {
-      requestAnimationFrame(() => {
-        fitToViewport();
-        fitHeader();
-      });
+      requestAnimationFrame(fitHeader);
+      clearTimeout(_resizeTimer);
+      _resizeTimer = setTimeout(() => {
+        if (LAST_SESSION) {
+          onSession({ ok: true, data: LAST_SESSION }, { ok: true, data: [] }, { ok: true, data: [] });
+        }
+      }, 150);
     });
 
+    // ── LAYOUT-PREVIEW CAROUSEL ──────────────────────────────────────────
+    // Renders ONE full-screen group-card layout at a time (no standings).
+    // Click anywhere on the stage, the ‹ › chips, or use ←/→ arrows to
+    // rotate through group counts MIN_GROUPS … MAX_GROUPS.
+    const MIN_GROUPS = 1;
+    const MAX_GROUPS = 12;
+    let _galleryN = MAX_GROUPS;   // current group count being previewed
+    let _cardStyle = 'hero';      // which card design is rendered
+    const CARD_STYLES = [
+      ['original', 'Original'],
+      ['hero', 'Hero'],
+      ['court', 'Court-first'],
+      ['min', 'Minimal'],
+    ];
+
+    // Normalize a group's rounds into a plain array all card variants share.
+    function buildRounds_(grp, cellByGroupRound, totalRounds) {
+      const rotationByGame = {};
+      (grp.rotation || []).forEach(g => { rotationByGame[g.game_in_match] = g; });
+      let currentRound = renderGroupCard._currentRound || null;
+      if (currentRound == null) {
+        for (let r = 1; r <= totalRounds; r++) {
+          const cell = cellByGroupRound[grp.group_number + ':' + r];
+          if (!cell) continue;
+          const game = cell.game;
+          if (!game || game.status !== 'complete') { currentRound = r; break; }
+        }
+      }
+      const rounds = [];
+      for (let r = 1; r <= totalRounds; r++) {
+        const cell = cellByGroupRound[grp.group_number + ':' + r];
+        const current = r === currentRound;
+        if (!cell) { rounds.push({ r, bye: true, current }); continue; }
+        const g = rotationByGame[cell.game_in_match];
+        if (!g) { rounds.push({ r, court: cell.court_number, current, missing: true }); continue; }
+        const game = cell.game || g.game || null;
+        const has = game && game.status === 'complete';
+        const s1 = has ? Number(game.t1_score) : null;
+        const s2 = has ? Number(game.t2_score) : null;
+        rounds.push({
+          r, court: cell.court_number, current,
+          t1: [g.t1_player_1.full_name, g.t1_player_2.full_name],
+          t2: [g.t2_player_1.full_name, g.t2_player_2.full_name],
+          has, s1, s2, t1Win: has && s1 > s2, t2Win: has && s2 > s1,
+        });
+      }
+      return { rounds, currentRound };
+    }
+
+    const _nm = n => escapeHtml(firstLastInitial(n));
+
+    // ── STYLE A: Hero ──────────────────────────────────────────────────
+    function renderGroupCardHero(grp, cbr, tr) {
+      const { rounds } = buildRounds_(grp, cbr, tr);
+      const hero = rounds.find(x => x.current) || rounds[0];
+      const others = rounds.filter(x => x !== hero);
+      let heroHtml;
+      if (hero.bye) {
+        heroHtml = `<div class="gch-hero bye">
+          <div class="gch-court"><span class="lbl">Round ${hero.r}</span></div>
+          <div class="gch-byebig">BYE — rest this round</div>
+        </div>`;
+      } else {
+        const sc = hero.has
+          ? `<div class="gch-score"><span class="${hero.t1Win ? 'w' : 'l'}">${hero.s1}</span><span class="dash">–</span><span class="${hero.t2Win ? 'w' : 'l'}">${hero.s2}</span></div>`
+          : `<div class="gch-score pending">vs</div>`;
+        heroHtml = `<div class="gch-hero">
+          <div class="gch-court"><span class="lbl">Court</span><span class="num">${hero.court}</span><span class="rnd">Round ${hero.r}</span></div>
+          <div class="gch-match">
+            <div class="gch-team ${hero.t1Win ? 'win' : hero.has ? 'lose' : ''}"><span>${_nm(hero.t1[0])}</span><span>${_nm(hero.t1[1])}</span></div>
+            ${sc}
+            <div class="gch-team ${hero.t2Win ? 'win' : hero.has ? 'lose' : ''}"><span>${_nm(hero.t2[0])}</span><span>${_nm(hero.t2[1])}</span></div>
+          </div>
+        </div>`;
+      }
+      const rows = others.map(x => {
+        const cls = x.r < hero.r ? 'done' : 'future';
+        if (x.bye) return `<div class="gch-rrow ${cls}"><span class="rr">R${x.r}</span><span></span><span class="rn">Bye</span><span class="rs"></span></div>`;
+        const names = `${_nm(x.t1[0])}/${_nm(x.t1[1])} · ${_nm(x.t2[0])}/${_nm(x.t2[1])}`;
+        const score = x.has ? `${x.s1}–${x.s2}` : '';
+        return `<div class="gch-rrow ${cls}"><span class="rr">R${x.r}</span><span class="rr" style="color:inherit;font-weight:600">C${x.court}</span><span class="rn">${names}</span><span class="rs">${score}</span></div>`;
+      }).join('');
+      return `<div class="group-card gc-hero"><div class="gch-inner">
+        <div class="gch-group">Group ${grp.group_number}</div>
+        ${heroHtml}
+        <div class="gch-rest">${rows}</div>
+      </div></div>`;
+    }
+
+    // ── STYLE B: Court-first ───────────────────────────────────────────
+    function renderGroupCardCourt(grp, cbr, tr) {
+      const { rounds } = buildRounds_(grp, cbr, tr);
+      const hero = rounds.find(x => x.current) || rounds[0];
+      const others = rounds.filter(x => x !== hero);
+      let heroHtml;
+      if (hero.bye) {
+        heroHtml = `<div class="gcc-hero bye">
+          <div class="gcc-bignum">BYE</div>
+          <div class="gcc-side"><div class="gcc-rnd">Round ${hero.r}</div><div class="gcc-team">Rest this round</div></div>
+        </div>`;
+      } else {
+        const sc = hero.has
+          ? `<div class="gcc-sc"><span class="${hero.t1Win ? 'w' : 'l'}">${hero.s1}</span>–<span class="${hero.t2Win ? 'w' : 'l'}">${hero.s2}</span></div>`
+          : `<div class="gcc-sc pending">not played yet</div>`;
+        heroHtml = `<div class="gcc-hero">
+          <div class="gcc-bignum"><span class="c">COURT</span><span class="n">${hero.court}</span></div>
+          <div class="gcc-side">
+            <div class="gcc-rnd">Round ${hero.r}</div>
+            <div class="gcc-team ${hero.t1Win ? 'win' : hero.has ? 'lose' : ''}">${_nm(hero.t1[0])} & ${_nm(hero.t1[1])}</div>
+            <div class="gcc-vs">vs</div>
+            <div class="gcc-team ${hero.t2Win ? 'win' : hero.has ? 'lose' : ''}">${_nm(hero.t2[0])} & ${_nm(hero.t2[1])}</div>
+            ${sc}
+          </div>
+        </div>`;
+      }
+      const list = others.map(x => {
+        const cls = x.r < hero.r ? 'done' : 'future';
+        const chip = x.bye ? '—' : ('C' + x.court);
+        const names = x.bye ? 'Bye' : `${_nm(x.t1[0])}/${_nm(x.t1[1])} · ${_nm(x.t2[0])}/${_nm(x.t2[1])}`;
+        const score = x.has ? `${x.s1}–${x.s2}` : '';
+        return `<div class="gcc-row ${cls}"><span class="gcc-chip">${chip}</span><span class="gcc-rr">R${x.r}</span><span class="gcc-nm">${names}</span><span class="gcc-rs">${score}</span></div>`;
+      }).join('');
+      return `<div class="group-card gc-court"><div class="gcc-inner">
+        <div class="gcc-group">Group ${grp.group_number}</div>
+        ${heroHtml}
+        <div class="gcc-list">${list}</div>
+      </div></div>`;
+    }
+
+    // ── STYLE C: Minimal list ──────────────────────────────────────────
+    function renderGroupCardMinimal(grp, cbr, tr) {
+      const { rounds, currentRound } = buildRounds_(grp, cbr, tr);
+      const curR = currentRound || 0;
+      const rows = rounds.map(x => {
+        const cls = x.current ? 'current' : (x.r < curR ? 'done' : 'future');
+        if (x.bye) return `<div class="gcm-row ${cls}"><span class="gcm-r">R${x.r}</span><span class="gcm-c">BYE</span><span class="gcm-match"><span class="gcm-team" style="text-align:left">Rest this round</span></span></div>`;
+        const sc = x.has
+          ? `<span class="gcm-score"><span class="${x.t1Win ? 'w' : 'l'}">${x.s1}</span><span class="${x.t2Win ? 'w' : 'l'}">${x.s2}</span></span>`
+          : `<span class="gcm-score empty">–</span>`;
+        return `<div class="gcm-row ${cls}">
+          <span class="gcm-r">R${x.r}</span><span class="gcm-c">C${x.court}</span>
+          <span class="gcm-match">
+            <span class="gcm-team ${x.t1Win ? 'win' : x.has ? 'lose' : ''}">${_nm(x.t1[0])}/${_nm(x.t1[1])}</span>
+            ${sc}
+            <span class="gcm-team ${x.t2Win ? 'win' : x.has ? 'lose' : ''}">${_nm(x.t2[0])}/${_nm(x.t2[1])}</span>
+          </span>
+        </div>`;
+      }).join('');
+      return `<div class="group-card gc-min"><div class="gcm-inner">
+        <div class="gcm-group">Group ${grp.group_number}</div>
+        ${rows}
+      </div></div>`;
+    }
+
+    function cardRenderer_() {
+      return _cardStyle === 'hero' ? renderGroupCardHero
+        : _cardStyle === 'court' ? renderGroupCardCourt
+        : _cardStyle === 'min' ? renderGroupCardMinimal
+        : renderGroupCard;
+    }
+    function setCardStyle(k, ev) {
+      if (ev) ev.stopPropagation();
+      _cardStyle = k;
+      galleryRerender();
+    }
+
     function renderSession(s, seasonStandings, dayStandings) {
-      // Index schedule cells by (group_number, round_number) so each group
-      // can be rendered as a 4-round list (3 games + 1 bye).
+      // Build the same (group,round)→cell index the live display uses so the
+      // sample card shows real rounds / scores / current-round highlight.
       const cellByGroupRound = {};
       const totalRounds = (s.schedule || []).length || 4;
       (s.schedule || []).forEach(round => round.forEach(cell => {
         cellByGroupRound[cell.group_number + ':' + cell.round_number] = cell;
       }));
-      // Session-wide current round = lowest round number where any group's
-      // scheduled game is still incomplete. All groups (including those on
-      // a bye in that round) will highlight the same round as "current".
       const gameByKey = {};
       s.groups.forEach(grp => {
         (grp.rotation || []).forEach(g => {
@@ -1395,25 +1684,63 @@
         if (!done) { sessionCurrentRound = r; break; }
       }
       renderGroupCard._currentRound = sessionCurrentRound;
-      const cards = s.groups.map(grp => renderGroupCard(grp, cellByGroupRound, totalRounds)).join('');
-      // Pick the grid shape (cols × rows) that best fits the available width
-      // for N cards. The standings panel on the right takes ~26vw, so the
-      // grid lives in the remaining ~73vw — pass that down so cards aren't
-      // built for a 16:9 viewport they no longer have.
-      const N = s.groups.length || 1;
-      // Grid + panel share viewport at a 1.6:1 ratio (see .session-with-
-       // standings CSS). Pass the grid's slice so cards pick a cols×rows
-       // shape matching the area they actually occupy.
-      const gridWidth = Math.max(1, (window.innerWidth || 1920) * (1.6 / 2.6));
-      const best = pickGridLayout(N, gridWidth, (window.innerHeight || 1080));
-      const sessionCard = renderSessionInfoCard(s, best, N);
-      const standings = seasonStandings || [];
-      const grid = `<div class="session-grid" style="--cols:${best.cols}">${cards}${sessionCard}</div>`;
-      const body = standings.length
-        ? `<div class="session-with-standings">${grid}${renderStandingsSidePanel(standings, s, dayStandings)}</div>`
-        : grid;
-      return `<div class="fit-wrap">${body}</div>`;
+
+      // The sample card = the first real group; every cell repeats it so the
+      // layout (cell size + spacing) is faithful for the chosen count.
+      const sample = s.groups[0];
+      if (!sample) {
+        return `<div class="fit-wrap"><p class="session-summary">No groups in this session — set up a half in the Operator to populate the sample card.</p></div>`;
+      }
+      const sampleCardHtml = cardRenderer_()(sample, cellByGroupRound, totalRounds);
+
+      // Clamp the current index and render that one layout full-screen, using
+      // the whole viewport (no side panel) just like a standings-free TV.
+      if (_galleryN < MIN_GROUPS) _galleryN = MAX_GROUPS;
+      if (_galleryN > MAX_GROUPS) _galleryN = MIN_GROUPS;
+      const N = _galleryN;
+      const best = pickGridLayout(N, (window.innerWidth || 1920), (window.innerHeight || 1080));
+      const cards = new Array(N).fill(sampleCardHtml).join('');
+      const grid = `<div class="session-grid" style="--cols:${best.cols}">${cards}</div>`;
+
+      const styleBtns = CARD_STYLES.map(([k, label]) =>
+        `<button class="${k === _cardStyle ? 'active' : ''}" onclick="setCardStyle('${k}', event)">${label}</button>`
+      ).join('');
+      const nav = `<div class="gallery-nav">
+          <div class="gallery-styleseg">${styleBtns}</div>
+          <span class="gn-sep"></span>
+          <button onclick="galleryGo(-1, event)" title="Previous (←)">‹</button>
+          <span class="gn-label">${N} group${N > 1 ? 's' : ''}</span>
+          <span class="gn-dims">${best.cols}×${best.rows}</span>
+          <button onclick="galleryGo(1, event)" title="Next (→)">›</button>
+          <span class="gn-hint">click to rotate count</span>
+        </div>`;
+
+      return `<div class="fit-wrap">
+          <div class="gallery-stage" onclick="galleryGo(1, event)">${grid}</div>
+          ${nav}
+        </div>`;
     }
+
+    // Advance the previewed layout by `delta` (wraps), then re-render from the
+    // cached session. `ev` lets the ‹ › buttons reverse without the stage's
+    // click handler also firing.
+    function galleryGo(delta, ev) {
+      if (ev) ev.stopPropagation();
+      _galleryN += delta;
+      if (_galleryN < MIN_GROUPS) _galleryN = MAX_GROUPS;
+      if (_galleryN > MAX_GROUPS) _galleryN = MIN_GROUPS;
+      galleryRerender();
+    }
+    function galleryRerender() {
+      if (LAST_SESSION) {
+        onSession({ ok: true, data: LAST_SESSION }, { ok: true, data: [] }, { ok: true, data: [] });
+      }
+    }
+    // Arrow keys rotate too.
+    document.addEventListener('keydown', e => {
+      if (e.key === 'ArrowRight') { galleryGo(1); }
+      else if (e.key === 'ArrowLeft') { galleryGo(-1); }
+    });
 
     function renderStandingsSidePanel(standings, session, dayStandings) {
       const rankCls = r => r === 1 ? ' r1' : r === 2 ? ' r2' : r === 3 ? ' r3' : (r == null ? ' rNR' : '');

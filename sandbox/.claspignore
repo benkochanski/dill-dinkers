@@ -1,0 +1,4 @@
+# Don't push the Cloudflare Worker source to Apps Script — it's not Apps Script code.
+**/dupr-webhook-proxy/**
+**/README.md
+**/*.md

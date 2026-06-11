@@ -1,10 +1,9 @@
 <nav class="page-nav">
-  <a data-page="home">Home</a>
-  <a data-page="standings">Standings</a>
-  <a data-page="admin">Admin</a>
-  <a data-page="operator">Operator</a>
-  <a data-page="display">Display</a>
-  <a id="logoutLink" style="margin-left:auto;color:var(--text-muted);cursor:pointer">Sign out</a>
+  <a data-page="leagues">Leagues</a>
+  <a data-page="seasons">Seasons</a>
+  <a data-page="players">Players</a>
+  <a data-page="display" data-newtab="1">Display ↗</a>
+  <a data-page="admin" class="secondary-link">Admin</a>
 </nav>
 <style>
   .page-nav {
@@ -33,21 +32,18 @@
     background: var(--brand-orange);
     color: #fff;
   }
+  .page-nav a.secondary-link {
+    margin-left: auto;
+    color: var(--text-muted);
+    font-size: 12px;
+    opacity: 0.75;
+  }
+  .page-nav a.secondary-link:hover { opacity: 1; }
 </style>
 <script>
   (function () {
     var URL_PARAMS = new URLSearchParams(window.location.search);
     var NAV_PAGE = URL_PARAMS.get('page') || 'home';
-    var STAFF_TOKEN = URL_PARAMS.get('t') || '';
-
-    // Persist the token so it survives navigation between pages.
-    if (STAFF_TOKEN) {
-      try { localStorage.setItem('dd_staff_token', STAFF_TOKEN); } catch (e) {}
-    } else {
-      try { STAFF_TOKEN = localStorage.getItem('dd_staff_token') || ''; } catch (e) {}
-    }
-    // Expose for inline page scripts that need to pass it (e.g. logout).
-    window.STAFF_TOKEN = STAFF_TOKEN;
 
     document.querySelectorAll('.page-nav [data-page]').forEach(function (a) {
       if (a.getAttribute('data-page') === NAV_PAGE) a.classList.add('active');
@@ -61,27 +57,14 @@
         var pg = a.getAttribute('data-page');
         a.addEventListener('click', function (e) {
           e.preventDefault();
-          var url = appUrl + '?page=' + pg;
-          // Public pages don't need the token; staff pages do.
-          if (pg !== 'standings' && STAFF_TOKEN) url += '&t=' + encodeURIComponent(STAFF_TOKEN);
-          window.top.location.href = url;
-        });
-      });
-      var logout = document.getElementById('logoutLink');
-      if (logout) {
-        logout.addEventListener('click', function (e) {
-          e.preventDefault();
-          try { localStorage.removeItem('dd_staff_token'); } catch (err) {}
-          if (typeof google !== 'undefined' && google.script && google.script.run && STAFF_TOKEN) {
-            google.script.run
-              .withSuccessHandler(function () { window.top.location.href = appUrl; })
-              .withFailureHandler(function () { window.top.location.href = appUrl; })
-              .api_logout(STAFF_TOKEN);
+          // The TV scoreboard opens in a NEW tab so the staff page stays put.
+          if (a.getAttribute('data-newtab')) {
+            window.open(appUrl + '?page=' + pg, '_blank');
           } else {
-            window.top.location.href = appUrl;
+            window.top.location.href = appUrl + '?page=' + pg;
           }
         });
-      }
+      });
     }
     var ref = document.referrer || '';
     var m = ref.match(/^(.+\/macros\/(?:s\/[^/]+|[^/]+)\/(?:dev|exec))/);

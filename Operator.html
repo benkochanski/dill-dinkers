@@ -24,6 +24,14 @@
     }
     .sub-card.dragging { opacity: 0.4; cursor: grabbing; }
     .sub-card:hover { border-color: var(--brand-green-dark); }
+    .sub-card.selected {
+      background: var(--brand-orange); color: #fff;
+      border-color: var(--brand-orange); font-weight: 700;
+      box-shadow: 0 0 0 3px rgba(245, 130, 32, 0.25);
+    }
+    .noshow-card.pairable { cursor: pointer; }
+    .noshow-card.pairable:hover { border-style: solid; box-shadow: 0 0 0 2px var(--brand-orange) inset; }
+    .noshow-card.pairable .drop-hint::before { content: 'Click to pair · '; font-weight: 700; color: var(--brand-orange-dark); }
     .noshow-card {
       padding: 10px 12px; border: 2px dashed var(--brand-orange); border-radius: 6px;
       background: var(--brand-orange-soft); font-size: 13px;
@@ -35,7 +43,7 @@
     .group-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 12px; }
     .group-card { border: 1px solid var(--border); border-radius: 8px; padding: 12px; background: var(--bg-subtle); }
     .group-card h3 { margin: 0 0 8px; display: flex; justify-content: space-between; }
-    .game-row { display: grid; grid-template-columns: 1fr 60px 8px 60px; gap: 6px; align-items: center; padding: 6px 0; border-top: 1px solid var(--border); }
+    .game-row { display: grid; grid-template-columns: 1fr 60px 8px 60px 26px; gap: 6px; align-items: center; padding: 6px 0; border-top: 1px solid var(--border); }
     .game-row input.score-done { background: var(--brand-green-soft); color: var(--brand-green-dark); }
     .game-row:first-of-type { border-top: none; }
     .game-row .matchup { font-size: 13px; }
@@ -44,6 +52,24 @@
     .game-row input[type=number]::-webkit-inner-spin-button,
     .game-row input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
     .game-row .saved { font-size: 11px; color: var(--brand-green-dark); font-weight: 600; }
+    .slot-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+    .slot-chip { display: inline-flex; align-items: center; gap: 4px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 999px; padding: 2px 6px 2px 8px; font-size: 12px; }
+    .btn-swap { background: transparent; border: 1px solid var(--border); color: var(--text-muted); width: 20px; height: 20px; line-height: 1; padding: 0; border-radius: 50%; cursor: pointer; font-size: 11px; }
+    .btn-swap:hover { background: var(--brand-orange-soft); color: var(--brand-orange-dark); border-color: var(--brand-orange-dark); }
+    .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+    .modal-panel { background: var(--bg-card); border-radius: 8px; padding: 16px; min-width: 320px; max-width: 420px; box-shadow: 0 8px 32px rgba(0,0,0,0.2); }
+    .modal-panel h3 { margin: 0 0 12px; }
+    .modal-panel .row { gap: 8px; margin: 8px 0; }
+    .modal-panel label { font-size: 12px; color: var(--text-muted); }
+    .modal-panel select, .modal-panel input { width: 100%; }
+    .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; }
+    .player-link { color: var(--brand-orange-dark); text-decoration: none; border-bottom: 1px dotted var(--brand-orange); }
+    .player-link:hover { color: var(--brand-orange); border-bottom-style: solid; }
+    .pe-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; }
+    .pe-fields > div { display: flex; flex-direction: column; }
+    .pe-fields .full { grid-column: 1 / -1; }
+    .btn-reset { background: none; border: 1px solid var(--border); border-radius: 4px; color: var(--text-muted); cursor: pointer; font-size: 14px; width: 26px; height: 28px; padding: 0; line-height: 1; }
+    .btn-reset:hover { border-color: var(--brand-orange); color: var(--brand-orange-dark); background: var(--brand-orange-soft); }
     .schedule-table td { text-align: center; font-size: 12px; }
     .schedule-cell { padding: 4px; line-height: 1.3; }
     .schedule-cell .group { font-weight: 600; }
@@ -52,8 +78,14 @@
     .standings-mini { font-size: 12px; margin-top: 8px; }
     .standings-mini td { padding: 3px 6px; font-size: 12px; }
     .roster-table { font-size: 13px; }
-    .roster-table td:first-child { width: 40px; text-align: center; }
-    .roster-table td:nth-child(2) { width: 40px; text-align: center; color: var(--text-muted); }
+    .roster-table td.drag-handle { width: 24px; text-align: center; color: var(--text-muted); cursor: grab; user-select: none; }
+    .roster-table td.drag-handle:active { cursor: grabbing; }
+    .roster-table td:nth-child(2) { width: 40px; text-align: center; }
+    .roster-table td:nth-child(3) { width: 40px; text-align: center; color: var(--text-muted); }
+    .roster-table tr[draggable="true"] { cursor: default; }
+    .roster-table tr.dragging { opacity: 0.4; }
+    .roster-table tr.drag-over-top td { box-shadow: inset 0 2px 0 0 var(--brand-orange-dark); }
+    .roster-table tr.drag-over-bottom td { box-shadow: inset 0 -2px 0 0 var(--brand-orange-dark); }
     .check-all { font-size: 12px; cursor: pointer; color: var(--brand-orange-dark); }
     /* Partner schedule-driven UI */
     .partner-round { margin-bottom: 18px; }
@@ -67,7 +99,13 @@
     .partner-score-input { width: 100%; padding: 4px 6px; font-size: 14px; text-align: center; -moz-appearance: textfield; border: 1px solid var(--border); border-radius: 4px; }
     .partner-score-input::-webkit-inner-spin-button, .partner-score-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
     .partner-score-input.saved { background: var(--brand-green-soft); color: var(--brand-green-dark); }
-    .partner-match-footer { font-size: 11px; color: var(--brand-green-dark); font-weight: 600; margin-top: 6px; min-height: 16px; }
+    .partner-match-footer { font-size: 11px; color: var(--brand-green-dark); font-weight: 600; margin-top: 6px; min-height: 16px; display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+    .partner-match-footer .partner-reset-btn {
+      background: none; border: 1px solid var(--border); border-radius: 4px;
+      color: var(--text-muted); cursor: pointer; font-size: 12px;
+      width: 22px; height: 22px; padding: 0; line-height: 1;
+    }
+    .partner-match-footer .partner-reset-btn:hover { border-color: var(--brand-orange); color: var(--brand-orange-dark); background: var(--brand-orange-soft); }
   </style>
 </head>
 <body>
@@ -80,13 +118,21 @@
 
   <div class="card">
     <div class="row">
-      <div>
+      <div id="leaguePickerWrap">
         <label>League</label>
         <select id="leaguePicker"><option>Loading…</option></select>
       </div>
-      <div>
+      <div id="lockedLeagueWrap" class="hidden" style="flex-direction:column; gap:2px">
+        <label>League</label>
+        <div id="lockedLeagueLabel" style="font-weight:700; font-size:15px; padding-top:4px">—</div>
+      </div>
+      <div id="weekPickerWrap">
         <label>Week</label>
         <select id="weekPicker"></select>
+      </div>
+      <div id="lockedWeekWrap" class="hidden" style="flex-direction:column; gap:2px">
+        <label>Week</label>
+        <div id="lockedWeekLabel" style="font-weight:700; font-size:15px; padding-top:4px">—</div>
       </div>
       <div id="sessionDateWrap" style="flex-direction:column; gap:2px">
         <label style="margin-bottom:2px">Session date <span class="muted" style="font-size:10px; font-weight:400">(for no-show check)</span></label>
@@ -96,14 +142,21 @@
       </div>
       <div id="courtsWrap" class="hidden" style="flex-direction:column; gap:2px">
         <label style="margin-bottom:2px">Courts in use</label>
-        <div style="display:flex; gap:6px; align-items:center">
-          <input id="courtNumbers" type="text" placeholder="e.g. 1, 2, 3, 4" style="width:160px"
-                 title="Enter the specific court numbers being used, separated by commas or spaces">
-          <span id="courtCountPill" class="pill" style="white-space:nowrap"></span>
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:nowrap">
+          <div id="courtCheckboxes" style="display:grid; grid-template-columns:repeat(7, 28px); gap:4px; align-items:center">
+            <!-- checkboxes 1–7 injected by buildCourtCheckboxes() -->
+          </div>
+          <span style="font-size:12px; white-space:nowrap">
+            <a class="check-all" onclick="setAllCourts(true)">all</a> ·
+            <a class="check-all" onclick="setAllCourts(false)">none</a>
+          </span>
+          <span id="courtCountPill" class="pill" style="white-space:nowrap; min-width:70px; text-align:center"></span>
         </div>
       </div>
       <button class="btn" onclick="pullTodaysAttendance()" title="Pull CR_Attendance for the selected date and event only — fast refresh on game day">Pull today's attendance</button>
       <button class="secondary" onclick="refreshAll()">Refresh</button>
+      <button class="secondary" onclick="refreshDisplays()" title="Force any TV/Display tuned to this league to reload">Refresh display</button>
+      <button class="secondary" onclick="openDisplay()" title="Open the TV scoreboard for this league in a new tab">Open Display ↗</button>
       <span id="pullAttMsg" class="muted" style="font-size:12px"></span>
       <span id="formatPill" class="pill"></span>
     </div>
@@ -112,18 +165,18 @@
   <!-- ============ LADDER SESSION (ladder only) ============ -->
   <div id="ladderSession" class="hidden">
     <div class="tabs" id="halfTabs" style="margin-bottom: 0">
-      <button data-half="1" class="active" onclick="switchHalf(1)">Half 1</button>
-      <button data-half="2" onclick="switchHalf(2)">Half 2</button>
+      <button data-half="1" class="active" onclick="switchHalf(1)">1st Half</button>
+      <button data-half="2" onclick="switchHalf(2)">2nd Half</button>
     </div>
 
     <!-- ===== HALF 1 ===== -->
     <div id="half1Panel">
       <!-- Setup phase: no Session_Groups for half 1 -->
       <div id="setup1Panel" class="card hidden">
-        <h2>Setup Half 1 — Week <span class="weekLabel">?</span></h2>
-        <p class="muted">Mark who's here. Attendees are split into groups of 4 in season-rank order
-          (top 4 → group 1, next 4 → group 2, …). Attendance must be a multiple of 4.
-          Each half is 4 rounds; each group plays 3 games + 1 bye.</p>
+        <h2>Setup 1st Half — Week <span class="weekLabel">?</span></h2>
+        <p class="muted">Mark who's here. Attendees are split into groups of 4 in the order shown
+          (top 4 → group 1, next 4 → group 2, …). Drag the ⋮⋮ handle to reorder players.
+          Attendance must be a multiple of 4. Each half is 4 rounds; each group plays 3 games + 1 bye.</p>
         <div class="row" style="margin: 8px 0">
           <span><a class="check-all" onclick="checkAllAttendance(true)">all in</a> · <a class="check-all" onclick="checkAllAttendance(false)">none</a></span>
           <span id="attendanceCount" class="muted"></span>
@@ -132,6 +185,8 @@
         <div class="row" style="margin-top:8px;gap:6px">
           <input id="manualSubName" type="text" placeholder="Sub name (e.g. Jane Doe)" style="flex:1;max-width:280px"
                  onkeydown="if(event.key==='Enter'){event.preventDefault();addManualSub();}">
+          <input id="manualSubLevel" type="text" placeholder="Level (e.g. 3.5)" style="width:90px"
+                 onkeydown="if(event.key==='Enter'){event.preventDefault();addManualSub();}">
           <button class="secondary tiny" onclick="addManualSub()">Add sub</button>
           <span id="manualSubMsg" class="muted" style="font-size:11px"></span>
         </div>
@@ -139,7 +194,7 @@
           <span id="noShowDebugNote" class="muted" style="font-size:11px"></span>
         </div>
         <div class="row" style="margin-top:8px">
-          <button onclick="submitSetupHalf1()">Setup Half 1</button>
+          <button onclick="submitSetupHalf1()">Setup 1st Half</button>
           <span id="setupMsg" class="muted"></span>
         </div>
       </div>
@@ -149,12 +204,12 @@
         <div class="card">
           <div class="row" style="justify-content: space-between">
             <div>
-              <h2 style="margin:0">Half 1 — Week <span class="weekLabel">?</span></h2>
+              <h2 style="margin:0">1st Half — Week <span class="weekLabel">?</span></h2>
               <p class="muted" id="summary1" style="margin: 4px 0 0"></p>
             </div>
             <div class="row" style="gap:6px">
               <button class="secondary tiny" onclick="clearSessionResults(1)" title="Erase scores but keep groups + attendance — re-enter scores fresh">Clear results</button>
-              <button class="danger tiny" onclick="resetHalf(1)">Reset Half 1</button>
+              <button class="danger tiny" onclick="resetHalf(1)">Reset 1st Half</button>
             </div>
           </div>
         </div>
@@ -171,18 +226,18 @@
     <div id="half2Panel" class="hidden">
       <!-- Pre-setup: half 1 not done yet -->
       <div id="half2Locked" class="card hidden">
-        <h2>Half 2 — Week <span class="weekLabel">?</span></h2>
+        <h2>2nd Half — Week <span class="weekLabel">?</span></h2>
         <p id="half2LockMsg" class="muted"></p>
       </div>
 
       <!-- Halftime mix preview / confirm -->
       <div id="halftimeMixPanel" class="card hidden">
         <h2>Halftime mix</h2>
-        <p class="muted">Half 1 is complete. The new groups below come from promote/relegate on Half 1's standings:
+        <p class="muted">1st Half is complete. The new groups below come from promote/relegate on the 1st Half standings:
           rank 1 up two groups, rank 2 up one, rank 3 down one, rank 4 down two — with boundary rules at the top and bottom.</p>
         <div id="halftimePreviewContent">Loading…</div>
         <div class="row" style="margin-top:12px">
-          <button onclick="confirmHalftimeMix()">Confirm and start Half 2</button>
+          <button onclick="confirmHalftimeMix()">Confirm and start 2nd Half</button>
           <button class="secondary" onclick="reloadSession()">Refresh</button>
           <span id="halftimeMsg" class="muted"></span>
         </div>
@@ -193,12 +248,12 @@
         <div class="card">
           <div class="row" style="justify-content: space-between">
             <div>
-              <h2 style="margin:0">Half 2 — Week <span class="weekLabel">?</span></h2>
+              <h2 style="margin:0">2nd Half — Week <span class="weekLabel">?</span></h2>
               <p class="muted" id="summary2" style="margin: 4px 0 0"></p>
             </div>
             <div class="row" style="gap:6px">
               <button class="secondary tiny" onclick="clearSessionResults(2)" title="Erase scores but keep groups + attendance — re-enter scores fresh">Clear results</button>
-              <button class="danger tiny" onclick="resetHalf(2)">Reset Half 2</button>
+              <button class="danger tiny" onclick="resetHalf(2)">Reset 2nd Half</button>
             </div>
           </div>
         </div>
@@ -259,23 +314,50 @@
       <p id="partnerNoScheduleMsg" class="muted hidden" style="padding:16px 0 4px">
         No schedule generated for this league yet. Go to <strong>Admin → Leagues</strong> and click <em>Schedule</em> next to this league to generate one.
       </p>
-    </div>
-
-    <div class="card">
-      <h2>Live standings</h2>
-      <div id="standings">Loading…</div>
-    </div>
-
     <div class="card">
       <h2>Games this week</h2>
       <div id="gamesList">Loading…</div>
     </div>
   </div>
 
+  <div class="card">
+    <h2>Live standings</h2>
+    <div id="standings">Loading…</div>
+  </div>
+
   <p id="error" class="err"></p>
   <p id="status" class="muted" style="font-size:12px"></p>
 
+  <!-- Firebase Realtime Database SDK — used to push optimistic score updates
+       directly from the browser so the Display sees them in ~100ms instead
+       of waiting on the GAS save round-trip. -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-database-compat.js"></script>
   <script>
+    const FIREBASE_DB_URL = <?!= JSON.stringify(firebaseUrl || '') ?>;
+    let _firebaseReady = false;
+    function ensureFirebase_() {
+      if (_firebaseReady) return true;
+      if (!FIREBASE_DB_URL || typeof firebase === 'undefined') return false;
+      try {
+        firebase.initializeApp({ databaseURL: FIREBASE_DB_URL });
+        _firebaseReady = true;
+        return true;
+      } catch (e) { return false; }
+    }
+    function fbPublish_(path, payload) {
+      if (!ensureFirebase_()) return;
+      try { firebase.database().ref(path).set(payload); } catch (e) { console.warn('fb publish', e); }
+    }
+  </script>
+  <script>
+    // URL-pinned league + week (from ?lid=…&week=…). When both are set, the
+    // Operator is locked to that selection and the pickers are hidden — you
+    // get here by clicking a week in the league's schedule, not by picking.
+    const URL_LEAGUE_ID = <?!= JSON.stringify(leagueId || '') ?>;
+    const URL_WEEK      = <?!= JSON.stringify(weekNumber || '') ?>;
+    const LOCKED        = !!URL_LEAGUE_ID;
+
     let LEAGUES = [], CURRENT_LEAGUE = null;
     let ROSTER = [], TEAMS = [];               // partner
     let RANKED_ROSTER = [];                    // ladder, for half-1 setup
@@ -311,6 +393,7 @@
     function showErr(e) { document.getElementById('error').textContent = String(e && e.message || e); }
     function isPartner() { return CURRENT_LEAGUE && CURRENT_LEAGUE.format_type === 'partner'; }
     function isLadder() { return CURRENT_LEAGUE && CURRENT_LEAGUE.format_type === 'ladder'; }
+    function halfLabel(n) { return Number(n) === 2 ? '2nd Half' : '1st Half'; }
     function escapeHtml(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
     function getWeek() { return Number(document.getElementById('weekPicker').value || 1); }
 
@@ -400,19 +483,53 @@
       } catch(e) { return iso; }
     }
 
+    const COURT_OPTIONS = [1, 2, 3, 4, 5, 6, 7];
+
+    /** Build the 1–7 checkboxes once. Idempotent. */
+    function buildCourtCheckboxes() {
+      const wrap = document.getElementById('courtCheckboxes');
+      if (!wrap || wrap.dataset.built === '1') return;
+      const frag = document.createDocumentFragment();
+      COURT_OPTIONS.forEach(n => {
+        const label = document.createElement('label');
+        label.style.cssText = 'display:inline-flex; align-items:center; gap:2px; font-size:13px; cursor:pointer; user-select:none; width:28px; justify-content:center';
+        label.innerHTML = `<input type="checkbox" class="court-cb" value="${n}" style="width:auto;margin:0"> ${n}`;
+        frag.appendChild(label);
+      });
+      wrap.appendChild(frag);
+      wrap.dataset.built = '1';
+    }
+
+    /** Check or uncheck every court, then re-emit the change handler once. */
+    function setAllCourts(state) {
+      const boxes = document.querySelectorAll('#courtCheckboxes .court-cb');
+      boxes.forEach(cb => { cb.checked = !!state; });
+      updateCourtCountPill();
+      if (isLadder()) {
+        savePrefs_({ courts_list: getCourtNumbers() });
+        loadLadderSession();
+      }
+    }
+
     /**
-     * Parse the court numbers text field. Returns an array of unique positive
-     * integers, e.g. [3, 4, 5, 6]. Falls back to [1,2,3,4] when blank.
+     * Returns selected court numbers, e.g. [3, 4, 5, 6]. Falls back to
+     * [1,2,3,4] when nothing is checked.
      */
     function getCourtNumbers() {
-      const raw = (document.getElementById('courtNumbers').value || '').trim();
-      if (!raw) return [1, 2, 3, 4];
-      const nums = raw.split(/[\s,]+/)
-        .map(s => parseInt(s, 10))
-        .filter(n => Number.isFinite(n) && n > 0);
-      // Deduplicate, preserve order.
-      const seen = new Set();
-      return nums.filter(n => { if (seen.has(n)) return false; seen.add(n); return true; });
+      const nodes = document.querySelectorAll('#courtCheckboxes .court-cb:checked');
+      const nums = Array.from(nodes).map(cb => parseInt(cb.value, 10)).filter(n => Number.isFinite(n) && n > 0);
+      if (!nums.length) return [1, 2, 3, 4];
+      nums.sort((a, b) => a - b);
+      return nums;
+    }
+
+    /** Apply an array of court numbers to the checkboxes. */
+    function setCourtNumbers(arr) {
+      const set = {};
+      (arr || []).forEach(n => { set[parseInt(n, 10)] = true; });
+      document.querySelectorAll('#courtCheckboxes .court-cb').forEach(cb => {
+        cb.checked = !!set[parseInt(cb.value, 10)];
+      });
     }
 
     /** Update the court-count badge next to the input. */
@@ -432,11 +549,22 @@
     function init() {
       // Default session date to today immediately so it's never blank.
       document.getElementById('sessionDateInput').value = todayIso_();
+      buildCourtCheckboxes();
       setStatus('init: starting…');
       if (typeof google === 'undefined' || !google.script || !google.script.run) {
         showErr('google.script.run is not available. ' +
           'A browser extension may be blocking the Apps Script sandbox bridge. ' +
           'Try an incognito window or disable extensions for script.google.com.');
+        return;
+      }
+      if (LOCKED) {
+        // Pickers are hidden — load the URL-pinned league directly.
+        document.getElementById('leaguePickerWrap').classList.add('hidden');
+        document.getElementById('weekPickerWrap').classList.add('hidden');
+        document.getElementById('lockedLeagueWrap').classList.remove('hidden');
+        document.getElementById('lockedWeekWrap').classList.remove('hidden');
+        setStatus('init: loading league ' + URL_LEAGUE_ID + '…');
+        loadLeague(URL_LEAGUE_ID);
         return;
       }
       setStatus('init: calling api_listLeagues…');
@@ -489,6 +617,12 @@
       SCHEDULE = resp.data.schedule || [];
 
       document.getElementById('formatPill').textContent = CURRENT_LEAGUE.format_type;
+      if (LOCKED) {
+        const meta = [CURRENT_LEAGUE.level, CURRENT_LEAGUE.day_of_week, CURRENT_LEAGUE.start_time]
+          .filter(Boolean).join(' · ');
+        document.getElementById('lockedLeagueLabel').textContent =
+          CURRENT_LEAGUE.name + (meta ? ' — ' + meta : '');
+      }
 
       // Show/hide format-specific UIs first so ladderSession div is visible when
       // loadLadderSession renders into it.
@@ -503,19 +637,65 @@
       const schedRows = (resp.data.schedule || []);
       const schedWithDates = schedRows.filter(s => s.play_date);
 
-      function startSession_() {
-        // Restore saved week for this league if it's still in the dropdown.
-        const prefs = loadPrefs_();
-        if (prefs.league_id === CURRENT_LEAGUE.league_id && prefs.week_number != null) {
-          const wantWeek = String(prefs.week_number);
-          if (Array.from(wsel.options).some(o => o.value === wantWeek)) {
-            wsel.value = wantWeek;
+      // Select the week whose date is on or after today (first upcoming), or the
+      // last week if all dates are in the past. Returns true if a dated option
+      // was found and selected, false if no options had dates.
+      // When the URL pins a week (LOCKED + URL_WEEK), that wins.
+      function pickWeekByDate_() {
+        if (LOCKED && URL_WEEK) {
+          const want = String(URL_WEEK);
+          if (Array.from(wsel.options).some(o => o.value === want)) {
+            wsel.value = want;
+            updateLockedWeekLabel_();
+            return true;
           }
         }
-        // Restore saved courts text for this league.
-        if (prefs.league_id === CURRENT_LEAGUE.league_id && typeof prefs.courts_text === 'string') {
-          const cInput = document.getElementById('courtNumbers');
-          if (cInput && !cInput.value) cInput.value = prefs.courts_text;
+        const today = new Date().toISOString().slice(0, 10);
+        const datedOpts = Array.from(wsel.options).filter(o => o.dataset.date);
+        if (!datedOpts.length) { updateLockedWeekLabel_(); return false; }
+        const upcoming = datedOpts.filter(o => o.dataset.date >= today);
+        const pick = upcoming.length ? upcoming[0] : datedOpts[datedOpts.length - 1];
+        wsel.value = pick.value;
+        updateLockedWeekLabel_();
+        return true;
+      }
+
+      function updateLockedWeekLabel_() {
+        if (!LOCKED) return;
+        const opt = wsel.options[wsel.selectedIndex];
+        const label = opt ? opt.textContent : ('Week ' + wsel.value);
+        const el = document.getElementById('lockedWeekLabel');
+        if (el) el.textContent = label;
+      }
+
+      function startSession_() {
+        if (!pickWeekByDate_()) {
+          // No date info yet — URL pin wins, then saved week for this league.
+          if (LOCKED && URL_WEEK) {
+            const want = String(URL_WEEK);
+            if (Array.from(wsel.options).some(o => o.value === want)) wsel.value = want;
+          } else {
+            const prefs = loadPrefs_();
+            if (prefs.league_id === CURRENT_LEAGUE.league_id && prefs.week_number != null) {
+              const wantWeek = String(prefs.week_number);
+              if (Array.from(wsel.options).some(o => o.value === wantWeek)) wsel.value = wantWeek;
+            }
+          }
+          updateLockedWeekLabel_();
+        }
+
+        // Restore saved courts for this league.
+        const prefs = loadPrefs_();
+        if (prefs.league_id === CURRENT_LEAGUE.league_id) {
+          if (Array.isArray(prefs.courts_list) && prefs.courts_list.length) {
+            setCourtNumbers(prefs.courts_list);
+          } else if (typeof prefs.courts_text === 'string' && prefs.courts_text) {
+            // Back-compat: migrate old text-based pref.
+            const parsed = prefs.courts_text.split(/[\s,]+/)
+              .map(s => parseInt(s, 10))
+              .filter(n => Number.isFinite(n) && n > 0);
+            setCourtNumbers(parsed);
+          }
         }
         syncSessionDateFromWeek();
         if (isLadder()) loadLadderSession();
@@ -534,25 +714,40 @@
         }).join('');
         startSession_();
       } else if (schedRows.length) {
-        // Has schedule rows but no play_dates — show week numbers, also try CR dates.
+        // Has schedule rows but no play_dates — show week numbers, then enrich
+        // with attendance dates. Uses CR_Attendance (event-name match) which is
+        // more reliably populated than CR_Registrations for ladder leagues.
         wsel.innerHTML = schedRows.map(s => `<option value="${s.week_number}">Week ${s.week_number}</option>`).join('');
         startSession_();
-        // Quietly enrich with CR event dates in the background.
         google.script.run
           .withSuccessHandler(r => {
             if (!r.ok || !r.data || !r.data.length) return;
-            // Map CR dates onto existing options by index (closest match heuristic)
-            const opts = wsel.options;
-            r.data.forEach((ev, i) => {
-              if (i < opts.length) {
-                const d = String(ev.date).slice(0, 10);
-                opts[i].dataset.date = d;
-                opts[i].textContent = opts[i].textContent + ' — ' + fmtSessionDate(d);
+            const dates = r.data;  // [{date, event_name, count}] sorted asc
+            // Enrich existing options and append extras if attendance has more
+            // dates than schedule rows.
+            dates.forEach((ev, i) => {
+              const d = String(ev.date).slice(0, 10);
+              if (i < wsel.options.length) {
+                wsel.options[i].dataset.date = d;
+                wsel.options[i].textContent = 'Week ' + wsel.options[i].value + ' — ' + fmtSessionDate(d);
+              } else {
+                const wn = i + 1;
+                const opt = document.createElement('option');
+                opt.value = String(wn);
+                opt.dataset.date = d;
+                opt.textContent = 'Week ' + wn + ' — ' + fmtSessionDate(d);
+                wsel.appendChild(opt);
               }
             });
+            if (pickWeekByDate_()) {
+              savePrefs_({ week_number: getWeek() });
+              syncSessionDateFromWeek();
+              if (isLadder()) loadLadderSession();
+              else if (isPartner()) refreshPartnerSession();
+            }
           })
           .withFailureHandler(() => {})
-          .api_crGetEventDatesForLeague(CURRENT_LEAGUE.league_id);
+          .api_getLadderSessionDates(CURRENT_LEAGUE.league_id);
       } else {
         // No schedule at all — populate from CR event dates (async).
         wsel.innerHTML = '<option value="1">Loading dates…</option>';
@@ -586,6 +781,36 @@
 
     function refreshAll() {
       if (CURRENT_LEAGUE) loadLeague(CURRENT_LEAGUE.league_id);
+    }
+
+    /** Push a reload command to every Display tuned to this league. */
+    function refreshDisplays() {
+      if (!CURRENT_LEAGUE) return;
+      const msg = document.getElementById('pullAttMsg');
+      if (msg) { msg.textContent = 'Sending refresh…'; msg.className = 'muted'; }
+      google.script.run
+        .withSuccessHandler(r => {
+          if (!msg) return;
+          if (r && r.ok) { msg.textContent = 'Displays refreshed'; msg.className = 'muted'; }
+          else { msg.textContent = (r && r.error) || 'Refresh failed'; msg.className = 'err'; }
+        })
+        .withFailureHandler(e => {
+          if (msg) { msg.textContent = String(e && e.message || e); msg.className = 'err'; }
+        })
+        .api_refreshDisplays(CURRENT_LEAGUE.league_id);
+    }
+
+    /** Open the TV scoreboard for the current league in a NEW tab. HtmlService
+     *  sandboxes us in a googleusercontent.com iframe, so derive the outer app
+     *  URL from the referrer; fall back to a server lookup. */
+    function openDisplay() {
+      const lid = CURRENT_LEAGUE ? CURRENT_LEAGUE.league_id : '';
+      const go = (appUrl) => {
+        window.open(appUrl + '?page=display' + (lid ? '&leagueId=' + encodeURIComponent(lid) : ''), '_blank');
+      };
+      const m = (document.referrer || '').match(/^(.+\/macros\/(?:s\/[^/]+|[^/]+)\/(?:dev|exec))/);
+      if (m && m[1]) { go(m[1]); }
+      else { google.script.run.withSuccessHandler(go).withFailureHandler(() => alert('Could not resolve the app URL.')).getAppUrl(); }
     }
 
     /**
@@ -647,6 +872,7 @@
       SUB_PLAYER_IDS      = {};
       PRESENT_PLAYER_IDS  = {};
       EXTERNAL_SUBS       = [];
+      invalidateSwapCandidates();
       document.querySelectorAll('.weekLabel').forEach(el => { el.textContent = week; });
       updateCourtCountPill();
 
@@ -664,6 +890,11 @@
         .withSuccessHandler(r => { if (!r.ok) return showErr(r.error); RANKED_ROSTER = r.data || []; renderRankedRoster(); })
         .withFailureHandler(showErr)
         .api_getRankedRoster(CURRENT_LEAGUE.league_id);
+
+      google.script.run
+        .withSuccessHandler(renderStandings)
+        .withFailureHandler(e => console.warn('[standings]', e))
+        .api_recomputeStandings(CURRENT_LEAGUE.league_id);
 
       // Fetch no-shows for the session date.
       // getSessionDate() reads the data-date attribute from the selected week option;
@@ -777,7 +1008,7 @@
       if (!half1 || !half1.exists) {
         locked.classList.remove('hidden');
         document.getElementById('half2LockMsg').textContent =
-          'Set up Half 1 first. Half 2 unlocks once Half 1 is complete.';
+          'Set up the 1st Half first. The 2nd Half unlocks once the 1st Half is complete.';
         return;
       }
 
@@ -785,8 +1016,8 @@
         locked.classList.remove('hidden');
         const remaining = half1.games_total - half1.games_played;
         document.getElementById('half2LockMsg').textContent =
-          `Half 1 has ${half1.games_played}/${half1.games_total} games complete. ` +
-          `Finish the last ${remaining} on the Half 1 tab to compute the halftime mix.`;
+          `1st Half has ${half1.games_played}/${half1.games_total} games complete. ` +
+          `Finish the last ${remaining} on the 1st Half tab to compute the halftime mix.`;
         return;
       }
 
@@ -816,10 +1047,17 @@
                       : isSub     ? ' style="background:var(--brand-green-soft)"'
                       : isPresent ? ' style="background:var(--brand-green-soft)"'
                       : '';
-        return `<tr${rowBg}>
+        // Subs and any roster player with no match results yet (0 games played)
+        // can be dragged to a different ladder position before the session starts.
+        const noResults  = !p.games_played;
+        const canDrag    = isSub || noResults;
+        const dragAttr   = canDrag ? ' draggable="true"' : '';
+        const handleCell = canDrag ? '<td class="drag-handle" title="Drag to reorder">⋮⋮</td>' : '<td></td>';
+        return `<tr${rowBg}${dragAttr}>
+          ${handleCell}
           <td><input type="checkbox" class="attendee" data-pid="${p.player_id}" ${checked} onchange="updateAttendanceCount()"></td>
-          <td>${p.season_rank || (i + 1)}</td>
-          <td>${escapeHtml(p.full_name)}${badges}</td>
+          <td class="row-pos">${i + 1}</td>
+          <td><a href="#" class="player-link" onclick="openPlayerEditModal('${escapeHtml(p.player_id)}');return false;">${escapeHtml(p.full_name)}</a>${badges}</td>
           <td><span class="muted">${escapeHtml(p.level || '')}</span></td>
           <td><span class="muted">${p.season_score ? p.season_score.toFixed(1) : '—'}</span></td>
         </tr>`;
@@ -830,18 +1068,78 @@
         const pid = s.player_id || ('ext_' + s.member_number);
         const guestNote = s.is_temp ? ' <span class="muted" style="font-size:11px" title="Not in Players table — add via Admin → Roster if they play regularly">(guest)</span>' : '';
         const manualNote = s.manual ? ' <span class="pill" style="font-size:11px;vertical-align:middle;background:var(--brand-orange-soft);color:var(--brand-orange-dark)">manual</span>' : '';
-        return `<tr style="background:var(--brand-green-soft)">
+        return `<tr style="background:var(--brand-green-soft)" draggable="true">
+          <td class="drag-handle" title="Drag to reorder">⋮⋮</td>
           <td><input type="checkbox" class="attendee" data-pid="${escapeHtml(pid)}" checked onchange="updateAttendanceCount()"></td>
-          <td><span class="muted">—</span></td>
-          <td>${escapeHtml(s.full_name)}${subBadge}${guestNote}${manualNote}</td>
+          <td class="row-pos"></td>
+          <td>${s.player_id ? `<a href="#" class="player-link" onclick="openPlayerEditModal('${escapeHtml(s.player_id)}');return false;">${escapeHtml(s.full_name)}</a>` : escapeHtml(s.full_name)}${subBadge}${guestNote}${manualNote}</td>
           <td><span class="muted">${escapeHtml(s.level || '')}</span></td>
           <td><span class="muted">—</span></td>
         </tr>`;
       }).join('');
 
       div.innerHTML = `<table class="roster-table">
-        <tr><th></th><th>#</th><th>Player</th><th>Level</th><th>Score</th></tr>${rows}${extRows}</table>`;
+        <tr><th></th><th></th><th>#</th><th>Player</th><th>Level</th><th>Score</th></tr>${rows}${extRows}</table>`;
+      wireRosterDragDrop();
+      renumberRosterRows();
       updateAttendanceCount();
+    }
+
+    let DRAG_ROW = null;
+
+    function wireRosterDragDrop() {
+      const table = document.querySelector('#rankedRosterDiv table.roster-table');
+      if (!table) return;
+      // Sub rows and unranked roster players (no match results yet) can be
+      // dragged; every row is a valid drop target so they can land anywhere.
+      const allRows = table.querySelectorAll('tr');
+      allRows.forEach(tr => {
+        if (!tr.querySelector('.attendee')) return; // skip header
+        if (tr.getAttribute('draggable') === 'true') {
+          tr.addEventListener('dragstart', e => {
+            DRAG_ROW = tr;
+            tr.classList.add('dragging');
+            try { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', ''); } catch (_) {}
+          });
+          tr.addEventListener('dragend', () => {
+            if (DRAG_ROW) DRAG_ROW.classList.remove('dragging');
+            DRAG_ROW = null;
+            table.querySelectorAll('tr.drag-over-top, tr.drag-over-bottom')
+              .forEach(r => r.classList.remove('drag-over-top', 'drag-over-bottom'));
+          });
+        }
+        tr.addEventListener('dragover', e => {
+          if (!DRAG_ROW || DRAG_ROW === tr) return;
+          e.preventDefault();
+          const rect = tr.getBoundingClientRect();
+          const below = (e.clientY - rect.top) > rect.height / 2;
+          tr.classList.toggle('drag-over-bottom', below);
+          tr.classList.toggle('drag-over-top', !below);
+        });
+        tr.addEventListener('dragleave', () => {
+          tr.classList.remove('drag-over-top', 'drag-over-bottom');
+        });
+        tr.addEventListener('drop', e => {
+          e.preventDefault();
+          if (!DRAG_ROW || DRAG_ROW === tr) return;
+          const rect = tr.getBoundingClientRect();
+          const below = (e.clientY - rect.top) > rect.height / 2;
+          tr.parentNode.insertBefore(DRAG_ROW, below ? tr.nextSibling : tr);
+          tr.classList.remove('drag-over-top', 'drag-over-bottom');
+          renumberRosterRows();
+        });
+      });
+    }
+
+    function renumberRosterRows() {
+      const rows = document.querySelectorAll('#rankedRosterDiv table.roster-table tr');
+      let n = 0;
+      rows.forEach(tr => {
+        if (!tr.querySelector('.attendee')) return; // skip header
+        n += 1;
+        const cell = tr.querySelector('.row-pos');
+        if (cell) cell.textContent = n;
+      });
     }
 
     function checkAllAttendance(state) {
@@ -856,8 +1154,10 @@
      */
     function addManualSub() {
       const input = document.getElementById('manualSubName');
+      const levelInput = document.getElementById('manualSubLevel');
       const msg = document.getElementById('manualSubMsg');
       const name = (input.value || '').trim();
+      const level = (levelInput && levelInput.value || '').trim();
       if (!name) { if (msg) { msg.textContent = 'Type a name first'; msg.className = 'err'; } return; }
       if (!CURRENT_LEAGUE) return;
       if (msg) { msg.textContent = 'Adding…'; msg.className = 'muted'; }
@@ -871,20 +1171,21 @@
           EXTERNAL_SUBS.push({
             player_id:     p.player_id,
             full_name:     p.full_name,
-            level:         '',
+            level:         p.level || level,
             member_number: '',
             is_temp:       false,  // it's now a real Player record
             manual:        true,   // flag so we can label them differently
           });
           if (msg) { msg.textContent = `Added "${p.full_name}" ✓`; msg.className = 'muted'; }
           input.value = '';
+          if (levelInput) levelInput.value = '';
           renderRankedRoster();
           input.focus();
         })
         .withFailureHandler(e => {
           if (msg) { msg.textContent = 'Error: ' + (e && e.message || e); msg.className = 'err'; }
         })
-        .api_addManualSub(CURRENT_LEAGUE.league_id, name);
+        .api_addManualSub(CURRENT_LEAGUE.league_id, name, level);
     }
 
     function updateAttendanceCount() {
@@ -915,7 +1216,10 @@
           // built from the old Half 1 standings). Drop the client cache too.
           SESSION_BY_HALF[2] = null;
           HALFTIME_MIX = null;
-          setupMsg('Half 1 ready ✓');
+          const preserved1 = r.data && r.data.completed_games_preserved;
+          setupMsg(preserved1 > 0
+            ? `1st Half ready ✓  (${preserved1} previously completed game(s) preserved)`
+            : '1st Half ready ✓');
           renderHalfPanel(1);
           // Re-fetch Half 2 fresh from the server so the lock state reflects reality.
           google.script.run
@@ -979,7 +1283,7 @@
       if (!courts.length) { halftimeMsg('Enter at least one court number', 'err'); return; }
       const ids = [];
       HALFTIME_MIX.groups.forEach(grp => grp.players.forEach(p => ids.push(p.player_id)));
-      halftimeMsg('Setting up Half 2…');
+      halftimeMsg('Setting up 2nd Half…');
       google.script.run
         .withSuccessHandler(r => {
           if (!r.ok) { halftimeMsg('Error: ' + r.error, 'err'); return; }
@@ -1012,7 +1316,7 @@
     }
 
     function resetHalf(half) {
-      const lbl = `Half ${half}`;
+      const lbl = halfLabel(half);
       const btn  = event && event.target;
       // Replace the button text with an inline confirmation so browser dialog
       // suppression (common in some iframe / sandbox contexts) can't silently cancel.
@@ -1023,26 +1327,27 @@
         btn.style.opacity = '0.7';
         // Auto-cancel after 5 s if user doesn't click again.
         setTimeout(() => {
-          btn.dataset.confirmPending = '';
-          btn.textContent = origText;
-          btn.style.opacity = '';
+          if (btn.dataset.confirmPending === 'true') {
+            btn.dataset.confirmPending = '';
+            btn.textContent = origText;
+            btn.style.opacity = '';
+          }
         }, 5000);
         return;
       }
       // Second click — confirmed.
-      if (btn) { btn.dataset.confirmPending = ''; btn.textContent = 'Resetting…'; btn.disabled = true; }
+      if (btn) { btn.dataset.confirmPending = ''; btn.textContent = 'Resetting…'; btn.disabled = true; btn.style.opacity = ''; }
       showErr('');
-      console.log('[resetHalf] clearing', { league_id: CURRENT_LEAGUE.league_id, week: getWeek(), half });
       google.script.run
         .withSuccessHandler(r => {
-          console.log('[resetHalf] server response', r);
           if (btn) { btn.disabled = false; btn.textContent = `Reset Half ${half}`; btn.style.opacity = ''; }
           if (!r.ok) return showErr(r.error);
+          if (r.completed_games_preserved > 0)
+            showErr(`ℹ ${r.completed_games_preserved} completed game(s) were preserved — completed scores cannot be deleted.`);
           SESSION_BY_HALF[half] = null;
           loadLadderSession();
         })
         .withFailureHandler(e => {
-          console.error('[resetHalf] failure', e);
           if (btn) { btn.disabled = false; btn.textContent = `Reset Half ${half}`; btn.style.opacity = ''; }
           showErr(e);
         })
@@ -1054,7 +1359,7 @@
      * operator can re-enter scores without redoing attendance.
      */
     function clearSessionResults(half) {
-      const lbl = `Half ${half}`;
+      const lbl = halfLabel(half);
       const btn = event && event.target;
       if (btn && btn.dataset.confirmPending !== 'true') {
         btn.dataset.confirmPending = 'true';
@@ -1129,6 +1434,17 @@
     function renderGroupCard(grp, half, sess) {
       const slotName = (s) => grp.slots[s] ? escapeHtml(grp.slots[s].full_name.split(' ')[0]) : '?';
       const fullName = (s) => grp.slots[s] ? escapeHtml(grp.slots[s].full_name) : '?';
+      // In the round standings table, a swapped slot displays as "Ghost" —
+      // its game stats don't count toward season standings (only today's).
+      const standingsName = (s) => {
+        if (!grp.slots[s]) return '?';
+        if (grp.slots[s].swapped) return 'Ghost';
+        const pl = grp.slots[s];
+        const nm = escapeHtml(pl.full_name);
+        return pl.player_id
+          ? `<a href="#" class="player-link" onclick="openPlayerEditModal('${escapeHtml(pl.player_id)}');return false;">${nm}</a>`
+          : nm;
+      };
 
       // Map: round_number → schedule cell for this group (covers the 3 rounds
       // where this group plays). The 4th round, where the group doesn't appear,
@@ -1151,7 +1467,7 @@
         if (!cell) {
           rounds.push(`<div class="game-row" style="opacity:0.55">
             <div class="matchup"><strong>R${r}</strong> <span class="muted">— bye</span></div>
-            <div></div><div></div><div></div>
+            <div></div><div></div><div></div><div></div>
           </div>`);
           continue;
         }
@@ -1168,6 +1484,9 @@
         const savedTag = alreadySaved ? '<span class="saved">✓</span>' : '';
         const t1label = `${escapeHtml(g.t1_player_1.full_name.split(' ')[0])} + ${escapeHtml(g.t1_player_2.full_name.split(' ')[0])}`;
         const t2label = `${escapeHtml(g.t2_player_1.full_name.split(' ')[0])} + ${escapeHtml(g.t2_player_2.full_name.split(' ')[0])}`;
+        const resetBtn = alreadySaved
+          ? `<button class="btn-reset" title="Clear score" onclick="resetLadderGame(${half},${grp.group_number},${g.game_in_match},'${game.game_id}')">×</button>`
+          : '<div></div>';
         rounds.push(`<div class="game-row">
           <div class="matchup">${meta} <strong>${t1label}</strong><span class="vs">vs</span><strong>${t2label}</strong> ${savedTag}</div>
           <input type="number" min="0" max="21" id="h${half}_g${grp.group_number}_${g.game_in_match}_s1" value="${s1}"
@@ -1175,19 +1494,33 @@
           <span style="text-align:center">-</span>
           <input type="number" min="0" max="21" id="h${half}_g${grp.group_number}_${g.game_in_match}_s2" value="${s2}"
             onchange="autoSaveLadderGame(${half},${grp.group_number},${g.game_in_match})" ${alreadySaved ? 'class="score-done"' : ''}>
+          ${resetBtn}
         </div>`);
       }
       const games = rounds.join('');
 
       const standingsRows = (grp.standings || []).map(s => `<tr>
         <td>${s.rank}</td>
-        <td>${fullName(s.starting_slot)}</td>
+        <td>${standingsName(s.starting_slot)}</td>
         <td>${s.wins}-${s.losses}</td>
         <td>${s.points_for}</td>
       </tr>`).join('');
 
-      return `<div class="group-card">
+      const slotPlayerChips = [1, 2, 3, 4].map(s => {
+        const player = grp.slots[s];
+        if (!player) return '';
+        const pid = player.player_id;
+        const name = escapeHtml(player.full_name);
+        return `<span class="slot-chip" title="Click to swap this player">
+          <span class="muted" style="font-size:10px">S${s}</span>
+          <span>${name}</span>
+          <button class="btn-swap" onclick="openSwapModal(${half},${grp.group_number},${s},'${pid}',this)" title="Swap this player">⇄</button>
+        </span>`;
+      }).join('');
+
+      return `<div class="group-card" id="groupcard_h${half}_g${grp.group_number}">
         <h3>Group ${grp.group_number} <span class="pill">slots ${slotName(1)}/${slotName(2)}/${slotName(3)}/${slotName(4)}</span></h3>
+        <div class="slot-chips">${slotPlayerChips}</div>
         ${games}
         <div class="standings-mini">
           <table><tr><th>#</th><th>Player</th><th>W-L</th><th>Pts</th></tr>${standingsRows}</table>
@@ -1196,11 +1529,14 @@
       </div>`;
     }
 
+    const _saveTimers = {};
     function autoSaveLadderGame(half, group_number, game_in_match) {
       const s1 = document.getElementById(`h${half}_g${group_number}_${game_in_match}_s1`).value;
       const s2 = document.getElementById(`h${half}_g${group_number}_${game_in_match}_s2`).value;
-      if (s1 === '' || s2 === '') return; // wait until both are filled
-      saveLadderGame(half, group_number, game_in_match);
+      if (s1 === '' || s2 === '') return;
+      const key = `${half}_${group_number}_${game_in_match}`;
+      clearTimeout(_saveTimers[key]);
+      _saveTimers[key] = setTimeout(() => saveLadderGame(half, group_number, game_in_match), 600);
     }
 
     function saveLadderGame(half, group_number, game_in_match) {
@@ -1210,26 +1546,101 @@
       const sess = SESSION_BY_HALF[half];
       const sched = ((sess && sess.schedule) || []).flat().find(c =>
         c.group_number === group_number && c.game_in_match === game_in_match) || {};
-      groupMsg(half, group_number, 'Saving…');
+
+      // ---- Optimistic local update --------------------------------------
+      // Patch the session in-place so the UI feels instant. The actual save
+      // happens in the background; on failure we revert and show an error.
+      const t1n = Number(s1), t2n = Number(s2);
+      let prevGame = null;       // snapshot for revert
+      let wasComplete = false;
+      if (sess) {
+        (sess.schedule || []).forEach(round => {
+          round.forEach(cell => {
+            if (cell.group_number === group_number && cell.game_in_match === game_in_match) {
+              prevGame = cell.game ? JSON.parse(JSON.stringify(cell.game)) : null;
+              wasComplete = !!(cell.game && cell.game.status === 'complete');
+              cell.game = Object.assign({}, cell.game || {}, {
+                t1_score: t1n,
+                t2_score: t2n,
+                status:   'complete',
+                winner:   t1n > t2n ? 1 : (t2n > t1n ? 2 : 0),
+              });
+            }
+          });
+        });
+        if (!wasComplete) sess.games_played = Math.min((sess.games_played || 0) + 1, sess.games_total || 0);
+      }
+      groupMsg(half, group_number, 'Saved ✓');
+      try { new BroadcastChannel('dill_scores').postMessage({ league_id: CURRENT_LEAGUE.league_id }); } catch(e) {}
+      // Push the optimistic session straight to Firebase — Display tabs on
+      // other devices see it in ~100ms via WebSocket instead of waiting on
+      // the GAS save round-trip. GAS will overwrite with the canonical
+      // payload when the background save completes.
+      if (sess) {
+        fbPublish_('leagues/' + CURRENT_LEAGUE.league_id + '/session', {
+          week:    Number(getWeek()),
+          half:    Number(half),
+          session: sess,
+          updated_at: new Date().toISOString(),
+          optimistic: true,
+        });
+        // Clear any stale /snapshot bundle (only written at half-setup) so it
+        // can't overwrite this fresh /session on subscribed Displays.
+        fbPublish_('leagues/' + CURRENT_LEAGUE.league_id + '/snapshot', null);
+      }
+      updateGroupCard(half, group_number);
+      if (sess) renderSchedule(half, sess);
+      const summaryEl = document.getElementById('summary' + half);
+      if (summaryEl && sess) {
+        summaryEl.textContent = `${sess.groups.length} groups • courts ${(sess.court_numbers || []).join(', ') || sess.num_courts} • ${sess.games_played}/${sess.games_total} games complete`;
+      }
+      if (half === 1 && sess && sess.games_played === sess.games_total) renderHalfPanel(2);
+
+      // ---- Background save ----------------------------------------------
       google.script.run
         .withSuccessHandler(r => {
-          if (!r.ok) return groupMsg(half, group_number, 'Error: ' + r.error, 'err');
-          groupMsg(half, group_number, 'Saved ✓');
-          // Notify any open Display tabs on the same origin.
-          try { new BroadcastChannel('dill_scores').postMessage({ league_id: CURRENT_LEAGUE.league_id }); } catch(e) {}
-          // Refresh this half's session.
-          google.script.run
-            .withSuccessHandler(r2 => {
-              if (!r2.ok) return showErr(r2.error);
-              SESSION_BY_HALF[half] = r2.data;
-              renderHalfPanel(half);
-              // If half 1 just became complete, re-render half 2 (it may have unlocked).
-              if (half === 1) renderHalfPanel(2);
-            })
-            .withFailureHandler(showErr)
-            .api_getSession(CURRENT_LEAGUE.league_id, getWeek(), half, getCourtNumbers());
+          if (!r.ok) {
+            // Revert the optimistic patch.
+            if (sess) {
+              (sess.schedule || []).forEach(round => {
+                round.forEach(cell => {
+                  if (cell.group_number === group_number && cell.game_in_match === game_in_match) {
+                    cell.game = prevGame;
+                  }
+                });
+              });
+              if (!wasComplete) sess.games_played = Math.max((sess.games_played || 0) - 1, 0);
+              updateGroupCard(half, group_number);
+              renderSchedule(half, sess);
+            }
+            groupMsg(half, group_number, 'Error: ' + r.error, 'err');
+            return;
+          }
+          // Server confirmed. Replace the optimistic session with the fresh
+          // one — it carries recomputed grp.standings so the per-group W-L/Pts
+          // table reflects the just-saved score — and re-render the card.
+          if (r.data && r.data.session) {
+            SESSION_BY_HALF[half] = r.data.session;
+            updateGroupCard(half, group_number);
+          }
+          refreshStandingsAsync();
         })
-        .withFailureHandler(showErr)
+        .withFailureHandler(e => {
+          // Revert on network error too.
+          if (sess) {
+            (sess.schedule || []).forEach(round => {
+              round.forEach(cell => {
+                if (cell.group_number === group_number && cell.game_in_match === game_in_match) {
+                  cell.game = prevGame;
+                }
+              });
+            });
+            if (!wasComplete) sess.games_played = Math.max((sess.games_played || 0) - 1, 0);
+            updateGroupCard(half, group_number);
+            renderSchedule(half, sess);
+          }
+          groupMsg(half, group_number, 'Error: ' + (e && e.message || e), 'err');
+        })
         .api_saveLadderSessionGame({
           league_id:     CURRENT_LEAGUE.league_id,
           week_number:   getWeek(),
@@ -1238,9 +1649,41 @@
           game_in_match: game_in_match,
           round_number:  sched.round_number || 0,
           court_number:  sched.court_number || 0,
-          t1_score:      Number(s1),
-          t2_score:      Number(s2),
+          court_numbers: getCourtNumbers(),
+          t1_score:      t1n,
+          t2_score:      t2n,
         });
+    }
+
+    function resetLadderGame(half, group_number, game_in_match, game_id) {
+      groupMsg(half, group_number, 'Clearing…');
+      google.script.run
+        .withSuccessHandler(r => {
+          if (!r.ok) return groupMsg(half, group_number, 'Error: ' + r.error, 'err');
+          groupMsg(half, group_number, '');
+          try { new BroadcastChannel('dill_scores').postMessage({ league_id: CURRENT_LEAGUE.league_id }); } catch(e) {}
+          SESSION_BY_HALF[half] = r.data.session;
+          updateGroupCard(half, group_number);
+          renderSchedule(half, r.data.session);
+          const summaryEl = document.getElementById('summary' + half);
+          if (summaryEl) {
+            const s = r.data.session;
+            summaryEl.textContent = `${s.groups.length} groups • courts ${(s.court_numbers || []).join(', ') || s.num_courts} • ${s.games_played}/${s.games_total} games complete`;
+          }
+          refreshStandingsAsync();
+        })
+        .withFailureHandler(e => groupMsg(half, group_number, String(e && e.message || e), 'err'))
+        .api_resetLadderGame(game_id, getCourtNumbers());
+    }
+
+    function updateGroupCard(half, group_number) {
+      const sess = SESSION_BY_HALF[half];
+      if (!sess) return;
+      const grp = (sess.groups || []).find(g => g.group_number === group_number);
+      if (!grp) return;
+      const el = document.getElementById(`groupcard_h${half}_g${group_number}`);
+      if (!el) return;
+      el.outerHTML = renderGroupCard(grp, half, sess);
     }
 
     function groupMsg(half, g, t, cls) {
@@ -1384,61 +1827,119 @@
         }));
 
       PARTNER_SUBS_DATA = { no_shows: noShows, subs: subs, paired };
+      renderPartnerSubsUI(PARTNER_SUBS_DATA);
+    }
 
-      // Render paired list at top.
+    // Pure renderer — reads from PARTNER_SUBS_DATA-shaped input and updates
+    // the DOM. Reusable from the optimistic pair handler so the UI updates
+    // instantly without waiting for a server roundtrip.
+    function renderPartnerSubsUI(data) {
+      const noShows = (data && data.no_shows) || [];
+      const subs    = (data && data.subs) || [];
+      const paired  = (data && data.paired) || [];
+      const teamByPlayer = {};
+      (typeof TEAMS !== 'undefined' ? TEAMS : []).forEach(t => {
+        if (t.player_1_id) teamByPlayer[t.player_1_id] = t;
+        if (t.player_2_id) teamByPlayer[t.player_2_id] = t;
+      });
+
+      // Paired list at top.
       const pairedEl = document.getElementById('partnerPairedSwaps');
-      if (paired.length) {
-        pairedEl.innerHTML = '<div style="margin-bottom:6px;font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em">Active swaps</div>' +
-          paired.map(p => {
-            const t = teamByPlayer[p.absent_player_id];
-            const teamLbl = t ? ' · ' + escapeHtml(t.team_name) : '';
-            return `<div style="display:flex;align-items:center;gap:10px;padding:6px 10px;background:var(--brand-orange-soft);border-radius:6px;margin-bottom:4px;font-size:13px">
-              <strong>${escapeHtml(p.substitute_player_name)}</strong>
-              <span class="muted">→ subs for</span>
-              <strong>${escapeHtml(p.absent_player_name)}</strong>${teamLbl}
-              <span style="flex:1"></span>
-              <button class="tiny secondary" onclick="unpairPartnerSub('${escapeHtml(p.sub_id)}')">Undo</button>
-            </div>`;
-          }).join('');
-      } else {
-        pairedEl.innerHTML = '';
+      if (pairedEl) {
+        if (paired.length) {
+          pairedEl.innerHTML = '<div style="margin-bottom:6px;font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em">Active swaps</div>' +
+            paired.map(p => {
+              const t = teamByPlayer[p.absent_player_id];
+              const teamLbl = t ? ' · ' + escapeHtml(t.team_name) : '';
+              const subLink = p.substitute_player_id
+                ? `<a href="#" class="player-link" onclick="event.stopPropagation();openPlayerEditModal('${escapeHtml(p.substitute_player_id)}');return false;">${escapeHtml(p.substitute_player_name)}</a>`
+                : escapeHtml(p.substitute_player_name);
+              const absLink = p.absent_player_id
+                ? `<a href="#" class="player-link" onclick="event.stopPropagation();openPlayerEditModal('${escapeHtml(p.absent_player_id)}');return false;">${escapeHtml(p.absent_player_name)}</a>`
+                : escapeHtml(p.absent_player_name);
+              return `<div style="display:flex;align-items:center;gap:10px;padding:6px 10px;background:var(--brand-orange-soft);border-radius:6px;margin-bottom:4px;font-size:13px">
+                <strong>${subLink}</strong>
+                <span class="muted">→ subs for</span>
+                <strong>${absLink}</strong>${teamLbl}
+                <span style="flex:1"></span>
+                <button class="tiny secondary" onclick="unpairPartnerSub('${escapeHtml(p.sub_id)}')">Undo</button>
+              </div>`;
+            }).join('');
+        } else {
+          pairedEl.innerHTML = '';
+        }
       }
 
       // Subs (left).
       const subsEl = document.getElementById('partnerSubsList');
-      document.getElementById('partnerSubsCount').textContent = '(' + subs.length + ')';
-      if (subs.length) {
-        subsEl.innerHTML = subs.map(s => `
-          <div class="sub-card" draggable="true"
-               data-pid="${escapeHtml(s.player_id || '')}"
-               data-name="${escapeHtml(s.full_name)}"
-               data-member-number="${escapeHtml(s.member_number || '')}"
-               data-is-temp="${s.is_temp ? '1' : ''}">
-            <strong>${escapeHtml(s.full_name)}</strong>
-            ${s.is_temp ? '<span class="muted" style="font-size:11px;margin-left:6px">(guest)</span>' : ''}
-          </div>`).join('');
-      } else {
-        subsEl.innerHTML = '<span class="muted" style="font-size:12px">No subs.</span>';
+      const subsCountEl = document.getElementById('partnerSubsCount');
+      if (subsCountEl) subsCountEl.textContent = '(' + subs.length + ')';
+      if (subsEl) {
+        if (subs.length) {
+          subsEl.innerHTML = subs.map(s => {
+            const nameHtml = s.player_id
+              ? `<a href="#" class="player-link" onclick="event.stopPropagation();openPlayerEditModal('${escapeHtml(s.player_id)}');return false;">${escapeHtml(s.full_name)}</a>`
+              : escapeHtml(s.full_name);
+            return `
+            <div class="sub-card" draggable="true"
+                 data-pid="${escapeHtml(s.player_id || '')}"
+                 data-name="${escapeHtml(s.full_name)}"
+                 data-member-number="${escapeHtml(s.member_number || '')}"
+                 data-is-temp="${s.is_temp ? '1' : ''}">
+              <strong>${nameHtml}</strong>
+              ${s.is_temp ? '<span class="muted" style="font-size:11px;margin-left:6px">(guest)</span>' : ''}
+            </div>`;
+          }).join('');
+        } else {
+          subsEl.innerHTML = '<span class="muted" style="font-size:12px">No subs.</span>';
+        }
       }
 
       // No-shows (right) — drop targets.
       const noEl = document.getElementById('partnerNoshowsList');
-      document.getElementById('partnerNoshowsCount').textContent = '(' + noShows.length + ')';
-      if (noShows.length) {
-        noEl.innerHTML = noShows.map(n => `
-          <div class="noshow-card" data-absent-pid="${escapeHtml(n.player_id)}" data-absent-name="${escapeHtml(n.full_name)}">
-            <div><strong>${escapeHtml(n.full_name)}</strong>${n.team_name ? `<span class="muted" style="font-size:11px;margin-left:6px">${escapeHtml(n.team_name)}</span>` : ''}</div>
-            <div class="drop-hint">drop a sub here</div>
-          </div>`).join('');
-      } else {
-        noEl.innerHTML = '<span class="muted" style="font-size:12px">No no-shows.</span>';
+      const noCountEl = document.getElementById('partnerNoshowsCount');
+      if (noCountEl) noCountEl.textContent = '(' + noShows.length + ')';
+      if (noEl) {
+        if (noShows.length) {
+          noEl.innerHTML = noShows.map(n => {
+            const nameHtml = n.player_id
+              ? `<a href="#" class="player-link" onclick="event.stopPropagation();openPlayerEditModal('${escapeHtml(n.player_id)}');return false;">${escapeHtml(n.full_name)}</a>`
+              : escapeHtml(n.full_name);
+            return `
+            <div class="noshow-card" data-absent-pid="${escapeHtml(n.player_id)}" data-absent-name="${escapeHtml(n.full_name)}">
+              <div><strong>${nameHtml}</strong>${n.team_name ? `<span class="muted" style="font-size:11px;margin-left:6px">${escapeHtml(n.team_name)}</span>` : ''}</div>
+              <div class="drop-hint">drop a sub here</div>
+            </div>`;
+          }).join('');
+        } else {
+          noEl.innerHTML = '<span class="muted" style="font-size:12px">No no-shows.</span>';
+        }
       }
 
       wirePartnerSubsDnD();
     }
 
+    // Tracks the currently-clicked sub card. Click-to-pair is the primary
+     // interaction (DnD doesn't fire reliably inside the GAS iframe sandbox,
+     // and doesn't work at all on touch devices like tablets at the courts).
+     // DnD is kept as a parallel pathway for desktop users who prefer it.
+    let _selectedSubCard = null;
+
     function wirePartnerSubsDnD() {
       document.querySelectorAll('#partnerSubsList .sub-card').forEach(card => {
+        // Click → select / deselect this sub.
+        card.addEventListener('click', () => {
+          if (_selectedSubCard === card) {
+            card.classList.remove('selected');
+            _selectedSubCard = null;
+          } else {
+            if (_selectedSubCard) _selectedSubCard.classList.remove('selected');
+            card.classList.add('selected');
+            _selectedSubCard = card;
+          }
+          updateNoshowPairableState();
+        });
+        // Drag-and-drop pathway (still works on supported environments).
         card.addEventListener('dragstart', e => {
           e.dataTransfer.setData('text/plain', JSON.stringify({
             pid:           card.dataset.pid,
@@ -1452,9 +1953,25 @@
         card.addEventListener('dragend', () => card.classList.remove('dragging'));
       });
       document.querySelectorAll('#partnerNoshowsList .noshow-card').forEach(target => {
-        // Note: dragenter also needs preventDefault() in some browsers for drop
-        // to actually fire. Without it the cursor shows the no-drop icon and
-        // the drop event never reaches the handler.
+        // Click → pair the selected sub with this no-show.
+        target.addEventListener('click', () => {
+          if (!_selectedSubCard) {
+            // No sub selected — nudge the user.
+            return;
+          }
+          const sub = _selectedSubCard;
+          const payload = {
+            pid:           sub.dataset.pid,
+            name:          sub.dataset.name,
+            member_number: sub.dataset.memberNumber || '',
+            is_temp:       sub.dataset.isTemp === '1',
+          };
+          sub.classList.remove('selected');
+          _selectedSubCard = null;
+          updateNoshowPairableState();
+          pairPartnerSub(payload, target.dataset.absentPid, target.dataset.absentName);
+        });
+        // Drag-and-drop drop target.
         target.addEventListener('dragenter', e => { e.preventDefault(); });
         target.addEventListener('dragover',  e => { e.preventDefault(); target.classList.add('drag-over'); });
         target.addEventListener('dragleave', () => target.classList.remove('drag-over'));
@@ -1472,18 +1989,49 @@
       });
     }
 
+    function updateNoshowPairableState() {
+      const on = !!_selectedSubCard;
+      document.querySelectorAll('#partnerNoshowsList .noshow-card').forEach(t => {
+        t.classList.toggle('pairable', on);
+      });
+    }
+
     function pairPartnerSub(sub, absentPid, absentName) {
       if (!CURRENT_LEAGUE) { showErr('No league selected.'); return; }
       const date = getSessionDate();
       if (!date) { showErr('Pick a session date (or week with a date) before pairing subs.'); return; }
+
+      // ----- Optimistic UI update: don't make the operator wait for the
+      // server roundtrip. Remove the dragged sub + the targeted no-show
+      // from their lists, add a temporary "paired" entry, and re-render.
+      // The actual save fires in the background; on failure we refetch to
+      // resync.
+      if (PARTNER_SUBS_DATA) {
+        const subKey = sub.pid || ('name:' + String(sub.name || '').trim().toLowerCase());
+        PARTNER_SUBS_DATA.subs = (PARTNER_SUBS_DATA.subs || []).filter(s => {
+          const k = s.player_id || ('name:' + String(s.full_name || '').trim().toLowerCase());
+          return k !== subKey;
+        });
+        PARTNER_SUBS_DATA.no_shows = (PARTNER_SUBS_DATA.no_shows || []).filter(n => n.player_id !== absentPid);
+        PARTNER_SUBS_DATA.paired = (PARTNER_SUBS_DATA.paired || []).concat([{
+          sub_id:                 '_optimistic_' + Date.now(),
+          absent_player_id:       absentPid,
+          absent_player_name:     absentName,
+          substitute_player_id:   sub.pid || '',
+          substitute_player_name: sub.name || '',
+        }]);
+        renderPartnerSubsUI(PARTNER_SUBS_DATA);
+      }
+
       google.script.run
         .withSuccessHandler(r => {
-          if (!r.ok) { showErr(r.error); return; }
+          if (!r.ok) { showErr(r.error); loadPartnerSubsContext(); return; }
+          // Refresh once in the background so the optimistic placeholder is
+          // replaced with the real sub_id (needed for the Undo button).
           loadPartnerSubsContext();
-          // Bump live state so Display picks up the swap.
           _publishActiveHalf();
         })
-        .withFailureHandler(showErr)
+        .withFailureHandler(e => { showErr(e); loadPartnerSubsContext(); })
         .api_recordSub({
           league_id:                 CURRENT_LEAGUE.league_id,
           play_date:                 date,
@@ -1587,7 +2135,7 @@
         .api_listGames(CURRENT_LEAGUE.league_id, week);
 
       google.script.run
-        .withSuccessHandler(onPartnerStandings)
+        .withSuccessHandler(renderStandings)
         .withFailureHandler(showErr)
         .api_recomputeStandings(CURRENT_LEAGUE.league_id);
     }
@@ -1680,7 +2228,11 @@
                 id="ps_${mid}_t2" value="${s2}"
                 onchange="autoSavePartnerGame('${mid}','${t1id}','${t2id}',${rn},${cn})"${roAttr}>
             </div>
-            <div class="partner-match-footer" id="pstatus_${mid}">${isComplete ? '✓ Saved' : ''}</div>
+            <div class="partner-match-footer" id="pstatus_${mid}">
+              <span class="status-text">${isComplete ? '✓ Saved' : ''}</span>
+              ${isComplete ? `<button class="partner-sub-btn" title="Sub a player for this game (DUPR / records only)" onclick="openPartnerSubModal('${mid}')" style="background:none;border:none;cursor:pointer;color:var(--brand-green-dark);font-size:15px;line-height:1;padding:0 4px">⇄</button>` : ''}
+              ${isComplete ? `<button class="partner-reset-btn" title="Reset score" onclick="resetPartnerMatch('${mid}','${t1id}','${t2id}',${rn},${cn})">×</button>` : ''}
+            </div>
           </div>`;
         }).join('');
 
@@ -1734,7 +2286,12 @@
             if (saved.winner === 1 && names[0]) names[0].style.color = 'var(--brand-green-dark)';
             if (saved.winner === 2 && names[1]) names[1].style.color = 'var(--brand-green-dark)';
           }
-          if (statusEl) { statusEl.textContent = '✓ Saved'; statusEl.className = 'partner-match-footer'; }
+          if (statusEl) {
+            statusEl.className = 'partner-match-footer';
+            statusEl.innerHTML =
+              '<span class="status-text">✓ Saved</span>' +
+              `<button class="partner-reset-btn" title="Reset score" onclick="resetPartnerMatch('${matchId}','${t1TeamId}','${t2TeamId}',${roundNum},${courtNum})">×</button>`;
+          }
 
           // Mark the Match_Schedule row as played (background; ignore errors).
           google.script.run
@@ -1747,7 +2304,7 @@
 
           // Refresh standings.
           google.script.run
-            .withSuccessHandler(onPartnerStandings)
+            .withSuccessHandler(renderStandings)
             .withFailureHandler(showErr)
             .api_recomputeStandings(CURRENT_LEAGUE.league_id);
 
@@ -1769,6 +2326,66 @@
           t1_score:     s1,
           t2_score:     s2,
         });
+    }
+
+    function resetPartnerMatch(matchId, t1TeamId, t2TeamId, roundNum, courtNum) {
+      // Find the saved game so we know the game_id to void.
+      const game = PARTNER_GAMES.find(g =>
+        Number(g.week_number) === getWeek() &&
+        Number(g.round_number) === roundNum &&
+        Number(g.court_number) === courtNum &&
+        ((g.t1_team_id === t1TeamId && g.t2_team_id === t2TeamId) ||
+         (g.t1_team_id === t2TeamId && g.t2_team_id === t1TeamId)));
+      if (!game || !game.game_id) {
+        showErr('No saved game found for this match.');
+        return;
+      }
+
+      const statusEl = document.getElementById('pstatus_' + matchId);
+      const card = document.getElementById('pmatch_' + matchId);
+
+      // Optimistic update: clear the scores in the UI immediately so the
+      // operator can re-enter without waiting for the server roundtrip.
+      if (card) {
+        card.classList.remove('complete');
+        card.querySelectorAll('.partner-score-input').forEach(inp => {
+          inp.classList.remove('saved');
+          inp.readOnly = false;
+          inp.value = '';
+        });
+        card.querySelectorAll('.partner-team-name').forEach(n => { n.style.color = ''; });
+      }
+      if (statusEl) {
+        statusEl.innerHTML = '<span class="status-text muted">Resetting…</span>';
+      }
+
+      // Drop from local cache so progress counts update immediately.
+      PARTNER_GAMES = PARTNER_GAMES.filter(g => g.game_id !== game.game_id);
+      const done = PARTNER_MATCHES.filter(m => findGameForMatch(m)).length;
+      updatePartnerProgress(done, PARTNER_MATCHES.length);
+      renderPartnerGamesList();
+
+      google.script.run
+        .withSuccessHandler(r => {
+          if (!r.ok) {
+            if (statusEl) {
+              statusEl.innerHTML = '<span class="status-text err">Error: ' + escapeHtml(r.error) + '</span>';
+            }
+            return;
+          }
+          if (statusEl) statusEl.innerHTML = '<span class="status-text"></span>';
+          try { new BroadcastChannel('dill_scores').postMessage({ league_id: CURRENT_LEAGUE.league_id }); } catch (e) {}
+          google.script.run
+            .withSuccessHandler(renderStandings)
+            .withFailureHandler(showErr)
+            .api_recomputeStandings(CURRENT_LEAGUE.league_id);
+        })
+        .withFailureHandler(e => {
+          if (statusEl) {
+            statusEl.innerHTML = '<span class="status-text err">' + escapeHtml(String(e && e.message || e)) + '</span>';
+          }
+        })
+        .api_voidGame(game.game_id, 'operator reset');
     }
 
     function updatePartnerProgress(done, total) {
@@ -1796,11 +2413,34 @@
       el.innerHTML = '<table><tr><th>Rd/Ct</th><th>Team 1</th><th>Score</th><th>Team 2</th><th></th></tr>' + rows + '</table>';
     }
 
-    function onPartnerStandings(resp) {
+    // Fire-and-forget standings refresh — used after save/reset/swap so the
+    // mutating call returns immediately (without waiting on the full 7-sheet
+    // standings recompute) and the panel updates a beat later.
+    function refreshStandingsAsync() {
+      if (!CURRENT_LEAGUE) return;
+      google.script.run
+        .withSuccessHandler(r => { if (r && r.ok) renderStandings(r); })
+        .withFailureHandler(() => {})
+        .api_recomputeStandings(CURRENT_LEAGUE.league_id);
+    }
+
+    function renderStandings(resp) {
       if (!resp.ok) return showErr(resp.error);
       const data = resp.data || [];
-      if (!data.length) { document.getElementById('standings').innerHTML = '<span class="muted">No completed games yet</span>'; return; }
-      const rows = data.map(s => `<tr>
+      const el = document.getElementById('standings');
+      if (!data.length) { el.innerHTML = '<span class="muted">No completed games yet</span>'; return; }
+      if (CURRENT_LEAGUE && CURRENT_LEAGUE.format_type === 'ladder') {
+        const rows = data.map(s => `<tr>
+          <td>${s.rank}</td>
+          <td><strong>${escapeHtml(s.full_name)}</strong></td>
+          <td class="muted" style="font-size:11px">${escapeHtml(s.level || '')}</td>
+          <td>${s.wins} – ${s.losses}</td>
+          <td>${s.games_played}</td>
+          <td>${s.score.toFixed(1)}</td>
+        </tr>`).join('');
+        el.innerHTML = '<table><tr><th>#</th><th>Player</th><th>Lvl</th><th>W–L</th><th>G</th><th>Score</th></tr>' + rows + '</table>';
+      } else {
+        const rows = data.map(s => `<tr>
           <td>${s.rank}</td>
           <td><strong>${escapeHtml(s.team_name)}</strong><br><small class="muted">${escapeHtml(s.player_1_name)} &amp; ${escapeHtml(s.player_2_name)}</small></td>
           <td>${s.wins} – ${s.losses}</td>
@@ -1808,8 +2448,8 @@
           <td>${s.point_diff > 0 ? '+' : ''}${s.point_diff}</td>
           <td>${(s.point_pct * 100).toFixed(1)}%</td>
         </tr>`).join('');
-      document.getElementById('standings').innerHTML =
-        '<table><tr><th>#</th><th>Team</th><th>W–L</th><th>GB</th><th>+/−</th><th>P%</th></tr>' + rows + '</table>';
+        el.innerHTML = '<table><tr><th>#</th><th>Team</th><th>W–L</th><th>GB</th><th>+/−</th><th>P%</th></tr>' + rows + '</table>';
+      }
     }
 
     /* ====================================================================
@@ -1817,15 +2457,374 @@
        ==================================================================== */
 
     document.addEventListener('change', e => {
-      if (e.target && e.target.id === 'courtNumbers' && isLadder()) {
+      if (e.target && e.target.classList && e.target.classList.contains('court-cb') && isLadder()) {
         updateCourtCountPill();
-        savePrefs_({ courts_text: e.target.value || '' });
+        savePrefs_({ courts_list: getCourtNumbers() });
         loadLadderSession();
       }
     });
-    document.addEventListener('input', e => {
-      if (e.target && e.target.id === 'courtNumbers') updateCourtCountPill();
-    });
+
+    /* ====================================================================
+       SWAP-PLAYER MODAL
+       ==================================================================== */
+
+    let SWAP_CANDIDATES_CACHE = null;
+    let SWAP_CONTEXT = null;  // { half, group_number, slot, original_player_id }
+
+    function openSwapModal(half, group_number, slot, original_player_id) {
+      if (!CURRENT_LEAGUE) return;
+      SWAP_CONTEXT = { half, group_number, slot, original_player_id };
+
+      // Build modal markup if not present.
+      let modal = document.getElementById('swapModal');
+      if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'swapModal';
+        modal.className = 'modal-backdrop';
+        modal.innerHTML = `
+          <div class="modal-panel">
+            <h3>Swap player</h3>
+            <div id="swapCurrent" class="muted" style="font-size:13px"></div>
+            <div class="row" style="flex-direction:column; align-items:stretch">
+              <label>Scope</label>
+              <select id="swapScope">
+                <option value="match">Whole match (all 3 games in this group)</option>
+                <option value="game">One game only</option>
+              </select>
+            </div>
+            <div class="row" id="swapGameWrap" style="flex-direction:column; align-items:stretch; display:none">
+              <label>Which game?</label>
+              <select id="swapGame">
+                <option value="1">Game 1</option>
+                <option value="2">Game 2</option>
+                <option value="3">Game 3</option>
+              </select>
+            </div>
+            <div class="row" style="flex-direction:column; align-items:stretch">
+              <label>Replace with</label>
+              <select id="swapNewPlayer"><option value="">Loading…</option></select>
+            </div>
+            <div id="swapMsg" class="muted" style="font-size:12px; min-height:16px"></div>
+            <div class="modal-actions">
+              <button class="secondary" onclick="closeSwapModal()">Cancel</button>
+              <button onclick="submitSwap()">Swap</button>
+            </div>
+          </div>`;
+        document.body.appendChild(modal);
+        modal.addEventListener('click', e => { if (e.target === modal) closeSwapModal(); });
+        document.getElementById('swapScope').addEventListener('change', e => {
+          document.getElementById('swapGameWrap').style.display = e.target.value === 'game' ? 'flex' : 'none';
+        });
+      }
+
+      // Find the slot's current name from session state.
+      const sess = SESSION_BY_HALF[half];
+      const grp = sess && (sess.groups || []).find(g => g.group_number === group_number);
+      const player = grp && grp.slots && grp.slots[slot];
+      const curName = player ? player.full_name : '(unknown)';
+      document.getElementById('swapCurrent').textContent =
+        `Group ${group_number} · Slot ${slot} · ${curName}`;
+      document.getElementById('swapScope').value = 'match';
+      document.getElementById('swapGameWrap').style.display = 'none';
+      document.getElementById('swapGame').value = '1';
+      document.getElementById('swapMsg').textContent = '';
+      modal.style.display = 'flex';
+
+      loadSwapCandidates(original_player_id);
+    }
+
+    function closeSwapModal() {
+      const m = document.getElementById('swapModal');
+      if (m) m.style.display = 'none';
+      SWAP_CONTEXT = null;
+    }
+
+    function loadSwapCandidates(excludePid) {
+      const sel = document.getElementById('swapNewPlayer');
+      const render = (list) => {
+        const opts = list
+          .filter(p => p.player_id !== excludePid)
+          .map(p => {
+            const tag = p.on_roster ? '' : ' (sub)';
+            const level = p.level ? ` · ${escapeHtml(p.level)}` : '';
+            return `<option value="${p.player_id}">${escapeHtml(p.full_name)}${tag}${level}</option>`;
+          })
+          .join('');
+        sel.innerHTML = `<option value="">— choose —</option>${opts}`;
+      };
+      if (SWAP_CANDIDATES_CACHE) { render(SWAP_CANDIDATES_CACHE); return; }
+      google.script.run
+        .withSuccessHandler(r => {
+          if (!r.ok) { sel.innerHTML = `<option value="">Error: ${escapeHtml(String(r.error || 'unknown'))}</option>`; return; }
+          SWAP_CANDIDATES_CACHE = r.data || [];
+          render(SWAP_CANDIDATES_CACHE);
+        })
+        .withFailureHandler(e => { sel.innerHTML = `<option value="">Error: ${escapeHtml(String(e.message || e))}</option>`; })
+        .api_listLadderSwapCandidates(CURRENT_LEAGUE.league_id, getWeek(), SWAP_CONTEXT && SWAP_CONTEXT.half);
+    }
+
+    function submitSwap() {
+      if (!SWAP_CONTEXT) return;
+      const newPid = document.getElementById('swapNewPlayer').value;
+      if (!newPid) { document.getElementById('swapMsg').textContent = 'Pick a player'; return; }
+      const scope = document.getElementById('swapScope').value;
+      const game_in_match = scope === 'game' ? Number(document.getElementById('swapGame').value) : null;
+      document.getElementById('swapMsg').textContent = 'Swapping…';
+      const ctx = SWAP_CONTEXT;
+      google.script.run
+        .withSuccessHandler(r => {
+          if (!r.ok) { document.getElementById('swapMsg').textContent = 'Error: ' + r.error; return; }
+          try { new BroadcastChannel('dill_scores').postMessage({ league_id: CURRENT_LEAGUE.league_id }); } catch(e) {}
+          SESSION_BY_HALF[ctx.half] = r.data.session;
+          updateGroupCard(ctx.half, ctx.group_number);
+          renderSchedule(ctx.half, r.data.session);
+          refreshStandingsAsync();
+          closeSwapModal();
+        })
+        .withFailureHandler(e => { document.getElementById('swapMsg').textContent = 'Error: ' + (e && e.message || e); })
+        .api_swapLadderSessionPlayer({
+          league_id:      CURRENT_LEAGUE.league_id,
+          week_number:    getWeek(),
+          half:           ctx.half,
+          group_number:   ctx.group_number,
+          starting_slot:  ctx.slot,
+          new_player_id:  newPid,
+          scope:          scope,
+          game_in_match:  game_in_match,
+          court_numbers:  getCourtNumbers(),
+        });
+    }
+
+    // Invalidate candidate cache when league/week/half changes.
+    function invalidateSwapCandidates() { SWAP_CANDIDATES_CACHE = null; }
+
+    /* ====================================================================
+       PARTNER — per-game player substitution
+       Rewrites ONLY the saved game's player snapshot (for DUPR / records).
+       The team (team_id) and its record/standings are untouched.
+       ==================================================================== */
+    let PARTNER_SUB_GAME_ID = null;
+
+    function openPartnerSubModal(matchId) {
+      if (!CURRENT_LEAGUE) return;
+      const match = PARTNER_MATCHES.find(m => String(m.match_id) === String(matchId));
+      if (!match) return;
+      const game = findGameForMatch(match);
+      if (!game || !game.game_id) {
+        alert('Enter and save the score for this match first — then you can sub a player for it.');
+        return;
+      }
+      PARTNER_SUB_GAME_ID = game.game_id;
+
+      const teamById = {}; TEAMS.forEach(t => { teamById[t.team_id] = t; });
+      const t1name = (teamById[game.t1_team_id] || {}).team_name || 'Team 1';
+      const t2name = (teamById[game.t2_team_id] || {}).team_name || 'Team 2';
+
+      let modal = document.getElementById('partnerSubModal');
+      if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'partnerSubModal';
+        modal.className = 'modal-backdrop';
+        document.body.appendChild(modal);
+        modal.addEventListener('click', e => { if (e.target === modal) closePartnerSubModal(); });
+      }
+      modal.innerHTML = `
+        <div class="modal-panel" style="max-width:460px">
+          <h3>Sub a player — this game only</h3>
+          <div class="muted" style="font-size:12px; margin-bottom:10px">
+            Changes who's recorded for this one game (for DUPR &amp; player records).
+            The team's win/loss and standings are <strong>not</strong> affected.
+          </div>
+          <div style="margin-bottom:10px">
+            <div style="font-weight:600; margin-bottom:4px">${escapeHtml(t1name)}</div>
+            <select id="psub_t1p1" style="width:100%; margin-bottom:6px"><option>Loading…</option></select>
+            <select id="psub_t1p2" style="width:100%"><option>Loading…</option></select>
+          </div>
+          <div style="margin-bottom:10px">
+            <div style="font-weight:600; margin-bottom:4px">${escapeHtml(t2name)}</div>
+            <select id="psub_t2p1" style="width:100%; margin-bottom:6px"><option>Loading…</option></select>
+            <select id="psub_t2p2" style="width:100%"><option>Loading…</option></select>
+          </div>
+          <div id="psubMsg" class="muted" style="font-size:12px; min-height:16px"></div>
+          <div class="modal-actions">
+            <button class="secondary" onclick="closePartnerSubModal()">Cancel</button>
+            <button onclick="submitPartnerSub()">Save</button>
+          </div>
+        </div>`;
+      modal.style.display = 'flex';
+      loadPartnerSubCandidates(game);
+    }
+
+    // Fetch everyone playing in the league (roster + recorded subs) and fill the
+    // four slot dropdowns, defaulting each to the game's current snapshot player.
+    function loadPartnerSubCandidates(game) {
+      const fill = (candidates) => {
+        const onList = {}, nameById = {};
+        candidates.forEach(c => { onList[c.player_id] = true; nameById[c.player_id] = c.full_name; });
+        const resolveName = id => nameById[id] || (id ? '(' + id + ')' : '(empty)');
+        const optionsFor = (selId) => {
+          let html = '';
+          if (selId && !onList[selId]) {
+            html += `<option value="${escapeHtml(selId)}" selected>${escapeHtml(resolveName(selId))}</option>`;
+          }
+          html += candidates.map(c =>
+            `<option value="${escapeHtml(c.player_id)}"${c.player_id === selId ? ' selected' : ''}>` +
+            `${escapeHtml(c.full_name || c.player_id)}${c.source === 'sub' ? ' (sub)' : ''}</option>`
+          ).join('');
+          return html;
+        };
+        const set = (id, sel) => { const el = document.getElementById(id); if (el) el.innerHTML = optionsFor(sel); };
+        set('psub_t1p1', game.t1_player_1_id);
+        set('psub_t1p2', game.t1_player_2_id);
+        set('psub_t2p1', game.t2_player_1_id);
+        set('psub_t2p2', game.t2_player_2_id);
+      };
+      const fail = (msg) => { const m = document.getElementById('psubMsg'); if (m) { m.textContent = 'Could not load players: ' + msg; m.className = 'err'; } };
+      google.script.run
+        .withSuccessHandler(r => { if (!r.ok) return fail(r.error); fill(r.data || []); })
+        .withFailureHandler(e => fail(e && e.message || e))
+        .api_listPartnerSubCandidates(CURRENT_LEAGUE.league_id);
+    }
+
+    function closePartnerSubModal() {
+      const m = document.getElementById('partnerSubModal');
+      if (m) m.style.display = 'none';
+      PARTNER_SUB_GAME_ID = null;
+    }
+
+    function submitPartnerSub() {
+      if (!PARTNER_SUB_GAME_ID) return;
+      const gid = PARTNER_SUB_GAME_ID;
+      const players = {
+        t1_player_1_id: document.getElementById('psub_t1p1').value,
+        t1_player_2_id: document.getElementById('psub_t1p2').value,
+        t2_player_1_id: document.getElementById('psub_t2p1').value,
+        t2_player_2_id: document.getElementById('psub_t2p2').value,
+      };
+      const msg = document.getElementById('psubMsg');
+      const vals = [players.t1_player_1_id, players.t1_player_2_id, players.t2_player_1_id, players.t2_player_2_id].filter(Boolean);
+      if (new Set(vals).size !== vals.length) {
+        msg.textContent = 'Each player can only appear once.'; msg.className = 'err'; return;
+      }
+      msg.textContent = 'Saving…'; msg.className = 'muted';
+      google.script.run
+        .withSuccessHandler(r => {
+          if (!r.ok) { msg.textContent = 'Error: ' + r.error; msg.className = 'err'; return; }
+          const idx = PARTNER_GAMES.findIndex(g => g.game_id === gid);
+          if (idx !== -1) PARTNER_GAMES[idx] = r.data;
+          try { new BroadcastChannel('dill_scores').postMessage({ league_id: CURRENT_LEAGUE.league_id }); } catch (e) {}
+          closePartnerSubModal();
+        })
+        .withFailureHandler(e => { msg.textContent = 'Error: ' + (e && e.message || e); msg.className = 'err'; })
+        .api_setPartnerGamePlayers(gid, players);
+    }
+
+    /* ---- Player edit modal ---- */
+    function openPlayerEditModal(player_id) {
+      if (!player_id) return;
+      // External subs (CR_Attendance only, never written to Players) use
+      // synthetic "ext_<member_number>" IDs. There's no Players row to edit.
+      if (String(player_id).indexOf('ext_') === 0) {
+        alert('This is a guest sub from CourtReserve. Promote them to a real player record via Admin → Roster before editing.');
+        return;
+      }
+      let modal = document.getElementById('playerEditModal');
+      if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'playerEditModal';
+        modal.className = 'modal-backdrop';
+        modal.innerHTML = `
+          <div class="modal-panel" style="max-width:520px">
+            <h3>Edit player</h3>
+            <div id="pe_loading" class="muted" style="font-size:13px">Loading…</div>
+            <div id="pe_form" style="display:none">
+              <div class="pe-fields">
+                <div class="full"><label>Full name</label><input id="pe_full_name"></div>
+                <div class="full"><label>Email</label><input id="pe_email"></div>
+                <div><label>Phone</label><input id="pe_phone"></div>
+                <div><label>Level</label><input id="pe_level"></div>
+                <div><label>DUPR ID</label><input id="pe_dupr_id"></div>
+                <div><label>Club member ID</label><input id="pe_club_member_id"></div>
+                <div class="full"><label>Notes</label><input id="pe_notes"></div>
+              </div>
+              <div id="pe_msg" class="muted" style="font-size:12px; min-height:16px; margin-top:8px"></div>
+              <div class="modal-actions">
+                <button class="secondary" onclick="closePlayerEditModal()">Cancel</button>
+                <button onclick="savePlayerEditModal()">Save</button>
+              </div>
+            </div>
+          </div>`;
+        document.body.appendChild(modal);
+        modal.addEventListener('click', e => { if (e.target === modal) closePlayerEditModal(); });
+      }
+      modal.dataset.pid = player_id;
+      document.getElementById('pe_loading').style.display = '';
+      document.getElementById('pe_loading').textContent = 'Loading…';
+      document.getElementById('pe_form').style.display = 'none';
+      modal.style.display = 'flex';
+
+      google.script.run
+        .withSuccessHandler(r => {
+          if (!r.ok) {
+            document.getElementById('pe_loading').textContent = 'Error: ' + r.error;
+            return;
+          }
+          const p = r.data;
+          document.getElementById('pe_full_name').value      = p.full_name || '';
+          document.getElementById('pe_email').value          = p.email || '';
+          document.getElementById('pe_phone').value          = p.phone || '';
+          document.getElementById('pe_level').value          = p.level || '';
+          document.getElementById('pe_dupr_id').value        = p.dupr_id || '';
+          document.getElementById('pe_club_member_id').value = p.club_member_id || '';
+          document.getElementById('pe_notes').value          = p.notes || '';
+          document.getElementById('pe_msg').textContent = '';
+          document.getElementById('pe_loading').style.display = 'none';
+          document.getElementById('pe_form').style.display = '';
+        })
+        .withFailureHandler(e => {
+          document.getElementById('pe_loading').textContent = 'Error: ' + (e && e.message || e);
+        })
+        .api_getPlayer(player_id);
+    }
+
+    function closePlayerEditModal() {
+      const m = document.getElementById('playerEditModal');
+      if (m) m.style.display = 'none';
+    }
+
+    function savePlayerEditModal() {
+      const m = document.getElementById('playerEditModal');
+      if (!m) return;
+      const pid = m.dataset.pid;
+      const patch = {
+        full_name:      document.getElementById('pe_full_name').value.trim(),
+        email:          document.getElementById('pe_email').value.trim(),
+        phone:          document.getElementById('pe_phone').value.trim(),
+        level:          document.getElementById('pe_level').value.trim(),
+        dupr_id:        document.getElementById('pe_dupr_id').value.trim(),
+        club_member_id: document.getElementById('pe_club_member_id').value.trim(),
+        notes:          document.getElementById('pe_notes').value.trim(),
+      };
+      const msg = document.getElementById('pe_msg');
+      msg.textContent = 'Saving…'; msg.className = 'muted';
+      google.script.run
+        .withSuccessHandler(r => {
+          if (!r.ok) { msg.textContent = 'Error: ' + r.error; msg.className = 'err'; return; }
+          msg.textContent = '✓ Saved'; msg.className = 'muted';
+          // Update local caches so the UI reflects the new name/level.
+          const upd = (list) => list && list.forEach(x => {
+            if (x.player_id === pid) {
+              if (patch.full_name) x.full_name = patch.full_name;
+              if (patch.level !== undefined) x.level = patch.level;
+            }
+          });
+          upd(ROSTER); upd(RANKED_ROSTER); upd(EXTERNAL_SUBS);
+          if (typeof renderRankedRoster === 'function') renderRankedRoster();
+          setTimeout(closePlayerEditModal, 400);
+        })
+        .withFailureHandler(e => { msg.textContent = 'Error: ' + (e && e.message || e); msg.className = 'err'; })
+        .api_updatePlayer(pid, patch);
+    }
 
     init();
   </script>

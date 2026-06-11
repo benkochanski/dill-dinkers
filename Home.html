@@ -66,5 +66,25 @@
       <span class="cta">Open player →</span>
     </a>
   </div>
+  <script>
+    (function () {
+      function wireTiles(appUrl) {
+        document.querySelectorAll('.tile[href]').forEach(function (a) {
+          var pg = new URLSearchParams(a.getAttribute('href').replace(/^\?/, '')).get('page') || '';
+          a.addEventListener('click', function (e) {
+            e.preventDefault();
+            window.top.location.href = appUrl + '?page=' + pg;
+          });
+        });
+      }
+      var ref = document.referrer || '';
+      var m = ref.match(/^(.+\/macros\/(?:s\/[^/]+|[^/]+)\/(?:dev|exec))/);
+      if (m && m[1]) {
+        wireTiles(m[1]);
+      } else if (typeof google !== 'undefined' && google.script && google.script.run) {
+        google.script.run.withSuccessHandler(wireTiles).withFailureHandler(function(){}).getAppUrl();
+      }
+    }());
+  </script>
 </body>
 </html>

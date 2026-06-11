@@ -1,0 +1,1195 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base href="<?= appUrl ?>" target="_top">
+  <meta charset="utf-8">
+  <style>
+    :root {
+      --brand: #e07a3c;
+      --brand-dark: #b85e25;
+      --bg: #fafaf7;
+      --card: #fff;
+      --border: #e8e4dc;
+      --text: #2a2a28;
+      --muted: #7a7670;
+      --green: #2a8a2a;
+      --red: #c93030;
+      --blue: #2a5a8a;
+    }
+    html, body { margin: 0; padding: 0; background: var(--bg); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; color: var(--text); }
+    .wrap { max-width: 1100px; margin: 0 auto; padding: 24px; }
+    .topbar { display: flex; align-items: baseline; gap: 14px; margin-bottom: 14px; }
+    .tag { background: #fff4e5; color: var(--brand-dark); padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; letter-spacing: 0.05em; }
+    h1 { margin: 0; font-size: 24px; }
+    .links { margin-left: auto; }
+    .links button { font-size: 12px; color: var(--muted); background: none; border: none; cursor: pointer; padding: 4px 8px; }
+    .links button:hover { color: var(--brand-dark); }
+
+    /* Tabs */
+    .tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border); margin-bottom: 20px; padding-bottom: 0; }
+    .tab { background: none; border: 0; padding: 10px 16px; font-size: 13px; font-weight: 600; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+    .tab:hover { color: var(--text); }
+    .tab.active { color: var(--brand-dark); border-bottom-color: var(--brand); }
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    /* Generic */
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 760px) { .grid { grid-template-columns: 1fr; } }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+    .card h2 { margin: 0 0 10px; font-size: 14px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+    .card p { margin: 0 0 10px; font-size: 13px; }
+    .sub { color: var(--muted); font-size: 13px; }
+    .btn { display: inline-block; padding: 10px 18px; font-size: 14px; font-weight: 600; background: var(--brand); color: #fff; border: none; border-radius: 6px; cursor: pointer; text-decoration: none; }
+    .btn:hover:not(:disabled) { background: var(--brand-dark); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn.secondary { background: #fff; color: var(--text); border: 1px solid var(--border); }
+    .btn.secondary:hover { background: #f4f1ec; }
+    .btn.push { background: var(--blue); }
+    .btn.push:hover:not(:disabled) { background: #1d3f63; }
+    .btn.small { padding: 6px 12px; font-size: 12px; }
+    label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+    input, select { padding: 8px 10px; font-size: 14px; border: 1px solid var(--border); border-radius: 5px; box-sizing: border-box; width: 100%; }
+    input:focus, select:focus { outline: none; border-color: var(--brand); }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .msg { font-size: 12px; min-height: 16px; padding: 4px 0; }
+    .msg.err { color: var(--red); }
+    .msg.ok  { color: var(--green); }
+
+    /* Tables */
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { padding: 6px 8px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: middle; }
+    th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); font-weight: 600; }
+    .pill { display: inline-block; padding: 2px 6px; border-radius: 3px; font-size: 11px; font-weight: 600; }
+    .pill.linked   { background: #e6f4e6; color: var(--green); }
+    .pill.unlinked { background: #f4ece6; color: var(--brand-dark); }
+    .pill.legacy   { background: #f0eee9; color: var(--muted); }
+    .pill.complete { background: #e6efff; color: var(--blue); }
+    .pill.pushed   { background: #e6f4e6; color: var(--green); }
+    .pill.error    { background: #fbe5e5; color: var(--red); }
+    .pill.voided   { background: #f0eee9; color: var(--muted); }
+
+    /* Score entry */
+    .grid-match { display: grid; grid-template-columns: 1fr 80px 80px 1fr; gap: 12px; align-items: end; }
+    .team-block { display: grid; gap: 8px; }
+    .score-input { text-align: center; font-size: 18px; font-weight: 700; }
+    .warn { font-size: 12px; color: var(--brand-dark); padding: 6px 10px; background: #fff4e5; border-radius: 4px; margin: 10px 0; }
+
+    /* Modal */
+    .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 200; padding: 16px; }
+    .modal-bg.open { display: flex; }
+    .modal { background: #fff; border-radius: 10px; width: 420px; max-width: 100%; box-shadow: 0 20px 60px rgba(0,0,0,0.3); overflow: hidden; }
+    .modal-head { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; }
+    .modal-head h3 { margin: 0; font-size: 15px; font-weight: 700; flex: 1; }
+    .modal-head .close { background: none; border: 0; font-size: 22px; line-height: 1; color: var(--muted); cursor: pointer; padding: 0 4px; }
+    .modal-head .close:hover { color: var(--text); }
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .detail-table td { padding: 5px 0; vertical-align: top; }
+    .detail-table td.lbl { color: var(--muted); width: 44%; padding-right: 10px; }
+    .detail-table td.val { color: var(--text); font-weight: 600; word-break: break-word; }
+    .detail-table td.val code { background: rgba(0,0,0,0.05); padding: 1px 6px; border-radius: 3px; font-size: 12px; font-weight: 400; }
+    .detail-table tr.section td { padding-top: 12px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); font-weight: 700; border-top: 1px solid var(--border); }
+    .detail-table tr.section:first-child td { border-top: 0; padding-top: 2px; }
+    .ent-pill { display: inline-block; padding: 1px 7px; border-radius: 3px; font-size: 11px; font-weight: 700; margin-right: 4px; background: #e6f4e6; color: var(--green); }
+    .modal-body { padding: 20px; }
+    .modal-body p { margin: 0 0 14px; color: var(--muted); font-size: 13px; }
+    .score-row { display: grid; grid-template-columns: 1fr auto 1fr; gap: 12px; align-items: end; margin-bottom: 16px; }
+    .score-row .vs { color: var(--muted); font-size: 12px; padding: 0 6px 10px; text-align: center; }
+    .score-row .score-input { width: 100%; padding: 12px; font-size: 20px; font-weight: 700; text-align: center; box-sizing: border-box; border: 1px solid var(--border); border-radius: 6px; }
+    .score-row .score-input:focus { outline: none; border-color: var(--brand); }
+    .score-row label { display: block; font-size: 11px; color: var(--muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; }
+    .modal-foot { padding: 12px 20px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; background: #fafaf7; }
+    .modal-spinner { display: inline-block; width: 36px; height: 36px; border: 3px solid var(--border); border-top-color: var(--brand); border-radius: 50%; animation: spin 0.8s linear infinite; }
+    .modal-checkmark { display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 48px; background: var(--green); color: #fff; border-radius: 50%; font-size: 26px; font-weight: 700; }
+    .modal-xmark     { display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 48px; background: var(--red);   color: #fff; border-radius: 50%; font-size: 22px; font-weight: 700; }
+
+    /* Toast notifications */
+    .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-80px); background: var(--text); color: #fff; padding: 12px 20px; border-radius: 8px; font-size: 14px; font-weight: 600; box-shadow: 0 8px 32px rgba(0,0,0,0.2); z-index: 1000; transition: transform 0.3s ease; pointer-events: none; min-width: 200px; text-align: center; }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+    .toast.working { background: var(--blue); }
+    .toast.ok      { background: var(--green); }
+    .toast.err     { background: var(--red); }
+    .toast .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 8px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <span class="tag">SANDBOX</span>
+      <h1><?= appName ?></h1>
+      <span class="links"><button onclick="signOut()">Sign out</button></span>
+    </div>
+
+    <nav class="tabs">
+      <button class="tab active" data-tab="players">Players</button>
+      <button class="tab"        data-tab="scores">Scores</button>
+      <button class="tab"        data-tab="dupr">DUPR info</button>
+      <button class="tab"        data-tab="audit">Audit log</button>
+    </nav>
+
+    <!-- ===== PLAYERS TAB ===== -->
+    <section class="panel active" data-panel="players">
+      <div class="card">
+        <h2>Players</h2>
+        <div id="playersTable">Loading…</div>
+      </div>
+    </section>
+
+    <!-- ===== SCORES TAB ===== -->
+    <section class="panel" data-panel="scores">
+      <div class="card">
+        <h2>Enter match score</h2>
+        <div class="row" style="margin-bottom:14px">
+          <div style="flex:1;min-width:200px">
+            <label>Event label (free text)</label>
+            <input id="eventLabel" placeholder="e.g. Tuesday Night League — Week 4">
+          </div>
+          <div style="flex:0 0 160px">
+            <label>Play date</label>
+            <input id="playDate" type="date">
+          </div>
+        </div>
+
+        <div class="grid-match">
+          <div class="team-block">
+            <label>Team A — Player 1</label>
+            <select id="a1"></select>
+            <label>Team A — Player 2</label>
+            <select id="a2"></select>
+          </div>
+          <div>
+            <label>A score</label>
+            <input id="aScore" class="score-input" type="number" min="0" placeholder="11">
+          </div>
+          <div>
+            <label>B score</label>
+            <input id="bScore" class="score-input" type="number" min="0" placeholder="9">
+          </div>
+          <div class="team-block">
+            <label>Team B — Player 1</label>
+            <select id="b1"></select>
+            <label>Team B — Player 2</label>
+            <select id="b2"></select>
+          </div>
+        </div>
+
+        <div id="unlinkedWarn" class="warn" style="display:none"></div>
+
+        <div class="row" style="margin-top:14px">
+          <button class="btn" onclick="saveGame(false)">Save</button>
+          <button class="btn push" onclick="saveGame(true)">Save &amp; push to DUPR</button>
+          <span id="saveMsg" class="msg"></span>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Recent games</h2>
+        <div id="gamesTable">Loading…</div>
+      </div>
+    </section>
+
+    <!-- ===== DUPR INFO TAB ===== -->
+    <section class="panel" data-panel="dupr">
+      <div class="grid">
+        <div class="card">
+          <h2>DUPR status</h2>
+          <div id="duprStatus" class="sub">checking…</div>
+        </div>
+        <div class="card">
+          <h2>Player registration URL</h2>
+          <p>Share this URL with players. They sign into DUPR — a Players row is created automatically.</p>
+          <div class="row" style="gap:6px;align-items:stretch">
+            <input id="regUrl" readonly style="flex:1;font-size:12px;font-family:Menlo,monospace">
+            <button class="btn small" onclick="copyRegUrl()">Copy</button>
+            <button class="btn small" onclick="launchRegUrl()">Launch ↗</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>DUPR Club</h2>
+        <div id="clubStatus" class="sub">Loading…</div>
+        <div class="row" style="margin-top:10px">
+          <button class="btn small" onclick="refreshClubRole()">Re-verify role</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Rating webhook</h2>
+        <p>DUPR POSTs rating updates to this URL when a player's rating changes. Apps Script can't serve the GET handshake DUPR uses to validate the URL (it 302s), so paste your Cloudflare Worker proxy URL below. See <code>sandbox/dupr-webhook-proxy/README.md</code> for setup.</p>
+        <div class="row" style="gap:6px;align-items:stretch;margin-bottom:8px">
+          <input id="webhookUrl" placeholder="https://dilldinkersct.com/sandbox/webhook" style="flex:1;font-size:12px;font-family:Menlo,monospace">
+          <button class="btn small" onclick="registerWebhook()">Save &amp; register</button>
+        </div>
+        <p id="webhookMsg" class="msg"></p>
+      </div>
+
+      <div class="card">
+        <h2>Recent webhook receipts</h2>
+        <div id="webhookLog">Loading…</div>
+      </div>
+
+      <div class="card">
+        <h2>Recent push attempts</h2>
+        <p class="sub">Every match create / update / delete sent to DUPR. Full payloads in the <code>DUPR_Push_Log</code> sheet tab.</p>
+        <div id="pushLog">Loading…</div>
+      </div>
+    </section>
+
+    <!-- ===== AUDIT LOG TAB ===== -->
+    <section class="panel" data-panel="audit">
+      <div class="card">
+        <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px">
+          <h2 style="margin:0">Audit log</h2>
+          <button class="btn small" onclick="exportAuditCsv()">Export full log (CSV)</button>
+        </div>
+        <p class="sub">Showing last 100 events, newest first. Full history available via Export, or in the <code>Audit_Log</code> tab of the Sheet.</p>
+        <div id="auditLog">Loading…</div>
+      </div>
+    </section>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <!-- Player detail modal — full DUPR profile -->
+  <div id="playerModalBg" class="modal-bg">
+    <div class="modal" style="max-width:460px;width:100%">
+      <div class="modal-head">
+        <h3 id="playerModalTitle">Player</h3>
+        <button class="close" onclick="closePlayerDetail()" aria-label="Close">×</button>
+      </div>
+      <div class="modal-body" style="max-height:70vh;overflow-y:auto">
+        <table class="detail-table"><tbody id="playerModalRows"></tbody></table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Confirm modal (generic, with morphing states) -->
+  <div id="confirmModalBg" class="modal-bg">
+    <div class="modal" style="width:380px">
+      <div class="modal-head">
+        <h3 id="confirmTitle">Confirm</h3>
+        <button id="confirmModalClose" class="close" onclick="cancelConfirmModal()" aria-label="Close">×</button>
+      </div>
+
+      <div id="confirmModalPrompt">
+        <div class="modal-body">
+          <p id="confirmMessage" style="color:var(--text);font-size:14px;margin:0">—</p>
+        </div>
+        <div class="modal-foot">
+          <button class="btn secondary small" onclick="cancelConfirmModal()">Cancel</button>
+          <button id="confirmAccept" class="btn small" onclick="acceptConfirmModal()">Confirm</button>
+        </div>
+      </div>
+
+      <div id="confirmModalWorking" style="display:none">
+        <div class="modal-body" style="text-align:center;padding:48px 20px">
+          <div class="modal-spinner"></div>
+          <p style="margin:16px 0 0;font-size:14px;color:var(--text)" id="confirmModalWorkingMsg">Working…</p>
+        </div>
+      </div>
+
+      <div id="confirmModalSuccess" style="display:none">
+        <div class="modal-body" style="text-align:center;padding:48px 20px">
+          <div class="modal-checkmark">✓</div>
+          <p style="margin:16px 0 0;font-size:15px;font-weight:600;color:var(--green)" id="confirmModalSuccessMsg">Done</p>
+        </div>
+        <div class="modal-foot" style="justify-content:center">
+          <button class="btn small" onclick="cancelConfirmModal()">Done</button>
+        </div>
+      </div>
+
+      <div id="confirmModalError" style="display:none">
+        <div class="modal-body" style="text-align:center;padding:48px 20px">
+          <div class="modal-xmark">✕</div>
+          <p style="margin:16px 0 0;font-size:14px;color:var(--red)" id="confirmModalErrorMsg">Error</p>
+        </div>
+        <div class="modal-foot" style="justify-content:center">
+          <button class="btn small" onclick="cancelConfirmModal()">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit-score modal -->
+  <div id="editModalBg" class="modal-bg">
+    <div class="modal">
+      <div class="modal-head">
+        <h3 id="editModalTitle">Edit match score</h3>
+        <button id="editModalClose" class="close" onclick="closeEditModal()" aria-label="Close">×</button>
+      </div>
+
+      <!-- State: form (default) -->
+      <div id="editModalForm">
+        <div class="modal-body">
+          <p id="editModalSubtitle">—</p>
+          <div class="score-row">
+            <div>
+              <label>Team A</label>
+              <input id="editT1" class="score-input" type="number" min="0" inputmode="numeric">
+            </div>
+            <div class="vs">–</div>
+            <div>
+              <label>Team B</label>
+              <input id="editT2" class="score-input" type="number" min="0" inputmode="numeric">
+            </div>
+          </div>
+          <p id="editModalHint" class="sub" style="font-size:11px;color:var(--muted);margin:0">If this game was pushed to DUPR, the update will also be sent to DUPR.</p>
+        </div>
+        <div class="modal-foot">
+          <button class="btn secondary small" onclick="closeEditModal()">Cancel</button>
+          <button class="btn small" onclick="submitEditModal()">Save changes</button>
+        </div>
+      </div>
+
+      <!-- State: working -->
+      <div id="editModalWorking" style="display:none">
+        <div class="modal-body" style="text-align:center;padding:48px 20px">
+          <div class="modal-spinner"></div>
+          <p style="margin:16px 0 0;font-size:14px;color:var(--text)" id="editModalWorkingMsg">Updating game…</p>
+        </div>
+      </div>
+
+      <!-- State: success -->
+      <div id="editModalSuccess" style="display:none">
+        <div class="modal-body" style="text-align:center;padding:48px 20px">
+          <div class="modal-checkmark">✓</div>
+          <p style="margin:16px 0 0;font-size:15px;font-weight:600;color:var(--green)" id="editModalSuccessMsg">Updated</p>
+        </div>
+        <div class="modal-foot" style="justify-content:center">
+          <button class="btn small" onclick="closeEditModal()">Done</button>
+        </div>
+      </div>
+
+      <!-- State: error -->
+      <div id="editModalError" style="display:none">
+        <div class="modal-body" style="text-align:center;padding:48px 20px">
+          <div class="modal-xmark">✕</div>
+          <p style="margin:16px 0 0;font-size:14px;color:var(--red)" id="editModalErrorMsg">Error</p>
+        </div>
+        <div class="modal-foot" style="justify-content:center">
+          <button class="btn secondary small" onclick="setEditModalState('form')">Try again</button>
+          <button class="btn small" onclick="closeEditModal()">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    var TOKEN   = <?!= JSON.stringify(token) ?>;
+    var APP_URL = <?!= JSON.stringify(appUrl) ?>;
+    var PLAYERS = [];
+    var PLAYERS_FULL = [];
+    var LAST_GAMES_ROWS = [];
+
+    /* ---- Toast notifications ---- */
+    var _toastTimer = null;
+    function toast(text, kind, sticky) {
+      var el = document.getElementById('toast');
+      clearTimeout(_toastTimer);
+      var spinner = kind === 'working' ? '<span class="spinner"></span>' : '';
+      el.innerHTML = spinner + text;
+      el.className = 'toast show ' + (kind || '');
+      if (!sticky) {
+        _toastTimer = setTimeout(function () { el.className = 'toast'; }, 3500);
+      }
+    }
+    function toastHide() {
+      clearTimeout(_toastTimer);
+      document.getElementById('toast').className = 'toast';
+    }
+
+    /* ---- Helpers ---- */
+    function escapeHtml(s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+        return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c];
+      });
+    }
+    function fmtRecord(w, l) {
+      if (w == null && l == null) return '—';
+      return (w || 0) + '–' + (l || 0);
+    }
+    function fmtRating(val, reliable) {
+      if (!val) return '—';
+      return val + (reliable ? '' : ' *');
+    }
+    function fmtEntitlements(p) {
+      // No fetch ever happened → render a neutral "pending" pill rather than
+      // a red "no B". This is the UAT case where DUPR's /subscriptions path
+      // is undocumented; we'll know once production keys + canonical path
+      // are confirmed.
+      if (!p.entitlements_fetched_at) {
+        return '<span class="pill legacy" title="Entitlements not yet fetched — pending DUPR endpoint confirmation">pending</span>';
+      }
+      var pills = [];
+      if (p.has_basic_l1)    pills.push('<span class="pill linked" title="BASIC_L1">B</span>');
+      else                   pills.push('<span class="pill error" title="Missing BASIC_L1">no B</span>');
+      if (p.has_premium_l1)  pills.push('<span class="pill pushed" title="PREMIUM_L1">P</span>');
+      if (p.has_verified_l1) pills.push('<span class="pill pushed" title="VERIFIED_L1">V</span>');
+      return pills.join(' ');
+    }
+
+    /* ---- Player detail modal (full DUPR profile) ---- */
+    function showPlayerDetail(player_id) {
+      var p = (PLAYERS_FULL || []).find(function (x) { return x.player_id === player_id; });
+      if (!p) return;
+      var rows = [];
+      function row(lbl, val) { rows.push('<tr><td class="lbl">' + escapeHtml(lbl) + '</td><td class="val">' + val + '</td></tr>'); }
+      function sec(t) { rows.push('<tr class="section"><td colspan="2">' + escapeHtml(t) + '</td></tr>'); }
+      function dash(v) { return (v == null || v === '') ? '<span style="color:#7a7670">— not shared</span>' : escapeHtml(v); }
+
+      sec('Identity');
+      row('Name (registration)', dash(p.full_name));
+      row('Partial name (DUPR)', dash(p.dupr_partial_name));
+      row('Full name (DUPR)', dash(p.dupr_full_name));
+      row('Email', dash(p.email));
+      row('Phone', dash(p.phone));
+      row('Gender', dash(p.gender));
+      row('Birth year', p.dupr_birth_year == null ? '<span style="color:#7a7670">— not shared</span>' : escapeHtml(p.dupr_birth_year));
+      row('Location', dash(p.dupr_location));
+
+      sec('DUPR account');
+      row('DUPR ID', '<code>' + escapeHtml(p.dupr_id || '—') + '</code>');
+      row('Link source', escapeHtml(p.link_source || '—'));
+      row('Registered on', escapeHtml(p.created_at || '—'));
+
+      sec('Doubles');
+      row('Rating @ registration', escapeHtml(fmtRating(p.dupr_doubles_rating, p.dupr_doubles_reliable)));
+      row('Current rating', escapeHtml(fmtRating(p.dupr_doubles_rating_current, p.dupr_doubles_reliable_current)));
+      row('Record', fmtRecord(p.dupr_doubles_wins, p.dupr_doubles_losses) + ' (' + (p.dupr_doubles_total || 0) + ' matches)');
+      row('Rating last updated', escapeHtml(p.dupr_doubles_current_updated_at || '—'));
+
+      if (p.dupr_singles_rating || (p.dupr_singles_total && p.dupr_singles_total > 0)) {
+        sec('Singles');
+        row('Rating', escapeHtml(fmtRating(p.dupr_singles_rating, p.dupr_singles_reliable)));
+        row('Record', fmtRecord(p.dupr_singles_wins, p.dupr_singles_losses) + ' (' + (p.dupr_singles_total || 0) + ' matches)');
+      }
+
+      sec('Entitlements');
+      row('Status', fmtEntitlements(p));
+      row('Last checked', escapeHtml(p.entitlements_fetched_at || 'never'));
+
+      document.getElementById('playerModalTitle').textContent = p.full_name || 'Player';
+      document.getElementById('playerModalRows').innerHTML = rows.join('');
+      document.getElementById('playerModalBg').classList.add('open');
+    }
+    function closePlayerDetail() {
+      document.getElementById('playerModalBg').classList.remove('open');
+    }
+    document.getElementById('playerModalBg').addEventListener('click', function (e) {
+      if (e.target === this) closePlayerDetail();
+    });
+
+    /* ---- Tabs ---- */
+    document.querySelectorAll('.tab').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var name = btn.getAttribute('data-tab');
+        document.querySelectorAll('.tab').forEach(function (b) { b.classList.toggle('active', b === btn); });
+        document.querySelectorAll('.panel').forEach(function (p) { p.classList.toggle('active', p.getAttribute('data-panel') === name); });
+      });
+    });
+
+    /* ---- Sign out ---- */
+    function signOut() {
+      try { localStorage.removeItem('dd_sandbox_token'); } catch (e) {}
+      // Use form-submit pattern to avoid the iframe's user-activation block on async redirects.
+      function goLogin() {
+        var f = document.createElement('form');
+        f.method = 'GET'; f.action = APP_URL; f.target = '_top';
+        var i = document.createElement('input'); i.type='hidden'; i.name='page'; i.value='login';
+        f.appendChild(i); document.body.appendChild(f); f.submit();
+      }
+      google.script.run
+        .withSuccessHandler(goLogin)
+        .withFailureHandler(goLogin)
+        .api_logout(TOKEN);
+    }
+
+    /* ============================================================
+     * PLAYERS TAB
+     * ============================================================ */
+    function loadPlayers() {
+      google.script.run
+        .withSuccessHandler(function (r) {
+          var div = document.getElementById('playersTable');
+          if (!r.ok) { div.textContent = 'Error: ' + r.error; return; }
+          var rows = r.data || [];
+          PLAYERS = rows.filter(function (p) { return p.active !== false; });
+          PLAYERS_FULL = rows;  // keep all fields for the detail modal
+          populatePlayerSelects();
+          // Re-render the games table now that we can resolve player names.
+          loadGames();
+          if (!rows.length) { div.innerHTML = '<p class="sub">No players yet. Share the registration URL on the DUPR info tab.</p>'; return; }
+          var html = '<table>' +
+            '<tr>' +
+              '<th>Name</th>' +
+              '<th>Email</th>' +
+              '<th>DUPR ID</th>' +
+              '<th title="DUPR rating captured at sign-up (locked)">Rating @ registration</th>' +
+              '<th title="Current DUPR rating, updated via webhook + daily refresh">Current rating</th>' +
+              '<th>Last updated</th>' +
+              '<th>Record</th>' +
+              '<th title="DUPR entitlements (BASIC_L1 required for match push)">Entitlements</th>' +
+              '<th>Source</th>' +
+              '<th>Registered on</th>' +
+              '<th></th>' +
+            '</tr>';
+          rows.forEach(function (p) {
+            var pill;
+            if (p.dupr_id && p.link_source === 'sso')         pill = '<span class="pill linked">SSO ✓</span>';
+            else if (p.dupr_id && p.link_source === 'legacy') pill = '<span class="pill legacy">legacy</span>';
+            else if (p.dupr_id) pill = '<span class="pill legacy">' + escapeHtml(p.link_source || 'other') + '</span>';
+            else pill = '<span class="pill unlinked">unlinked</span>';
+            var deleteBtn = '<button class="btn secondary small" onclick="deletePlayer(\'' + p.player_id + '\',\'' + escapeHtml(p.full_name).replace(/'/g, '&#39;') + '\')">Delete</button>';
+            var nameLink = '<a href="#" onclick="showPlayerDetail(\'' + p.player_id + '\');return false;" style="color:var(--brand-dark);text-decoration:none;font-weight:600">' + escapeHtml(p.full_name) + '</a>';
+            html += '<tr>' +
+              '<td>' + nameLink + '</td>' +
+              '<td>' + escapeHtml(p.email) + '</td>' +
+              '<td><code>' + escapeHtml(p.dupr_id || '—') + '</code></td>' +
+              '<td title="' + (p.dupr_doubles_reliable ? 'reliable' : 'provisional') + '">' +
+                  escapeHtml(fmtRating(p.dupr_doubles_rating, p.dupr_doubles_reliable)) + '</td>' +
+              '<td title="' + (p.dupr_doubles_reliable_current ? 'reliable' : 'provisional') + '">' +
+                  escapeHtml(fmtRating(p.dupr_doubles_rating_current, p.dupr_doubles_reliable_current)) + '</td>' +
+              '<td>' + escapeHtml(p.dupr_doubles_current_updated_at || '—') + '</td>' +
+              '<td>' + escapeHtml(fmtRecord(p.dupr_doubles_wins, p.dupr_doubles_losses)) + '</td>' +
+              '<td title="Last updated: ' + escapeHtml(p.entitlements_fetched_at || 'never') + '">' + fmtEntitlements(p) + '</td>' +
+              '<td>' + pill + '</td>' +
+              '<td>' + escapeHtml(p.created_at || '—') + '</td>' +
+              '<td>' + deleteBtn + '</td>' +
+              '</tr>';
+          });
+          html += '</table>';
+          div.innerHTML = html;
+        })
+        .api_listPlayers(TOKEN);
+    }
+
+    /* ============================================================
+     * SCORES TAB
+     * ============================================================ */
+    document.getElementById('playDate').value = new Date().toISOString().slice(0, 10);
+
+    function populatePlayerSelects() {
+      ['a1','a2','b1','b2'].forEach(function (id) {
+        var sel = document.getElementById(id);
+        var prev = sel.value;
+        sel.innerHTML = '<option value="">— pick player —</option>' + PLAYERS.map(function (p) {
+          var label = p.full_name + (p.dupr_id ? '' : ' (unlinked)');
+          return '<option value="' + escapeHtml(p.player_id) + '">' + escapeHtml(label) + '</option>';
+        }).join('');
+        if (prev) sel.value = prev;
+        // Ensure change listener is wired once.
+        if (!sel._wired) { sel.addEventListener('change', refreshUnlinkedWarn); sel._wired = true; }
+      });
+      refreshUnlinkedWarn();
+    }
+
+    function pickedPids() {
+      return ['a1','a2','b1','b2'].map(function (id) { return document.getElementById(id).value; });
+    }
+
+    function refreshUnlinkedWarn() {
+      var pids = pickedPids().filter(Boolean);
+      var unlinked = pids.map(function (pid) {
+        var p = PLAYERS.find(function (x) { return x.player_id === pid; });
+        return (p && !p.dupr_id) ? p : null;
+      }).filter(Boolean);
+      var el = document.getElementById('unlinkedWarn');
+      if (!unlinked.length) { el.style.display = 'none'; return; }
+      el.style.display = 'block';
+      el.innerHTML = '⚠ Not linked to DUPR: ' + unlinked.map(function (p) { return escapeHtml(p.full_name); }).join(', ') +
+        '. Score will save, but the match cannot be pushed to DUPR until they link.';
+    }
+
+    function saveGame(pushAfter) {
+      var pids = pickedPids();
+      var msg = document.getElementById('saveMsg');
+      if (pids.some(function (p) { return !p; })) {
+        msg.className = 'msg err'; msg.textContent = 'Pick all four players.'; return;
+      }
+      if (new Set(pids).size !== 4) {
+        msg.className = 'msg err'; msg.textContent = 'A player can only appear once per match.'; return;
+      }
+      var input = {
+        play_date:      document.getElementById('playDate').value,
+        event_label:    document.getElementById('eventLabel').value.trim(),
+        t1_player_1_id: pids[0],
+        t1_player_2_id: pids[1],
+        t2_player_1_id: pids[2],
+        t2_player_2_id: pids[3],
+        t1_score:       document.getElementById('aScore').value,
+        t2_score:       document.getElementById('bScore').value,
+      };
+      toast(pushAfter ? 'Saving + pushing to DUPR…' : 'Saving…', 'working', true);
+      google.script.run
+        .withSuccessHandler(function (r) {
+          if (!r.ok) { toast('Save failed: ' + r.error, 'err'); return; }
+          var savedGameId = r.data.game_id;
+          if (!pushAfter) {
+            toast('✓ Saved', 'ok');
+            clearScoreForm();
+            loadGames();
+            return;
+          }
+          toast('Saved — pushing to DUPR…', 'working', true);
+          google.script.run
+            .withSuccessHandler(function (pr) {
+              if (!pr.ok) {
+                toast('Saved, but DUPR push failed: ' + pr.error, 'err');
+                loadGames();
+                return;
+              }
+              toast('✓ Saved + pushed to DUPR', 'ok');
+              clearScoreForm();
+              loadGames();
+            })
+            .withFailureHandler(function (e) { toast('Push error: ' + ((e && e.message) || e), 'err'); })
+            .api_pushGameToDupr(TOKEN, savedGameId);
+        })
+        .withFailureHandler(function (e) { toast('Save error: ' + ((e && e.message) || e), 'err'); })
+        .api_saveGame(TOKEN, input);
+    }
+
+    function clearScoreForm() {
+      ['a1','a2','b1','b2'].forEach(function (id) { document.getElementById(id).value = ''; });
+      document.getElementById('aScore').value = '';
+      document.getElementById('bScore').value = '';
+      refreshUnlinkedWarn();
+    }
+
+    function loadGames() {
+      google.script.run
+        .withSuccessHandler(function (r) {
+          var div = document.getElementById('gamesTable');
+          if (!r.ok) { div.textContent = 'Error: ' + r.error; return; }
+          var rows = r.data || [];
+          LAST_GAMES_ROWS = rows;
+          if (!rows.length) { div.innerHTML = '<p class="sub">No games yet.</p>'; return; }
+          var byId = {};
+          PLAYERS.forEach(function (p) { byId[p.player_id] = p.full_name; });
+          function resolveName(g, slot) {
+            // Prefer the snapshot captured at save time; fall back to the
+            // live Players lookup; finally '?' if the player was deleted
+            // before names were snapshotted.
+            return (g[slot + '_name'] && g[slot + '_name'].trim())
+                || byId[g[slot + '_id']]
+                || '?';
+          }
+          var html = '<table><tr>' +
+            '<th>Date</th><th>Event</th><th>Team A</th><th>Score</th><th>Team B</th><th>Status</th><th>DUPR</th><th></th>' +
+            '</tr>';
+          rows.forEach(function (g) {
+            var teamA = resolveName(g, 't1_player_1') + ' / ' + resolveName(g, 't1_player_2');
+            var teamB = resolveName(g, 't2_player_1') + ' / ' + resolveName(g, 't2_player_2');
+            var statusPill = '<span class="pill ' + (g.status || 'complete') + '">' + escapeHtml(g.status || '') + '</span>';
+
+            // DUPR cell shows current sync state.
+            var duprCell;
+            if (g.status === 'pushed' && g.dupr_match_id) {
+              duprCell = '<span class="pill pushed">✓ ' + escapeHtml(g.dupr_match_id) + '</span>';
+            } else if (g.dupr_push_status === 'error') {
+              duprCell = '<span class="pill error" title="' + escapeHtml(g.dupr_push_error || '') + '">error</span>';
+            } else if (g.status === 'voided') {
+              duprCell = '—';
+            } else {
+              duprCell = '<button class="btn secondary small" onclick="pushGame(\'' + g.game_id + '\')">Push</button>';
+            }
+
+            // Edit / Void controls — both available on all non-voided games.
+            var actions;
+            if (g.status === 'voided') {
+              actions = '<span class="pill voided">voided</span>';
+            } else {
+              var safeT1 = String(g.t1_score == null ? '' : g.t1_score);
+              var safeT2 = String(g.t2_score == null ? '' : g.t2_score);
+              actions =
+                '<button class="btn secondary small" onclick="editGame(\'' + g.game_id + '\',\'' + safeT1 + '\',\'' + safeT2 + '\')">Edit</button> ' +
+                '<button class="btn secondary small" onclick="voidGame(\'' + g.game_id + '\')">Void</button>';
+            }
+            var voidBtn = actions;  // single col covers both edit + void
+
+            html += '<tr>' +
+              '<td>' + escapeHtml(g.play_date || '') + '</td>' +
+              '<td>' + escapeHtml(g.event_label || '') + '</td>' +
+              '<td>' + escapeHtml(teamA) + '</td>' +
+              '<td><strong>' + escapeHtml(g.t1_score) + '–' + escapeHtml(g.t2_score) + '</strong></td>' +
+              '<td>' + escapeHtml(teamB) + '</td>' +
+              '<td>' + statusPill + '</td>' +
+              '<td>' + duprCell + '</td>' +
+              '<td>' + voidBtn + '</td>' +
+              '</tr>';
+          });
+          html += '</table>';
+          div.innerHTML = html;
+        })
+        .api_listGames(TOKEN);
+    }
+
+    function pushGame(game_id) {
+      toast('Pushing to DUPR…', 'working', true);
+      google.script.run
+        .withSuccessHandler(function (r) {
+          if (!r.ok) { toast('Push failed: ' + r.error, 'err'); loadGames(); return; }
+          toast('✓ Pushed to DUPR', 'ok');
+          loadGames();
+        })
+        .withFailureHandler(function (e) {
+          toast('Push error: ' + ((e && e.message) || e), 'err');
+        })
+        .api_pushGameToDupr(TOKEN, game_id);
+    }
+
+    var _editingGameId = null;
+    function editGame(game_id, currentT1, currentT2) {
+      _editingGameId = game_id;
+      document.getElementById('editT1').value = currentT1;
+      document.getElementById('editT2').value = currentT2;
+      // Try to surface the matchup in the subtitle.
+      var game = (LAST_GAMES_ROWS || []).find(function (g) { return g.game_id === game_id; });
+      var sub = 'Game ' + game_id;
+      if (game) {
+        var byId = {};
+        PLAYERS.forEach(function (p) { byId[p.player_id] = p.full_name; });
+        function rn(slot) { return (game[slot + '_name'] && game[slot + '_name'].trim()) || byId[game[slot + '_id']] || '?'; }
+        sub = rn('t1_player_1') + ' / ' + rn('t1_player_2') + ' vs ' + rn('t2_player_1') + ' / ' + rn('t2_player_2');
+      }
+      document.getElementById('editModalSubtitle').textContent = sub;
+      document.getElementById('editModalBg').classList.add('open');
+      // Pre-select Team A score so user can type immediately.
+      setTimeout(function () { document.getElementById('editT1').focus(); document.getElementById('editT1').select(); }, 50);
+    }
+    function setEditModalState(state) {
+      ['Form', 'Working', 'Success', 'Error'].forEach(function (s) {
+        document.getElementById('editModal' + s).style.display = (s.toLowerCase() === state) ? '' : 'none';
+      });
+      // Hide close X during work/success so user can't bail mid-flight.
+      document.getElementById('editModalClose').style.visibility = (state === 'working') ? 'hidden' : 'visible';
+      document.getElementById('editModalTitle').textContent =
+        state === 'working' ? 'Updating game' :
+        state === 'success' ? 'Update complete' :
+        state === 'error'   ? 'Update failed' :
+        'Edit match score';
+    }
+    function closeEditModal() {
+      document.getElementById('editModalBg').classList.remove('open');
+      _editingGameId = null;
+      // Reset to form state for next open.
+      setTimeout(function () { setEditModalState('form'); }, 200);
+    }
+    function submitEditModal() {
+      if (!_editingGameId) return;
+      var t1 = document.getElementById('editT1').value;
+      var t2 = document.getElementById('editT2').value;
+      if (t1 === '' || t2 === '') {
+        setEditModalState('error');
+        document.getElementById('editModalErrorMsg').textContent = 'Enter both scores.';
+        return;
+      }
+      var gid = _editingGameId;
+      document.getElementById('editModalWorkingMsg').textContent = 'Updating game…';
+      setEditModalState('working');
+      google.script.run
+        .withSuccessHandler(function (r) {
+          if (!r.ok) {
+            document.getElementById('editModalErrorMsg').textContent = r.error || 'Update failed';
+            setEditModalState('error');
+            return;
+          }
+          document.getElementById('editModalSuccessMsg').textContent = r.data.updated_on_dupr
+            ? '✓ Scores updated in DUPR'
+            : '✓ Scores updated (not yet pushed to DUPR)';
+          setEditModalState('success');
+          loadGames();
+          // Auto-close after a couple seconds.
+          setTimeout(function () {
+            if (document.getElementById('editModalBg').classList.contains('open')) closeEditModal();
+          }, 2200);
+        })
+        .withFailureHandler(function (e) {
+          document.getElementById('editModalErrorMsg').textContent = (e && e.message) || String(e);
+          setEditModalState('error');
+        })
+        .api_editGameScores(TOKEN, gid, t1, t2);
+    }
+    // Enter key on either score input submits.
+    document.getElementById('editT1').addEventListener('keydown', function (e) { if (e.key === 'Enter') { document.getElementById('editT2').focus(); document.getElementById('editT2').select(); } });
+    document.getElementById('editT2').addEventListener('keydown', function (e) { if (e.key === 'Enter') submitEditModal(); });
+    // Click outside to close.
+    document.getElementById('editModalBg').addEventListener('click', function (e) {
+      if (e.target === this) closeEditModal();
+    });
+    // Esc to close (but not while a request is in flight).
+    document.addEventListener('keydown', function (e) {
+      if (e.key !== 'Escape') return;
+      var open = document.getElementById('editModalBg').classList.contains('open');
+      var working = document.getElementById('editModalWorking').style.display !== 'none';
+      if (open && !working) closeEditModal();
+    });
+
+    /* ---- Generic confirm modal with morphing states ----
+     *
+     * showConfirm({
+     *   title: 'Void game',
+     *   message: '…',
+     *   acceptLabel: 'Void',
+     *   workingMsg: 'Voiding…',
+     *   workingTitle: 'Voiding game',
+     *   run: function (done) {
+     *     // 'done' is { ok: msg } on success or { err: msg } on failure
+     *     google.script.run.withSuccessHandler(function (r) {
+     *       if (!r.ok) return done({ err: r.error });
+     *       done({ ok: '✓ Voided' });
+     *     }).api_xxx();
+     *   }
+     * });
+     */
+    var _confirmCfg = null;
+    function setConfirmModalState(state) {
+      ['Prompt', 'Working', 'Success', 'Error'].forEach(function (s) {
+        document.getElementById('confirmModal' + s).style.display = (s.toLowerCase() === state) ? '' : 'none';
+      });
+      document.getElementById('confirmModalClose').style.visibility = (state === 'working') ? 'hidden' : 'visible';
+      var titles = {
+        prompt:  (_confirmCfg && _confirmCfg.title)        || 'Confirm',
+        working: (_confirmCfg && _confirmCfg.workingTitle) || 'Working',
+        success: (_confirmCfg && _confirmCfg.successTitle) || 'Done',
+        error:   (_confirmCfg && _confirmCfg.errorTitle)   || 'Failed',
+      };
+      document.getElementById('confirmTitle').textContent = titles[state];
+    }
+    function showConfirm(cfg) {
+      _confirmCfg = cfg || {};
+      document.getElementById('confirmMessage').textContent = cfg.message || '';
+      document.getElementById('confirmAccept').textContent = cfg.acceptLabel || 'Confirm';
+      document.getElementById('confirmModalWorkingMsg').textContent = cfg.workingMsg || 'Working…';
+      setConfirmModalState('prompt');
+      document.getElementById('confirmModalBg').classList.add('open');
+    }
+    function cancelConfirmModal() {
+      document.getElementById('confirmModalBg').classList.remove('open');
+      setTimeout(function () { _confirmCfg = null; setConfirmModalState('prompt'); }, 200);
+    }
+    function acceptConfirmModal() {
+      if (!_confirmCfg || typeof _confirmCfg.run !== 'function') {
+        cancelConfirmModal();
+        return;
+      }
+      setConfirmModalState('working');
+      _confirmCfg.run(function (result) {
+        if (result && result.ok) {
+          document.getElementById('confirmModalSuccessMsg').textContent = result.ok;
+          setConfirmModalState('success');
+          setTimeout(function () {
+            if (document.getElementById('confirmModalBg').classList.contains('open')) cancelConfirmModal();
+          }, 2200);
+        } else {
+          document.getElementById('confirmModalErrorMsg').textContent = (result && result.err) || 'Failed';
+          setConfirmModalState('error');
+        }
+      });
+    }
+    document.getElementById('confirmModalBg').addEventListener('click', function (e) {
+      if (e.target !== this) return;
+      // Don't close while a request is in flight.
+      if (document.getElementById('confirmModalWorking').style.display !== 'none') return;
+      cancelConfirmModal();
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key !== 'Escape') return;
+      var open = document.getElementById('confirmModalBg').classList.contains('open');
+      var working = document.getElementById('confirmModalWorking').style.display !== 'none';
+      if (open && !working) cancelConfirmModal();
+    });
+
+    function deletePlayer(player_id, full_name) {
+      showConfirm({
+        title: 'Delete player',
+        message: 'Delete ' + (full_name || player_id) + ' from the roster? Their past games will keep showing their name. They can re-register fresh with the same or a different DUPR account.',
+        acceptLabel: 'Delete',
+        workingTitle: 'Deleting player',
+        workingMsg: 'Deleting…',
+        successTitle: 'Player deleted',
+        errorTitle: 'Delete failed',
+        run: function (done) {
+          google.script.run
+            .withSuccessHandler(function (r) {
+              if (!r.ok) return done({ err: r.error });
+              loadPlayers();
+              done({ ok: '✓ ' + (r.data.full_name || 'Player') + ' deleted — game history preserved' });
+            })
+            .withFailureHandler(function (e) { done({ err: (e && e.message) || String(e) }); })
+            .api_deletePlayer(TOKEN, player_id);
+        }
+      });
+    }
+
+    function voidGame(game_id) {
+      var game = (LAST_GAMES_ROWS || []).find(function (g) { return g.game_id === game_id; });
+      var matchLabel = 'this game';
+      if (game) {
+        var byId = {};
+        PLAYERS.forEach(function (p) { byId[p.player_id] = p.full_name; });
+        function rn2(slot) { return (game[slot + '_name'] && game[slot + '_name'].trim()) || byId[game[slot + '_id']] || '?'; }
+        var teamA = rn2('t1_player_1') + ' / ' + rn2('t1_player_2');
+        var teamB = rn2('t2_player_1') + ' / ' + rn2('t2_player_2');
+        matchLabel = teamA + ' vs ' + teamB + ' (' + game.t1_score + '–' + game.t2_score + ')';
+      }
+      var wasPushed = game && game.status === 'pushed';
+      var msg = 'Void ' + matchLabel + '?';
+      if (wasPushed) msg += ' Since it was pushed to DUPR, it will also be deleted there.';
+      showConfirm({
+        title: 'Void game',
+        message: msg,
+        acceptLabel: 'Void',
+        workingTitle: 'Voiding game',
+        workingMsg: 'Voiding game…',
+        successTitle: 'Void complete',
+        errorTitle: 'Void failed',
+        run: function (done) {
+          google.script.run
+            .withSuccessHandler(function (r) {
+              if (!r.ok) return done({ err: r.error });
+              loadGames();
+              done({ ok: r.data.deleted_from_dupr ? '✓ Game deleted from DUPR' : '✓ Game voided (not yet pushed)' });
+            })
+            .withFailureHandler(function (e) { done({ err: (e && e.message) || String(e) }); })
+            .api_voidGame(TOKEN, game_id);
+        }
+      });
+    }
+
+    /* ============================================================
+     * DUPR INFO TAB
+     * ============================================================ */
+    function loadClubStatus() {
+      google.script.run
+        .withSuccessHandler(function (r) {
+          var el = document.getElementById('clubStatus');
+          if (!r.ok) { el.textContent = 'Error: ' + r.error; return; }
+          var d = r.data;
+          if (!d.configured) {
+            el.innerHTML = '<span style="color:#c93030">⚠ Not configured.</span><br>' +
+              'Set <code>DUPR_CLUB_ID</code> and <code>DUPR_ADMIN_DUPR_ID</code> in Script Properties to enable CLUB-source match pushes.';
+            return;
+          }
+          if (d.source === 'CLUB') {
+            el.innerHTML =
+              '<div style="margin-bottom:6px"><strong>' + escapeHtml(d.club_name || '(name unknown)') + '</strong> <span class="pill pushed">role: ' + escapeHtml(d.role) + '</span></div>' +
+              '<div>Club ID: <code>' + escapeHtml(d.club_id) + '</code></div>' +
+              '<div>Source: <code>CLUB</code> (matches push with clubId)</div>' +
+              '<div style="margin-top:4px;font-size:11px">Last verified ' + escapeHtml(d.verified_at) + ' · cached 24h</div>';
+            return;
+          }
+          // Graceful degrade — configured but lookup unsuccessful.
+          var reason = d.degrade === 'lookup_failed'  ? 'Clubs lookup failed (likely UAT limitation)' :
+                       d.degrade === 'not_member'    ? 'Admin not returned as member by /user/clubs endpoint' :
+                       d.degrade === 'wrong_role'    ? 'Admin role is "' + (d.role || '?') + '" (need DIRECTOR or ORGANIZER)' :
+                                                        'Unknown';
+          el.innerHTML =
+            '<div style="margin-bottom:6px"><strong>Configured</strong> <span class="pill legacy">pending verification</span></div>' +
+            '<div>Club ID: <code>' + escapeHtml(d.club_id) + '</code></div>' +
+            '<div>Admin DUPR ID: <code>' + escapeHtml(d.admin_dupr_id || '?') + '</code></div>' +
+            '<div style="margin-top:6px;color:var(--brand-dark);font-size:12px">⚠ ' + escapeHtml(reason) + '. Pushes will use <code>source: PARTNER</code> until verified.</div>' +
+            (d.error ? '<div style="margin-top:6px;font-size:11px;color:var(--muted)"><code>' + escapeHtml(d.error) + '</code></div>' : '');
+        })
+        .api_duprClubStatus(TOKEN);
+    }
+
+    function refreshClubRole() {
+      toast('Verifying role with DUPR…', 'working', true);
+      google.script.run
+        .withSuccessHandler(function (r) {
+          if (!r.ok) { toast('Error: ' + r.error, 'err'); return; }
+          toast('✓ Role verified: ' + r.data.role, 'ok');
+          loadClubStatus();
+        })
+        .withFailureHandler(function (e) { toast('Error: ' + ((e && e.message) || e), 'err'); })
+        .api_refreshDuprClubRole(TOKEN);
+    }
+
+    function loadDuprStatus() {
+      google.script.run
+        .withSuccessHandler(function (r) {
+          var el = document.getElementById('duprStatus');
+          if (!r.ok) { el.textContent = 'error: ' + r.error; return; }
+          var d = r.data;
+          if (!d.configured) {
+            el.innerHTML = '<span style="color:#c93030">⚠ Not configured.</span><br>Run <code>setDuprCredentialsToValue</code> in the Apps Script editor.';
+            return;
+          }
+          el.innerHTML =
+            '<div><strong>Base:</strong> ' + escapeHtml(d.base_url) + '</div>' +
+            '<div>OAuth client_id: ' + (d.has_client_id ? '✓' : '—') + '</div>' +
+            '<div>OAuth client_secret: ' + (d.has_client_secret ? '✓' : '—') + '</div>' +
+            '<div>Partner token: ' + (d.has_partner_token ? '✓' : '—') + '</div>';
+        })
+        .api_duprStatus(TOKEN);
+    }
+
+    function copyRegUrl() {
+      var input = document.getElementById('regUrl');
+      input.select();
+      try { document.execCommand('copy'); } catch (e) {}
+      if (navigator.clipboard) navigator.clipboard.writeText(input.value).catch(function(){});
+      alert('Copied:\n' + input.value);
+    }
+    document.getElementById('regUrl').value = APP_URL + '?page=register';
+
+    function launchRegUrl() {
+      window.open(document.getElementById('regUrl').value, '_blank', 'noopener,noreferrer');
+    }
+
+    function loadWebhookUrl() {
+      google.script.run
+        .withSuccessHandler(function (r) {
+          if (!r.ok) return;
+          var input = document.getElementById('webhookUrl');
+          input.value = r.data.stored || '';
+          input.placeholder = 'https://dilldinkersct.com/sandbox/webhook';
+        })
+        .api_getWebhookUrl(TOKEN);
+    }
+
+    function registerWebhook() {
+      var url = document.getElementById('webhookUrl').value.trim();
+      if (!url) { toast('Paste your Worker URL first.', 'err'); return; }
+      if (!/^https:\/\//.test(url)) { toast('URL must be HTTPS.', 'err'); return; }
+      toast('Registering with DUPR…', 'working', true);
+      google.script.run
+        .withSuccessHandler(function (r) {
+          if (!r.ok) { toast('Error: ' + r.error, 'err'); return; }
+          toast('✓ Webhook registered', 'ok');
+        })
+        .withFailureHandler(function (e) { toast('Error: ' + ((e && e.message) || e), 'err'); })
+        .api_registerDuprWebhook(TOKEN, url);
+    }
+
+    function loadWebhookLog() {
+      google.script.run
+        .withSuccessHandler(function (r) {
+          var div = document.getElementById('webhookLog');
+          if (!r.ok) { div.textContent = 'Error: ' + r.error; return; }
+          var rows = r.data || [];
+          if (!rows.length) { div.innerHTML = '<p class="sub">No webhooks received yet. Register the webhook above, then play a DUPR match.</p>'; return; }
+          var html = '<table><tr>' +
+            '<th>Received</th><th>Event</th><th>DUPR ID</th><th>Name</th><th>New rating</th><th>Status</th><th>Inbound clientId</th><th>Raw payload</th>' +
+            '</tr>';
+          rows.forEach(function (w) {
+            var pill;
+            if (w.apply_status === 'applied')                       pill = '<span class="pill pushed">applied</span>';
+            else if (w.apply_status === 'ack')                      pill = '<span class="pill pushed">ack</span>';
+            else if (w.apply_status === 'skipped_no_match')         pill = '<span class="pill legacy">no match</span>';
+            else if (w.apply_status === 'skipped_no_dupr_id')       pill = '<span class="pill legacy">no DUPR id</span>';
+            else                                                    pill = '<span class="pill error">' + escapeHtml(w.apply_status) + '</span>';
+            html += '<tr>' +
+              '<td style="white-space:nowrap">' + escapeHtml(w.received_at || '') + '</td>' +
+              '<td>' + escapeHtml(w.event || '') + '</td>' +
+              '<td><code>' + escapeHtml(w.dupr_id || '—') + '</code></td>' +
+              '<td>' + escapeHtml(w.name || '') + '</td>' +
+              '<td>' + escapeHtml(w.rating_doubles || '—') + '</td>' +
+              '<td>' + pill + '</td>' +
+              '<td><code style="font-size:10px">' + escapeHtml(w.inbound_client_id || '—') + '</code></td>' +
+              '<td style="font-size:10px;max-width:300px;word-break:break-all"><code>' + escapeHtml(w.raw_payload || '') + '</code></td>' +
+              '</tr>';
+          });
+          html += '</table>';
+          div.innerHTML = html;
+        })
+        .api_listWebhookLog(TOKEN, 25);
+    }
+
+    function loadPushLog() {
+      google.script.run
+        .withSuccessHandler(function (r) {
+          var div = document.getElementById('pushLog');
+          if (!r.ok) { div.textContent = 'Error: ' + r.error; return; }
+          var rows = r.data || [];
+          if (!rows.length) { div.innerHTML = '<p class="sub">No push attempts yet.</p>'; return; }
+          var html = '<table><tr>' +
+            '<th>When</th><th>Game</th><th>HTTP</th><th>Status</th><th>DUPR match</th><th>Error</th><th>By</th>' +
+            '</tr>';
+          rows.slice(0, 50).forEach(function (p) {
+            var pill = p.status === 'success'
+              ? '<span class="pill pushed">success</span>'
+              : '<span class="pill error">error</span>';
+            html += '<tr>' +
+              '<td style="white-space:nowrap">' + escapeHtml(p.attempted_at || '') + '</td>' +
+              '<td><code style="font-size:10px">' + escapeHtml(p.game_id || '') + '</code></td>' +
+              '<td>' + escapeHtml(String(p.http_status || '')) + '</td>' +
+              '<td>' + pill + '</td>' +
+              '<td><code style="font-size:10px">' + escapeHtml(p.dupr_match_id || '—') + '</code></td>' +
+              '<td style="font-size:10px;max-width:280px;color:#c93030">' + escapeHtml((p.error_message || '').slice(0, 200)) + '</td>' +
+              '<td>' + escapeHtml(p.attempted_by || '') + '</td>' +
+              '</tr>';
+          });
+          html += '</table>';
+          div.innerHTML = html;
+        })
+        .api_listPushLog(TOKEN);
+    }
+
+    function exportAuditCsv() {
+      google.script.run
+        .withSuccessHandler(function (r) {
+          if (!r.ok) { alert('Error: ' + r.error); return; }
+          var blob = new Blob([r.data.csv], { type: 'text/csv;charset=utf-8' });
+          var stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+          var a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = 'audit_log_' + stamp + '.csv';
+          document.body.appendChild(a);
+          a.click();
+          setTimeout(function () {
+            URL.revokeObjectURL(a.href);
+            document.body.removeChild(a);
+          }, 0);
+        })
+        .withFailureHandler(function (e) { alert('Export failed: ' + (e && e.message || e)); })
+        .api_exportAuditLogCsv(TOKEN);
+    }
+
+    function loadAuditLog() {
+      google.script.run
+        .withSuccessHandler(function (r) {
+          var div = document.getElementById('auditLog');
+          if (!r.ok) { div.textContent = 'Error: ' + r.error; return; }
+          var rows = r.data || [];
+          if (!rows.length) { div.innerHTML = '<p class="sub">No events yet.</p>'; return; }
+          var html = '<table><tr>' +
+            '<th>When</th><th>Actor</th><th>Action</th><th>Entity</th><th>ID</th><th>Old → New</th>' +
+            '</tr>';
+          rows.forEach(function (a) {
+            var diff = '';
+            if (a.old_value || a.new_value) {
+              var oldT = a.old_value ? '<code style="color:#c93030">' + escapeHtml(a.old_value) + '</code>' : '∅';
+              var newT = a.new_value ? '<code style="color:#2a8a2a">' + escapeHtml(a.new_value) + '</code>' : '∅';
+              diff = oldT + ' → ' + newT;
+            }
+            html += '<tr>' +
+              '<td style="white-space:nowrap">' + escapeHtml(a.timestamp || '') + '</td>' +
+              '<td>' + escapeHtml(a.actor_email || '—') + '</td>' +
+              '<td><code>' + escapeHtml(a.action || '') + '</code></td>' +
+              '<td>' + escapeHtml(a.entity_type || '') + '</td>' +
+              '<td><code style="font-size:10px">' + escapeHtml(a.entity_id || '') + '</code></td>' +
+              '<td style="font-size:10px;max-width:380px;word-break:break-all">' + diff + '</td>' +
+              '</tr>';
+          });
+          html += '</table>';
+          div.innerHTML = html;
+        })
+        .api_listAuditLog(TOKEN, 100);
+    }
+
+    /* ---- Initial load. loadPlayers chains loadGames after PLAYERS is set
+       so the score table can resolve player_id → name without a race. ---- */
+    loadPlayers();
+    loadDuprStatus();
+    loadWebhookLog();
+    loadWebhookUrl();
+    loadPushLog();
+    loadAuditLog();
+    loadClubStatus();
+  </script>
+</body>
+</html>

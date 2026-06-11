@@ -699,6 +699,16 @@ function getPartnerWeekView_(league_id, week_number) {
   const teamById = {};
   teams.forEach(t => { teamById[t.team_id] = t; });
 
+  // Substitutions for this week — map absent_player_id → sub name so the
+  // team card displays the substitute (with a trailing "*") in place of
+  // the absent player.
+  const subByAbsentId = {};
+  getObjects_('Substitutions').forEach(s => {
+    if (s.league_id !== league_id) return;
+    if (Number(s.week_number) !== wkn) return;
+    if (s.absent_player_id) subByAbsentId[s.absent_player_id] = s.substitute_player_name || '';
+  });
+
   const totalRounds = matches.reduce((mx, m) => Math.max(mx, Number(m.game_number)), 0);
 
   const teamCards = teams.map(t => {
@@ -742,13 +752,20 @@ function getPartnerWeekView_(league_id, week_number) {
 
     const p1 = playerById[t.player_1_id];
     const p2 = playerById[t.player_2_id];
+    // If a player is absent and has a sub recorded for the week, display
+    // the sub's name with a trailing "*" so spectators can see who's
+    // actually playing for the team today.
+    const p1Sub = subByAbsentId[t.player_1_id];
+    const p2Sub = subByAbsentId[t.player_2_id];
+    const p1Name = p1Sub ? (p1Sub + ' *') : (p1 ? p1.full_name : '');
+    const p2Name = p2Sub ? (p2Sub + ' *') : (p2 ? p2.full_name : '');
     const s = standingByTeam[t.team_id] || {};
     const ppg = s.games_played ? (s.point_diff / s.games_played) : 0;
     return {
       team_id:   t.team_id,
       team_name: t.team_name,
-      player_1_name: p1 ? p1.full_name : '',
-      player_2_name: p2 ? p2.full_name : '',
+      player_1_name: p1Name,
+      player_2_name: p2Name,
       season: {
         rank:        s.rank        || null,
         wins:        s.wins        || 0,

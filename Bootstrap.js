@@ -87,6 +87,17 @@ function whoami() {
   return out;
 }
 
+/**
+ * One-time season setup: populate League_Schedule for all active ladder leagues
+ * from CR_Attendance. Run once at the start of each season, then never again.
+ * Results are logged.
+ */
+function setupSeasonSchedules() {
+  const result = syncAllLeagueWeeks_();
+  Logger.log(JSON.stringify(result, null, 2));
+  return result;
+}
+
 /** Adds the running user to Roles as admin. Idempotent. */
 function makeMeAdmin() {
   const me = (activeUserEmail_() || '').toLowerCase().trim();

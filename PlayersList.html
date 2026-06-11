@@ -1,0 +1,106 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title><?= appName ?> — Players</title>
+  <?!= include_('Styles') ?>
+  <style>
+    body { max-width: 1100px; margin: 0 auto; padding: 0 20px 60px; }
+    h1 { margin: 14px 0 6px; font-size: 22px; }
+    .sub { color: var(--text-muted); margin: 0 0 14px; font-size: 13px; }
+    .toolbar { margin: 0 0 12px; display: flex; gap: 10px; align-items: center; }
+    .toolbar input[type=search] {
+      flex: 1; max-width: 360px; padding: 6px 10px;
+      border: 1px solid var(--border); border-radius: 6px; font-size: 14px;
+    }
+    table.players {
+      width: 100%; border-collapse: collapse;
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 8px; overflow: hidden; font-size: 13px;
+    }
+    table.players th {
+      text-align: left; padding: 10px 12px; font-size: 11px;
+      text-transform: uppercase; letter-spacing: 0.04em;
+      color: var(--text-muted); background: var(--bg-subtle);
+      border-bottom: 1px solid var(--border); font-weight: 700;
+    }
+    table.players td { padding: 9px 12px; border-bottom: 1px solid var(--border); }
+    table.players tr:last-child td { border-bottom: none; }
+    .err { color: var(--error); padding: 12px 0; }
+  </style>
+</head>
+<body>
+  <div class="app-header">
+    <?!= include_('Logo') ?>
+    <span class="who">Signed in as <code><?= user.email || 'anonymous' ?></code> · <?= user.roles.join(', ') || 'no roles' ?></span>
+  </div>
+
+  <?!= include_('Nav') ?>
+
+  <h1>Players</h1>
+  <p class="sub">All players across leagues.</p>
+
+  <div class="toolbar">
+    <input id="search" type="search" placeholder="Search by name, email, DUPR…">
+    <span class="muted" id="count"></span>
+  </div>
+
+  <div id="content"><span class="muted">Loading…</span></div>
+
+  <script>
+    function escapeHtml(s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, c =>
+        ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+    let ALL = [];
+
+    function render(list) {
+      const el = document.getElementById('content');
+      document.getElementById('count').textContent = list.length + ' of ' + ALL.length;
+      if (!list.length) { el.innerHTML = '<p class="muted">No players match.</p>'; return; }
+      const rows = list.map(p => {
+        const leagues = (p.leagues || []).map(l => l.name).filter(Boolean).join(', ');
+        return `<tr>
+          <td><strong>${escapeHtml(p.full_name)}</strong></td>
+          <td>${escapeHtml(p.email)}</td>
+          <td>${escapeHtml(p.level)}</td>
+          <td>${escapeHtml(p.dupr_id)}</td>
+          <td class="muted">${escapeHtml(leagues)}</td>
+        </tr>`;
+      }).join('');
+      el.innerHTML = `<table class="players">
+        <thead><tr><th>Name</th><th>Email</th><th>Level</th><th>DUPR</th><th>Leagues</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+    }
+
+    function applyFilter() {
+      const q = (document.getElementById('search').value || '').toLowerCase().trim();
+      if (!q) { render(ALL); return; }
+      render(ALL.filter(p =>
+        (p.full_name||'').toLowerCase().includes(q) ||
+        (p.email||'').toLowerCase().includes(q) ||
+        (p.dupr_id||'').toLowerCase().includes(q)
+      ));
+    }
+
+    document.getElementById('search').addEventListener('input', applyFilter);
+
+    google.script.run
+      .withSuccessHandler(r => {
+        if (!r || !r.ok) {
+          document.getElementById('content').innerHTML =
+            '<p class="err">' + escapeHtml((r && r.error) || 'Failed to load') + '</p>';
+          return;
+        }
+        ALL = (r.data || []).slice().sort((a,b) => (a.full_name||'').localeCompare(b.full_name||''));
+        applyFilter();
+      })
+      .withFailureHandler(e => {
+        document.getElementById('content').innerHTML =
+          '<p class="err">' + escapeHtml(String(e && e.message || e)) + '</p>';
+      })
+      .api_listAllPlayers();
+  </script>
+</body>
+</html>

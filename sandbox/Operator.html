@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base href="<?= appUrl ?>" target="_top">
+  <meta charset="utf-8">
+  <style>
+    :root {
+      --brand: #e07a3c;
+      --brand-dark: #b85e25;
+      --bg: #fafaf7;
+      --card: #fff;
+      --border: #e8e4dc;
+      --text: #2a2a28;
+      --muted: #7a7670;
+      --green: #2a8a2a;
+      --red: #c93030;
+      --blue: #2a5a8a;
+    }
+    html, body { margin: 0; padding: 0; background: var(--bg); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; color: var(--text); }
+    .wrap { max-width: 1100px; margin: 0 auto; padding: 24px; }
+    .topbar { display: flex; align-items: baseline; gap: 14px; margin-bottom: 8px; }
+    .tag { background: #fff4e5; color: var(--brand-dark); padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; letter-spacing: 0.05em; }
+    h1 { margin: 0; font-size: 24px; }
+    .links { margin-left: auto; font-size: 12px; }
+    .links a { color: var(--muted); text-decoration: none; padding: 4px 8px; }
+    .links a:hover { color: var(--brand-dark); }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+    .card h2 { margin: 0 0 10px; font-size: 14px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+    label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+    input, select { padding: 8px 10px; font-size: 14px; border: 1px solid var(--border); border-radius: 5px; box-sizing: border-box; width: 100%; }
+    input:focus, select:focus { outline: none; border-color: var(--brand); }
+    .grid-match { display: grid; grid-template-columns: 1fr 80px 80px 1fr; gap: 12px; align-items: end; }
+    .team-block { display: grid; gap: 8px; }
+    .score-input { text-align: center; font-size: 18px; font-weight: 700; }
+    .vs { text-align: center; font-size: 12px; color: var(--muted); padding-bottom: 10px; }
+    .btn { display: inline-block; padding: 10px 18px; font-size: 14px; font-weight: 600; background: var(--brand); color: #fff; border: none; border-radius: 6px; cursor: pointer; }
+    .btn:hover { background: var(--brand-dark); }
+    .btn.secondary { background: #fff; color: var(--text); border: 1px solid var(--border); }
+    .btn.secondary:hover { background: #f4f1ec; }
+    .btn.push { background: var(--blue); }
+    .btn.push:hover { background: #1d3f63; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .msg { font-size: 12px; min-height: 16px; padding: 4px 0; }
+    .msg.err { color: var(--red); }
+    .msg.ok  { color: var(--green); }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { padding: 6px 8px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: middle; }
+    th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); font-weight: 600; }
+    .pill { display: inline-block; padding: 2px 6px; border-radius: 3px; font-size: 11px; font-weight: 600; }
+    .pill.complete { background: #e6efff; color: var(--blue); }
+    .pill.pushed   { background: #e6f4e6; color: var(--green); }
+    .pill.error    { background: #fbe5e5; color: var(--red); }
+    .pill.voided   { background: #f0eee9; color: var(--muted); }
+    .warn { font-size: 12px; color: var(--brand-dark); padding: 6px 10px; background: #fff4e5; border-radius: 4px; margin: 10px 0; }
+    .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+    code { font-size: 11px; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <span class="tag">SANDBOX</span>
+      <h1>Operator</h1>
+      <span class="links">
+        <a href="?page=home&t=<?= encodeURIComponent(token) ?>">← Home</a>
+      </span>
+    </div>
+
+    <div class="card">
+      <h2>Enter match score</h2>
+      <div class="row" style="margin-bottom: 14px">
+        <div style="flex:1;min-width:200px">
+          <label>Event label (free text)</label>
+          <input id="eventLabel" placeholder="e.g. Tuesday Night League — Week 4">
+        </div>
+        <div style="flex:0 0 160px">
+          <label>Play date</label>
+          <input id="playDate" type="date">
+        </div>
+      </div>
+
+      <div class="grid-match">
+        <div class="team-block">
+          <label>Team A — Player 1</label>
+          <select id="a1"></select>
+          <label>Team A — Player 2</label>
+          <select id="a2"></select>
+        </div>
+        <div>
+          <label>A score</label>
+          <input id="aScore" class="score-input" type="number" min="0" placeholder="11">
+        </div>
+        <div>
+          <label>B score</label>
+          <input id="bScore" class="score-input" type="number" min="0" placeholder="9">
+        </div>
+        <div class="team-block">
+          <label>Team B — Player 1</label>
+          <select id="b1"></select>
+          <label>Team B — Player 2</label>
+          <select id="b2"></select>
+        </div>
+      </div>
+
+      <div id="unlinkedWarn" class="warn" style="display:none"></div>
+
+      <div class="row" style="margin-top:14px">
+        <button class="btn" onclick="saveGame(false)">Save</button>
+        <button class="btn push" onclick="saveGame(true)">Save &amp; push to DUPR</button>
+        <span id="saveMsg" class="msg"></span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Recent games</h2>
+      <div id="gamesTable">Loading…</div>
+    </div>
+  </div>
+
+  <script>
+    var TOKEN   = <?!= JSON.stringify(token) ?>;
+    var APP_URL = <?!= JSON.stringify(appUrl) ?>;
+    var PLAYERS = [];
+
+    document.getElementById('playDate').value = new Date().toISOString().slice(0, 10);
+
+    function escapeHtml(s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+        return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c];
+      });
+    }
+
+    function loadPlayers() {
+      google.script.run
+        .withSuccessHandler(function (r) {
+          if (!r.ok) { document.getElementById('saveMsg').textContent = 'Players load error: ' + r.error; return; }
+          PLAYERS = (r.data || []).filter(function (p) { return p.active !== false; });
+          ['a1','a2','b1','b2'].forEach(function (id) {
+            var sel = document.getElementById(id);
+            sel.innerHTML = '<option value="">— pick player —</option>' + PLAYERS.map(function (p) {
+              var label = p.full_name + (p.dupr_id ? '' : ' (unlinked)');
+              return '<option value="' + escapeHtml(p.player_id) + '">' + escapeHtml(label) + '</option>';
+            }).join('');
+            sel.addEventListener('change', refreshUnlinkedWarn);
+          });
+          refreshUnlinkedWarn();
+        })
+        .api_listPlayers(TOKEN);
+    }
+
+    function pickedPids() {
+      return ['a1','a2','b1','b2'].map(function (id) { return document.getElementById(id).value; });
+    }
+
+    function refreshUnlinkedWarn() {
+      var pids = pickedPids().filter(Boolean);
+      var unlinked = pids.map(function (pid) {
+        var p = PLAYERS.find(function (x) { return x.player_id === pid; });
+        return (p && !p.dupr_id) ? p : null;
+      }).filter(Boolean);
+      var el = document.getElementById('unlinkedWarn');
+      if (!unlinked.length) { el.style.display = 'none'; return; }
+      el.style.display = 'block';
+      el.innerHTML = '⚠ Not linked to DUPR: ' + unlinked.map(function (p) { return escapeHtml(p.full_name); }).join(', ') +
+        '. Score will save, but the match cannot be pushed to DUPR until they link.';
+    }
+
+    function saveGame(pushAfter) {
+      var pids = pickedPids();
+      var msg = document.getElementById('saveMsg');
+      if (pids.some(function (p) { return !p; })) {
+        msg.className = 'msg err'; msg.textContent = 'Pick all four players.'; return;
+      }
+      if (new Set(pids).size !== 4) {
+        msg.className = 'msg err'; msg.textContent = 'A player can only appear once per match.'; return;
+      }
+      var input = {
+        play_date:      document.getElementById('playDate').value,
+        event_label:    document.getElementById('eventLabel').value.trim(),
+        t1_player_1_id: pids[0],
+        t1_player_2_id: pids[1],
+        t2_player_1_id: pids[2],
+        t2_player_2_id: pids[3],
+        t1_score:       document.getElementById('aScore').value,
+        t2_score:       document.getElementById('bScore').value,
+      };
+      msg.className = 'msg'; msg.textContent = 'Saving…';
+      google.script.run
+        .withSuccessHandler(function (r) {
+          if (!r.ok) { msg.className = 'msg err'; msg.textContent = r.error; return; }
+          var savedGameId = r.data.game_id;
+          if (!pushAfter) {
+            msg.className = 'msg ok'; msg.textContent = '✓ Saved (game ' + savedGameId + ')';
+            clearForm();
+            loadGames();
+            return;
+          }
+          msg.className = 'msg'; msg.textContent = 'Saved — pushing to DUPR…';
+          google.script.run
+            .withSuccessHandler(function (pr) {
+              if (!pr.ok) {
+                msg.className = 'msg err';
+                msg.textContent = '✓ Saved, but DUPR push failed: ' + pr.error;
+                loadGames();
+                return;
+              }
+              msg.className = 'msg ok';
+              msg.textContent = '✓ Saved + pushed to DUPR (match ' + (pr.data.dupr_match_id || '?') + ')';
+              clearForm();
+              loadGames();
+            })
+            .api_pushGameToDupr(TOKEN, savedGameId);
+        })
+        .api_saveGame(TOKEN, input);
+    }
+
+    function clearForm() {
+      ['a1','a2','b1','b2'].forEach(function (id) { document.getElementById(id).value = ''; });
+      document.getElementById('aScore').value = '';
+      document.getElementById('bScore').value = '';
+      refreshUnlinkedWarn();
+    }
+
+    function loadGames() {
+      google.script.run
+        .withSuccessHandler(function (r) {
+          var div = document.getElementById('gamesTable');
+          if (!r.ok) { div.textContent = 'Error: ' + r.error; return; }
+          var rows = r.data || [];
+          if (!rows.length) { div.innerHTML = '<p style="color:#7a7670;font-size:13px">No games yet.</p>'; return; }
+          var byId = {};
+          PLAYERS.forEach(function (p) { byId[p.player_id] = p.full_name; });
+          var html = '<table><tr>' +
+            '<th>Date</th><th>Event</th><th>Team A</th><th>Score</th><th>Team B</th><th>Status</th><th>DUPR</th><th></th>' +
+            '</tr>';
+          rows.forEach(function (g) {
+            var teamA = (byId[g.t1_player_1_id] || '?') + ' / ' + (byId[g.t1_player_2_id] || '?');
+            var teamB = (byId[g.t2_player_1_id] || '?') + ' / ' + (byId[g.t2_player_2_id] || '?');
+            var statusPill = '<span class="pill ' + (g.status || 'complete') + '">' + escapeHtml(g.status || '') + '</span>';
+            var duprCell;
+            if (g.status === 'pushed' && g.dupr_match_id) {
+              duprCell = '<span class="pill pushed">✓ ' + escapeHtml(g.dupr_match_id) + '</span>';
+            } else if (g.dupr_push_status === 'error') {
+              duprCell = '<span class="pill error" title="' + escapeHtml(g.dupr_push_error || '') + '">error</span>';
+            } else if (g.status === 'voided') {
+              duprCell = '—';
+            } else {
+              duprCell = '<button class="btn secondary" onclick="pushGame(\'' + g.game_id + '\')">Push</button>';
+            }
+            var voidBtn = g.status === 'pushed' || g.status === 'voided'
+              ? ''
+              : '<button class="btn secondary" onclick="voidGame(\'' + g.game_id + '\')">Void</button>';
+            html += '<tr>' +
+              '<td>' + escapeHtml(g.play_date || '') + '</td>' +
+              '<td>' + escapeHtml(g.event_label || '') + '</td>' +
+              '<td>' + escapeHtml(teamA) + '</td>' +
+              '<td><strong>' + escapeHtml(g.t1_score) + '–' + escapeHtml(g.t2_score) + '</strong></td>' +
+              '<td>' + escapeHtml(teamB) + '</td>' +
+              '<td>' + statusPill + '</td>' +
+              '<td>' + duprCell + '</td>' +
+              '<td>' + voidBtn + '</td>' +
+              '</tr>';
+          });
+          html += '</table>';
+          div.innerHTML = html;
+        })
+        .api_listGames(TOKEN);
+    }
+
+    function pushGame(game_id) {
+      var msg = document.getElementById('saveMsg');
+      msg.className = 'msg'; msg.textContent = 'Pushing ' + game_id + '…';
+      google.script.run
+        .withSuccessHandler(function (r) {
+          if (!r.ok) { msg.className = 'msg err'; msg.textContent = 'Push failed: ' + r.error; loadGames(); return; }
+          msg.className = 'msg ok'; msg.textContent = '✓ Pushed (match ' + (r.data.dupr_match_id || '?') + ')';
+          loadGames();
+        })
+        .api_pushGameToDupr(TOKEN, game_id);
+    }
+
+    function voidGame(game_id) {
+      if (!window.confirm('Void this game? It will not be pushed to DUPR.')) return;
+      google.script.run
+        .withSuccessHandler(function (r) {
+          var msg = document.getElementById('saveMsg');
+          if (!r.ok) { msg.className = 'msg err'; msg.textContent = r.error; return; }
+          msg.className = 'msg ok'; msg.textContent = '✓ Voided';
+          loadGames();
+        })
+        .api_voidGame(TOKEN, game_id);
+    }
+
+    loadPlayers();
+    setTimeout(loadGames, 250);
+  </script>
+</body>
+</html>

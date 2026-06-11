@@ -367,6 +367,62 @@ function renamePartnerTeamsToPickleball(leagueName) {
   return { league_id: league.league_id, renamed: teams.length, mapping: log };
 }
 
+/**
+ * One-shot backfill: for every ladder league missing Bonus_Config rows, seed
+ * them using the league's `num_groups` field (with the standard
+ * (N - rank) * 0.03 multiplier). Idempotent: leagues that already have rows
+ * are skipped. Leagues with no `num_groups` set are reported so the user
+ * can fix them manually.
+ *
+ * Run from the Apps Script editor: select backfillBonusConfig in the function
+ * dropdown and click Run. Output is in the Logs.
+ */
+function backfillBonusConfig() {
+  const leagues = getObjects_('Leagues').filter(l =>
+    l.format_type === 'ladder' && l.status !== 'archived');
+  const existing = {};
+  getObjects_('Bonus_Config').forEach(c => { existing[c.league_id] = true; });
+
+  // Count active rostered players per league once so we can fall back to
+  // round(roster_size / 4) when num_groups isn't set on the league row.
+  const rosterCount = {};
+  getObjects_('Rosters').forEach(r => {
+    if (r.status !== 'active') return;
+    rosterCount[r.league_id] = (rosterCount[r.league_id] || 0) + 1;
+  });
+
+  const seeded = [];
+  const skippedHas = [];
+  const skippedEmpty = [];
+
+  leagues.forEach(l => {
+    if (existing[l.league_id]) { skippedHas.push(l.name); return; }
+    let n = Number(l.num_groups);
+    let source = 'league.num_groups';
+    if (!n || n < 1) {
+      const roster = rosterCount[l.league_id] || 0;
+      n = Math.max(1, Math.round(roster / 4));
+      source = 'roster/4 (' + roster + ' players)';
+      if (roster === 0) {
+        skippedEmpty.push(l.name + ' (' + l.league_id + ') — no rostered players');
+        return;
+      }
+      // Persist the inferred value back to the Leagues row so the rest of
+      // the app (UI, future runs) sees it.
+      updateWhere_('Leagues',
+        x => x.league_id === l.league_id,
+        x => { x.num_groups = n; });
+    }
+    seedBonusConfigStandard_(l.league_id, n);
+    seeded.push(l.name + ' → ' + n + ' groups (' + source + ')');
+  });
+
+  Logger.log('Seeded %s league(s):\n  %s', seeded.length, seeded.join('\n  ') || '(none)');
+  Logger.log('Skipped (already had rows): %s', skippedHas.join(', ') || '(none)');
+  Logger.log('Skipped (no roster, fix manually): %s', skippedEmpty.join(', ') || '(none)');
+  return { seeded, skippedHas, skippedEmpty };
+}
+
 /** Quick sanity check: log standings for the test league. */
 function debugStandings() {
   const league = listLeagues_().find(l => l.name === 'TEST Ladder');

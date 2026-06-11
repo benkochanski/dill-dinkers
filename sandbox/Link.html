@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <style>
+    :root {
+      --brand: #e07a3c;
+      --brand-dark: #b85e25;
+      --bg: #fafaf7;
+      --card: #fff;
+      --border: #e8e4dc;
+      --text: #2a2a28;
+      --muted: #7a7670;
+      --green: #2a8a2a;
+      --red: #c93030;
+    }
+    html, body { margin: 0; padding: 0; background: var(--bg); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; color: var(--text); }
+    .wrap { max-width: 520px; margin: 0 auto; padding: 24px; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 28px 24px; box-shadow: 0 6px 24px rgba(0,0,0,0.04); text-align: center; }
+    h1 { margin: 0 0 8px; font-size: 22px; }
+    .sub { color: var(--muted); font-size: 14px; margin: 0 0 20px; }
+    .notice { padding: 10px 14px; border-radius: 6px; margin-bottom: 18px; font-size: 13px; text-align: left; }
+    .notice.warn { background: #fff4e5; color: var(--brand-dark); }
+    .notice.ok   { background: #e6f4e6; color: var(--green); }
+    .notice.err  { background: #fbe5e5; color: var(--red); }
+    code { background: #f4f1ec; padding: 2px 6px; border-radius: 3px; font-size: 12px; }
+    iframe { width: 100%; height: 540px; border: 1px solid var(--border); border-radius: 8px; background: #fff; }
+    .status { margin-top: 14px; font-size: 13px; min-height: 18px; }
+    .status.ok  { color: var(--green); }
+    .status.err { color: var(--red); }
+    .footnote { margin-top: 20px; font-size: 11px; color: var(--muted); line-height: 1.5; text-align: left; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <? if (notFound) { ?>
+        <h1>Link not found</h1>
+        <p class="sub">This link is invalid or the player has been removed. Ask your league admin for a new link.</p>
+      <? } else if (!playerId) { ?>
+        <h1>Missing player</h1>
+        <p class="sub">No player ID was specified.</p>
+      <? } else if (!duprConfigured) { ?>
+        <h1>DUPR not configured</h1>
+        <p class="sub">The sandbox is missing DUPR credentials. Contact the admin.</p>
+      <? } else if (startError) { ?>
+        <h1>Could not start linking</h1>
+        <div class="notice err"><?= startError ?></div>
+      <? } else { ?>
+        <h1>Link your DUPR account</h1>
+        <p class="sub">Hi <?= playerName ?> — sign into DUPR below to connect your account.</p>
+
+        <? if (alreadyLinked) { ?>
+          <div class="notice ok">✓ Already linked. DUPR ID: <code><?= currentDupr ?></code>. Re-link below to switch to a different DUPR account.</div>
+        <? } ?>
+
+        <iframe id="ssoFrame" src="<?= iframeUrl ?>" allow="clipboard-write"></iframe>
+        <p id="linkStatus" class="status">Waiting for DUPR sign-in…</p>
+
+        <p class="footnote">
+          Powered by DUPR's secure SSO. We never see your password — only your DUPR ID, which is captured automatically when you sign in.
+        </p>
+      <? } ?>
+    </div>
+  </div>
+
+  <? if (!notFound && playerId && duprConfigured && !startError) { ?>
+  <script>
+    var STATE = <?!= JSON.stringify(state) ?>;
+    var ALLOWED_ORIGINS = ['https://uat.dupr.gg', 'https://dashboard.dupr.com'];
+    var done = false;
+
+    function setStatus(text, cls) {
+      var el = document.getElementById('linkStatus');
+      el.textContent = text;
+      el.className = 'status' + (cls ? ' ' + cls : '');
+    }
+
+    function extractPayload(event) {
+      // DUPR's docs example accesses event.* directly, but per the
+      // postMessage spec the payload is at event.data. Support both,
+      // and tolerate string-JSON for paranoid serializers.
+      var d = event.data;
+      if (typeof d === 'string') {
+        try { d = JSON.parse(d); } catch (e) { /* not JSON */ }
+      }
+      if (d && (d.duprId || d.dupr_id)) return d;
+      if (event.duprId || event.dupr_id) {
+        return { duprId: event.duprId || event.dupr_id, id: event.id, userToken: event.userToken };
+      }
+      return null;
+    }
+
+    window.addEventListener('message', function (event) {
+      if (done) return;
+      // Origin check — only trust messages from DUPR's SSO host.
+      if (ALLOWED_ORIGINS.indexOf(event.origin) === -1) return;
+      var payload = extractPayload(event);
+      if (!payload) return;
+      done = true;
+      setStatus('Linking your account…');
+      google.script.run
+        .withSuccessHandler(function (r) {
+          if (!r.ok) { setStatus('Error: ' + r.error, 'err'); done = false; return; }
+          setStatus('✓ Linked! DUPR ID: ' + r.data.dupr_id + '. You can close this window.', 'ok');
+        })
+        .withFailureHandler(function (e) {
+          setStatus('Error: ' + ((e && e.message) || e), 'err');
+          done = false;
+        })
+        .api_finalizeDuprLink(STATE, {
+          duprId:    payload.duprId || payload.dupr_id || '',
+          id:        payload.id || payload.userId || '',
+          userToken: payload.userToken || ''
+        });
+    }, false);
+  </script>
+  <? } ?>
+</body>
+</html>

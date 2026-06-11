@@ -161,34 +161,65 @@ function publicGetStandings_(league_id) {
       }
     }
 
-    // weeklyStats[pid][wk] = { wins, points }
+    // Bonus config for this league — used so weekly ranking matches the
+    // season formula (composite Score with W%/P% bonuses).
+    const bonusCfg = {};
+    getObjects_('Bonus_Config').forEach(c => {
+      if (c.league_id === league_id) bonusCfg[String(c.group_rank)] = c;
+    });
+    const bonusStartsWeek = Number(league && league.bonus_starts_week) || 3;
+
+    // weeklyStats[pid][wk] = { wins, points, games, w_bonus, p_bonus }
     const weeklyStats = {};
+    function bumpWeekly_(pid, wk, my, their, group_number) {
+      if (!weeklyStats[pid]) weeklyStats[pid] = {};
+      if (!weeklyStats[pid][wk]) {
+        weeklyStats[pid][wk] = { wins: 0, points: 0, games: 0, w_bonus: 0, p_bonus: 0 };
+      }
+      const w = weeklyStats[pid][wk];
+      w.games  += 1;
+      w.points += my;
+      const won = my > their;
+      if (won) w.wins += 1;
+      // Bonuses kick in from bonus_starts_week onward, scaled by the group's
+      // multiplier — same rule as computeBonuses_ in Standings.js.
+      if (Number(wk) >= bonusStartsWeek) {
+        const c = bonusCfg[String(group_number)];
+        if (c) {
+          w.p_bonus += Number(c.p_multiplier_per_game) || 0;
+          if (won) w.w_bonus += Number(c.w_multiplier_per_win) || 0;
+        }
+      }
+    }
     allGames.forEach(g => {
       const wk = Number(g.week_number);
       const s1 = Number(g.t1_score), s2 = Number(g.t2_score);
       if (isNaN(s1) || isNaN(s2)) return;
-      [g.t1_player_1_id, g.t1_player_2_id].filter(Boolean).forEach(pid => {
-        if (!weeklyStats[pid]) weeklyStats[pid] = {};
-        if (!weeklyStats[pid][wk]) weeklyStats[pid][wk] = { wins: 0, points: 0 };
-        if (s1 > s2) weeklyStats[pid][wk].wins++;
-        weeklyStats[pid][wk].points += s1;
-      });
-      [g.t2_player_1_id, g.t2_player_2_id].filter(Boolean).forEach(pid => {
-        if (!weeklyStats[pid]) weeklyStats[pid] = {};
-        if (!weeklyStats[pid][wk]) weeklyStats[pid][wk] = { wins: 0, points: 0 };
-        if (s2 > s1) weeklyStats[pid][wk].wins++;
-        weeklyStats[pid][wk].points += s2;
-      });
+      const grp = g.group_number;
+      [g.t1_player_1_id, g.t1_player_2_id].filter(Boolean).forEach(pid =>
+        bumpWeekly_(pid, wk, s1, s2, grp));
+      [g.t2_player_1_id, g.t2_player_2_id].filter(Boolean).forEach(pid =>
+        bumpWeekly_(pid, wk, s2, s1, grp));
     });
 
-    // Rank rostered players within each week (wins desc, points desc).
+    // Rank rostered players within each week using composite Score:
+    //   W%    = (wins + w_bonus) / games
+    //   P%    = (points + p_bonus) / (games * 11)
+    //   Score = 0.6 * W% + 0.4 * P%
+    const POINTS_PER_GAME = 11;
     const rosterPids = raw.map(s => s.player_id);
-    const weeklyRank = {};  // pid -> array of ranks (null if absent)
+    const weeklyRank = {};  // pid -> { wk: rank }
     weeks.forEach(wk => {
       const participants = rosterPids
         .filter(pid => weeklyStats[pid] && weeklyStats[pid][wk])
-        .map(pid => ({ pid, wins: weeklyStats[pid][wk].wins, points: weeklyStats[pid][wk].points }));
-      participants.sort((a, b) => b.wins - a.wins || b.points - a.points);
+        .map(pid => {
+          const w = weeklyStats[pid][wk];
+          const winPct   = w.games ? (w.wins   + w.w_bonus) / w.games : 0;
+          const pointPct = w.games ? (w.points + w.p_bonus) / (w.games * POINTS_PER_GAME) : 0;
+          return { pid, score: 0.6 * winPct + 0.4 * pointPct, wins: w.wins, points: w.points };
+        });
+      participants.sort((a, b) =>
+        b.score - a.score || b.wins - a.wins || b.points - a.points);
       participants.forEach((p, i) => {
         if (!weeklyRank[p.pid]) weeklyRank[p.pid] = {};
         weeklyRank[p.pid][wk] = i + 1;
@@ -235,17 +266,24 @@ function computePartnerWeeklyBreakdown_(league_id) {
     byTeam[t.team_id] = weeks.map(() => ({ w: 0, l: 0 }));
   });
 
+  const forced = getPartnerForcedLossMap_(league_id);
   games.forEach(g => {
     const wkIdx = weeks.indexOf(Number(g.week_number));
     if (wkIdx < 0) return;
     const s1 = Number(g.t1_score), s2 = Number(g.t2_score);
     if (Number.isNaN(s1) || Number.isNaN(s2)) return;
+    const t1F = isPartnerForcedLoss_(forced, g.t1_team_id, g.week_number);
+    const t2F = isPartnerForcedLoss_(forced, g.t2_team_id, g.week_number);
     if (g.t1_team_id && byTeam[g.t1_team_id]) {
-      if (s1 > s2) byTeam[g.t1_team_id][wkIdx].w++;
+      if (t1F) byTeam[g.t1_team_id][wkIdx].l++;
+      else if (t2F) byTeam[g.t1_team_id][wkIdx].w++;
+      else if (s1 > s2) byTeam[g.t1_team_id][wkIdx].w++;
       else if (s1 < s2) byTeam[g.t1_team_id][wkIdx].l++;
     }
     if (g.t2_team_id && byTeam[g.t2_team_id]) {
-      if (s2 > s1) byTeam[g.t2_team_id][wkIdx].w++;
+      if (t2F) byTeam[g.t2_team_id][wkIdx].l++;
+      else if (t1F) byTeam[g.t2_team_id][wkIdx].w++;
+      else if (s2 > s1) byTeam[g.t2_team_id][wkIdx].w++;
       else if (s2 < s1) byTeam[g.t2_team_id][wkIdx].l++;
     }
   });
@@ -265,6 +303,7 @@ function publicGetSchedule_(league_id) {
   const teams = getObjects_('Teams').filter(t => t.league_id === league_id);
   const teamById = {}; teams.forEach(t => { teamById[t.team_id] = t; });
   const games = listGames_({ league_id });
+  const forced = league.format_type === 'partner' ? getPartnerForcedLossMap_(league_id) : null;
 
   const out = weeks.map(w => {
     const wkMatches = matches
@@ -284,6 +323,20 @@ function publicGetSchedule_(league_id) {
           Number(g.round_number) === Number(m.game_number) &&
           ((g.t1_team_id === m.t1_team_id && g.t2_team_id === m.t2_team_id) ||
            (g.t1_team_id === m.t2_team_id && g.t2_team_id === m.t1_team_id)));
+        const played = !!(game && game.status === 'complete');
+        const t1Score = played ? (game.t1_team_id === m.t1_team_id ? Number(game.t1_score) : Number(game.t2_score)) : null;
+        const t2Score = played ? (game.t1_team_id === m.t1_team_id ? Number(game.t2_score) : Number(game.t1_score)) : null;
+        let winner = 0;
+        if (played) {
+          if (t1Score > t2Score) winner = 1;
+          else if (t2Score > t1Score) winner = 2;
+          if (forced) {
+            const t1F = isPartnerForcedLoss_(forced, m.t1_team_id, m.week_number);
+            const t2F = isPartnerForcedLoss_(forced, m.t2_team_id, m.week_number);
+            if (t1F && !t2F) winner = 2;
+            else if (t2F && !t1F) winner = 1;
+          }
+        }
         return {
           round:       Number(m.game_number),
           court:       m.court_number === '' ? null : Number(m.court_number),
@@ -293,13 +346,10 @@ function publicGetSchedule_(league_id) {
           t2_name:     t2 ? t2.team_name : '',
           t1_slug:     t1 ? teamSlug_(t1) : '',
           t2_slug:     t2 ? teamSlug_(t2) : '',
-          played:      !!(game && game.status === 'complete'),
-          t1_score:    game && game.status === 'complete'
-            ? (game.t1_team_id === m.t1_team_id ? Number(game.t1_score) : Number(game.t2_score))
-            : null,
-          t2_score:    game && game.status === 'complete'
-            ? (game.t1_team_id === m.t1_team_id ? Number(game.t2_score) : Number(game.t1_score))
-            : null,
+          played:      played,
+          t1_score:    t1Score,
+          t2_score:    t2Score,
+          winner:      winner,
         };
       }),
     };
@@ -337,7 +387,7 @@ function publicGetResults_(league_id) {
 
   function resolveName_(pid) {
     if (!pid) return '';
-    if (playerById[pid]) return playerById[pid].full_name;
+    if (playerById[pid]) return displayPlayerName_(playerById[pid], extByMemberNum);
     if (String(pid).startsWith('ext_')) {
       const mn = String(pid).slice(4);
       return extByMemberNum[mn] || ('Guest ' + mn);
@@ -348,26 +398,47 @@ function publicGetResults_(league_id) {
   if (league.format_type === 'partner') {
     const teams = getObjects_('Teams').filter(t => t.league_id === league_id);
     const teamById = {}; teams.forEach(t => { teamById[t.team_id] = t; });
+    const forced = getPartnerForcedLossMap_(league_id);
+    const teamRoster = {};
+    teams.forEach(t => {
+      teamRoster[t.team_id] = new Set([t.player_1_id, t.player_2_id].filter(Boolean));
+    });
+    const isSubFor = (team_id, pid) => {
+      if (!pid) return false;
+      const r = teamRoster[team_id];
+      return !r || !r.has(pid);
+    };
     return {
       league: summary,
-      results: games.map(g => ({
-        game_id:   g.game_id,
-        week:      Number(g.week_number),
-        round:     Number(g.round_number),
-        court:     g.court_number === '' ? null : Number(g.court_number),
-        play_date: formatDate_(g.play_date),
-        t1_team_id: g.t1_team_id,
-        t2_team_id: g.t2_team_id,
-        t1_name:    teamById[g.t1_team_id] ? teamById[g.t1_team_id].team_name : '',
-        t2_name:    teamById[g.t2_team_id] ? teamById[g.t2_team_id].team_name : '',
-        t1_slug:    teamById[g.t1_team_id] ? teamSlug_(teamById[g.t1_team_id]) : '',
-        t2_slug:    teamById[g.t2_team_id] ? teamSlug_(teamById[g.t2_team_id]) : '',
-        t1_players: [g.t1_player_1_id, g.t1_player_2_id].filter(Boolean).map(resolveName_),
-        t2_players: [g.t2_player_1_id, g.t2_player_2_id].filter(Boolean).map(resolveName_),
-        t1_score:   Number(g.t1_score),
-        t2_score:   Number(g.t2_score),
-        winner:     Number(g.winner) || 0,
-      })),
+      results: games.map(g => {
+        const t1F = isPartnerForcedLoss_(forced, g.t1_team_id, g.week_number);
+        const t2F = isPartnerForcedLoss_(forced, g.t2_team_id, g.week_number);
+        let winner = Number(g.winner) || 0;
+        if (t1F && !t2F) winner = 2;
+        else if (t2F && !t1F) winner = 1;
+        const t1Ids = [g.t1_player_1_id, g.t1_player_2_id].filter(Boolean);
+        const t2Ids = [g.t2_player_1_id, g.t2_player_2_id].filter(Boolean);
+        return {
+          game_id:   g.game_id,
+          week:      Number(g.week_number),
+          round:     Number(g.round_number),
+          court:     g.court_number === '' ? null : Number(g.court_number),
+          play_date: formatDate_(g.play_date),
+          t1_team_id: g.t1_team_id,
+          t2_team_id: g.t2_team_id,
+          t1_name:    teamById[g.t1_team_id] ? teamById[g.t1_team_id].team_name : '',
+          t2_name:    teamById[g.t2_team_id] ? teamById[g.t2_team_id].team_name : '',
+          t1_slug:    teamById[g.t1_team_id] ? teamSlug_(teamById[g.t1_team_id]) : '',
+          t2_slug:    teamById[g.t2_team_id] ? teamSlug_(teamById[g.t2_team_id]) : '',
+          t1_players: t1Ids.map(resolveName_),
+          t2_players: t2Ids.map(resolveName_),
+          t1_player_subs: t1Ids.map(pid => isSubFor(g.t1_team_id, pid)),
+          t2_player_subs: t2Ids.map(pid => isSubFor(g.t2_team_id, pid)),
+          t1_score:   Number(g.t1_score),
+          t2_score:   Number(g.t2_score),
+          winner:     winner,
+        };
+      }),
     };
   }
 
@@ -387,8 +458,21 @@ function publicGetResults_(league_id) {
     return !rosteredIds.has(pid);
   };
 
+  // Bonus config exposed for the SPA's per-week standings calculator so it
+  // can produce bonus-adjusted W%/P%/Score that matches the season standings.
+  const bonusByRank = {};
+  getObjects_('Bonus_Config').forEach(c => {
+    if (c.league_id !== league_id) return;
+    bonusByRank[String(c.group_rank)] = {
+      w_multiplier_per_win:   Number(c.w_multiplier_per_win) || 0,
+      p_multiplier_per_game:  Number(c.p_multiplier_per_game) || 0,
+    };
+  });
+
   return {
     league: summary,
+    bonus_starts_week: Number(league.bonus_starts_week) || 3,
+    bonus_config:      bonusByRank,
     results: games.map(g => {
       const t1Ids = [g.t1_player_1_id, g.t1_player_2_id].filter(Boolean);
       const t2Ids = [g.t2_player_1_id, g.t2_player_2_id].filter(Boolean);
@@ -481,6 +565,7 @@ function publicGetTeam_(league_id, team_id) {
     Number(a.week_number) - Number(b.week_number) ||
     Number(a.game_number) - Number(b.game_number));
   const games = listGames_({ league_id });
+  const forced = getPartnerForcedLossMap_(league_id);
 
   const schedule = matches.map(m => {
     const oppId = m.t1_team_id === team_id ? m.t2_team_id : m.t1_team_id;
@@ -498,7 +583,11 @@ function publicGetTeam_(league_id, team_id) {
       const meIsT1 = game.t1_team_id === team_id;
       myScore  = meIsT1 ? Number(game.t1_score) : Number(game.t2_score);
       oppScore = meIsT1 ? Number(game.t2_score) : Number(game.t1_score);
-      won = myScore > oppScore;
+      const meForced  = isPartnerForcedLoss_(forced, team_id, game.week_number);
+      const oppForced = isPartnerForcedLoss_(forced, oppId,   game.week_number);
+      if (meForced) won = false;
+      else if (oppForced) won = true;
+      else won = myScore > oppScore;
       myPlayers  = meIsT1
         ? [game.t1_player_1_id, game.t1_player_2_id]
         : [game.t2_player_1_id, game.t2_player_2_id];

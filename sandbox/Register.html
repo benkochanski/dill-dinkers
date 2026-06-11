@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <style>
+    :root {
+      --brand: #e07a3c;
+      --brand-dark: #b85e25;
+      --bg: #fafaf7;
+      --card: #fff;
+      --border: #e8e4dc;
+      --text: #2a2a28;
+      --muted: #7a7670;
+      --green: #2a8a2a;
+      --red: #c93030;
+      --blue: #2a5a8a;
+    }
+    html, body { margin: 0; padding: 0; background: var(--bg); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; color: var(--text); }
+    .wrap { max-width: 480px; margin: 0 auto; padding: 24px; }
+    .topbar { display: flex; align-items: baseline; gap: 14px; margin-bottom: 12px; }
+    .tag { background: #fff4e5; color: var(--brand-dark); padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; letter-spacing: 0.05em; }
+    h1 { margin: 0; font-size: 24px; }
+    .sub { color: var(--muted); font-size: 14px; margin: 6px 0 24px; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 24px; box-shadow: 0 6px 24px rgba(0,0,0,0.04); }
+    label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+    input { width: 100%; padding: 10px 12px; font-size: 14px; border: 1px solid var(--border); border-radius: 6px; box-sizing: border-box; }
+    input:focus { outline: none; border-color: var(--brand); }
+    .btn { display: block; width: 100%; padding: 12px; font-size: 15px; font-weight: 600; background: var(--brand); color: #fff; border: none; border-radius: 6px; cursor: pointer; margin-top: 16px; }
+    .btn:hover:not(:disabled) { background: var(--brand-dark); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn.dupr { background: var(--blue); }
+    .btn.dupr:hover:not(:disabled) { background: #1d3f63; }
+    .msg { margin-top: 12px; font-size: 13px; min-height: 16px; }
+    .msg.err { color: var(--red); }
+    .msg.ok  { color: var(--green); }
+
+    .profile-card { padding: 14px 16px; border: 1px solid var(--green); background: #f3faf3; border-radius: 8px; margin-top: 16px; }
+    .profile-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .profile-table td { padding: 4px 0; vertical-align: top; }
+    .profile-table td.lbl { color: var(--muted); width: 42%; padding-right: 10px; }
+    .profile-table td.val { color: var(--text); font-weight: 600; }
+    .profile-table td.val code { background: rgba(0,0,0,0.05); padding: 1px 6px; border-radius: 3px; font-size: 12px; font-weight: 400; }
+    .profile-table .section td { padding-top: 10px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); font-weight: 700; }
+    .ent-pill { display: inline-block; padding: 1px 7px; border-radius: 3px; font-size: 11px; font-weight: 700; margin-right: 4px; background: #e6f4e6; color: var(--green); }
+
+    /* Modal */
+    .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 100; padding: 16px; }
+    .modal-bg.open { display: flex; }
+    .modal { background: #fff; border-radius: 10px; width: 520px; max-width: 100%; height: 95vh; max-height: 860px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+    .modal-head { display: flex; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--border); flex: 0 0 auto; }
+    .modal-head h3 { margin: 0; font-size: 14px; font-weight: 600; flex: 1; }
+    .modal-head .close { background: none; border: 0; font-size: 22px; line-height: 1; color: var(--muted); cursor: pointer; padding: 0 4px; }
+    .modal-head .close:hover { color: var(--text); }
+    .modal-body { flex: 1 1 auto; min-height: 0; padding: 0; }
+    .modal-body iframe { width: 100%; height: 100%; border: 0; display: block; }
+    .modal-status { padding: 10px 14px; font-size: 12px; color: var(--muted); border-top: 1px solid var(--border); flex: 0 0 auto; }
+
+    .success-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 36px; text-align: center; max-width: 480px; margin: 60px auto 0; box-shadow: 0 6px 24px rgba(0,0,0,0.04); }
+    .success-card h1 { color: var(--green); font-size: 28px; margin: 0 0 12px; }
+    .success-card p { margin: 0 0 8px; font-size: 14px; }
+    code { background: #f4f1ec; padding: 2px 6px; border-radius: 3px; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div id="successPanel" style="display:none">
+    <div class="success-card">
+      <h1>✓ Registered!</h1>
+      <p>Welcome, <strong id="successName"></strong>.</p>
+      <p>DUPR ID: <code id="successDupr"></code></p>
+      <p>Doubles rating: <strong id="successRating"></strong></p>
+      <p>Doubles record: <strong id="successRecord"></strong></p>
+      <p class="sub" style="color:#7a7670;margin-top:18px">You can close this window.</p>
+    </div>
+  </div>
+
+  <div id="registerPanel" class="wrap">
+    <div class="topbar">
+      <span class="tag">SANDBOX</span>
+      <h1><?= appName ?></h1>
+    </div>
+    <p class="sub">Register for the league.</p>
+
+    <? if (!duprConfigured) { ?>
+      <div class="card" style="border-color:#c93030;color:#c93030">
+        DUPR is not configured. Contact the admin.
+      </div>
+    <? } else if (startError) { ?>
+      <div class="card" style="border-color:#c93030;color:#c93030">
+        <?= startError ?>
+      </div>
+    <? } else { ?>
+      <div class="card">
+        <label for="fullName">Full name</label>
+        <input id="fullName" type="text" autocomplete="name" placeholder="e.g. Jane Smith" autofocus>
+
+        <button id="connectBtn" class="btn dupr">Link to DUPR</button>
+
+        <div id="profileCard" class="profile-card" style="display:none">
+          <p style="margin:0 0 10px;font-weight:700;font-size:13px;color:var(--green)">✓ Connected to DUPR — here's everything we received:</p>
+          <table class="profile-table"><tbody id="profileRows"></tbody></table>
+        </div>
+
+        <button id="submitBtn" class="btn" disabled>Submit registration</button>
+        <p id="msg" class="msg"></p>
+      </div>
+    <? } ?>
+
+    <footer style="margin-top:24px;font-size:11px;color:var(--muted);line-height:1.6;text-align:center">
+      <p style="margin:0 0 6px"><strong>Powered by DUPR.</strong> League ratings are calculated and maintained by the Dynamic Universal Pickleball Rating system.</p>
+      <p style="margin:0;max-width:520px;margin-left:auto;margin-right:auto">
+        We capture only your DUPR ID, name, and current rating from DUPR — never your password. Your match results are submitted to DUPR to keep your rating current. By registering you authorize Dill Dinkers to read your DUPR profile and submit your league match results on your behalf.
+      </p>
+    </footer>
+  </div>
+
+  <!-- DUPR login modal -->
+  <div id="modalBg" class="modal-bg">
+    <div class="modal">
+      <div class="modal-head">
+        <h3>Sign into DUPR</h3>
+        <button class="close" onclick="closeDuprModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <iframe id="ssoFrame" src="about:blank" allow="clipboard-write"></iframe>
+      </div>
+      <div id="modalStatus" class="modal-status">Sign in with your DUPR credentials.</div>
+    </div>
+  </div>
+
+  <? if (duprConfigured && !startError) { ?>
+  <script>
+    var STATE       = <?!= JSON.stringify(state) ?>;
+    var IFRAME_BASE = <?!= JSON.stringify(iframeUrl) ?>;
+    var ALLOWED_ORIGINS = ['https://uat.dupr.gg', 'https://dashboard.dupr.com'];
+    var SSO_PAYLOAD = null;
+    var PROFILE     = null;
+
+    function setMsg(text, cls) {
+      var el = document.getElementById('msg');
+      if (!el) return;
+      el.textContent = text;
+      el.className = 'msg' + (cls ? ' ' + cls : '');
+    }
+
+    function refreshSubmitButton() {
+      var name = document.getElementById('fullName').value.trim();
+      document.getElementById('submitBtn').disabled = !(name && PROFILE && PROFILE.dupr_id);
+    }
+    document.getElementById('fullName').addEventListener('input', refreshSubmitButton);
+
+    function openDuprModal() {
+      document.getElementById('ssoFrame').src = IFRAME_BASE;
+      document.getElementById('modalStatus').textContent = 'Sign in with your DUPR credentials.';
+      document.getElementById('modalBg').classList.add('open');
+    }
+    function closeDuprModal() {
+      document.getElementById('modalBg').classList.remove('open');
+      document.getElementById('ssoFrame').src = 'about:blank';
+    }
+    document.getElementById('connectBtn').addEventListener('click', openDuprModal);
+
+    function fmtRecord(w, l) {
+      var ww = (w == null ? 0 : Number(w));
+      var ll = (l == null ? 0 : Number(l));
+      return ww + '–' + ll;
+    }
+    function fmtRatingVal(rating, reliable) {
+      if (!rating) return '— (not rated)';
+      return rating + (reliable ? '' : ' (provisional)');
+    }
+    function esc(s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+        return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c];
+      });
+    }
+
+    function applyProfile(p) {
+      PROFILE = p;
+      var rows = [];
+      function row(lbl, val) { rows.push('<tr><td class="lbl">' + esc(lbl) + '</td><td class="val">' + val + '</td></tr>'); }
+      function section(t) { rows.push('<tr class="section"><td colspan="2">' + esc(t) + '</td></tr>'); }
+      function dash(v) { return (v == null || v === '') ? '<span style="color:#7a7670">— not shared</span>' : esc(v); }
+
+      section('Identity');
+      row('DUPR ID', '<code>' + esc(p.dupr_id) + '</code>');
+      row('Partial name', dash(p.dupr_partial_name));
+      row('Full name', dash(p.dupr_full_name));
+      row('Email', dash(p.email));
+      row('Phone', dash(p.phone));
+      row('Gender', dash(p.gender));
+      if (p.birth_year) row('Birth year', esc(p.birth_year));
+      if (p.location) row('Location', esc(p.location));
+
+      section('Doubles');
+      row('Rating', fmtRatingVal(p.doubles_rating, p.doubles_reliable));
+      row('Record', fmtRecord(p.doubles_wins, p.doubles_losses) + ' (' + (p.doubles_total || 0) + ' matches)');
+
+      // Only show singles if they have any singles data.
+      if (p.singles_rating || (p.singles_total && p.singles_total > 0)) {
+        section('Singles');
+        row('Rating', fmtRatingVal(p.singles_rating, p.singles_reliable));
+        row('Record', fmtRecord(p.singles_wins, p.singles_losses) + ' (' + (p.singles_total || 0) + ' matches)');
+      }
+
+      section('DUPR entitlements');
+      if (p.entitlements && p.entitlements.length) {
+        row('Tournaments', p.entitlements.map(function (e) { return '<span class="ent-pill">' + esc(e) + '</span>'; }).join(''));
+      } else if (p.entitlements_error) {
+        row('Tournaments', '<span style="color:#c93030">could not fetch</span>');
+      } else {
+        row('Tournaments', '<span style="color:#7a7670">none</span>');
+      }
+
+      document.getElementById('profileRows').innerHTML = rows.join('');
+      document.getElementById('profileCard').style.display = 'block';
+      document.getElementById('connectBtn').textContent = 'Re-link a different DUPR account';
+      refreshSubmitButton();
+    }
+
+    function extractPayload(event) {
+      var d = event.data;
+      if (typeof d === 'string') { try { d = JSON.parse(d); } catch (e) {} }
+      if (d && (d.duprId || d.dupr_id)) return d;
+      if (event.duprId || event.dupr_id) {
+        return { duprId: event.duprId || event.dupr_id, id: event.id, userToken: event.userToken };
+      }
+      return null;
+    }
+
+    window.addEventListener('message', function (event) {
+      if (ALLOWED_ORIGINS.indexOf(event.origin) === -1) return;
+      var p = extractPayload(event);
+      if (!p) return;
+      // Capture the ENTIRE payload DUPR delivers (consented name, gender,
+      // etc.) so the server can use the unmasked, user-shared fields.
+      var rawData = event.data;
+      if (typeof rawData !== 'string') { try { rawData = JSON.stringify(rawData); } catch (e) { rawData = ''; } }
+      SSO_PAYLOAD = {
+        duprId:    p.duprId || p.dupr_id,
+        id:        p.id || p.userId || '',
+        userToken: p.userToken || '',
+        raw:       rawData
+      };
+      document.getElementById('modalStatus').textContent = 'Fetching your DUPR profile…';
+      google.script.run
+        .withSuccessHandler(function (r) {
+          if (!r.ok) {
+            document.getElementById('modalStatus').textContent = 'Error: ' + r.error;
+            return;
+          }
+          closeDuprModal();
+          applyProfile(r.data);
+        })
+        .withFailureHandler(function (e) {
+          document.getElementById('modalStatus').textContent = 'Error: ' + ((e && e.message) || e);
+        })
+        .api_fetchDuprProfile(STATE, SSO_PAYLOAD);
+    }, false);
+
+    document.getElementById('submitBtn').addEventListener('click', function () {
+      if (!SSO_PAYLOAD || !SSO_PAYLOAD.duprId) {
+        setMsg('Link your DUPR account first.', 'err');
+        return;
+      }
+      var form = { full_name: document.getElementById('fullName').value.trim() };
+      var btn = document.getElementById('submitBtn');
+      btn.disabled = true;
+      setMsg('Registering…');
+      google.script.run
+        .withSuccessHandler(function (r) {
+          if (!r.ok) {
+            setMsg('Error: ' + r.error, 'err');
+            btn.disabled = false;
+            return;
+          }
+          var d = r.data;
+          document.getElementById('successName').textContent   = d.full_name;
+          document.getElementById('successDupr').textContent   = d.dupr_id;
+          document.getElementById('successRating').textContent = d.doubles_rating
+            ? d.doubles_rating + (d.doubles_reliable ? '' : ' (provisional)')
+            : '— (not rated)';
+          document.getElementById('successRecord').textContent = fmtRecord(d.doubles_wins, d.doubles_losses);
+          document.getElementById('registerPanel').style.display = 'none';
+          document.getElementById('successPanel').style.display  = 'block';
+        })
+        .withFailureHandler(function (e) {
+          setMsg('Error: ' + ((e && e.message) || e), 'err');
+          btn.disabled = false;
+        })
+        .api_completeRegistration(STATE, form, SSO_PAYLOAD);
+    });
+  </script>
+  <? } ?>
+</body>
+</html>

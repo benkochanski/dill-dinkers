@@ -51,6 +51,33 @@ function saveGame_(g) {
     g.t1_player_2_id = g.t1_player_2_id || t1.player_2_id;
     g.t2_player_1_id = g.t2_player_1_id || t2.player_1_id;
     g.t2_player_2_id = g.t2_player_2_id || t2.player_2_id;
+    // If a sub was already paired for this team/week (a Substitutions row),
+    // bake it into the fresh snapshot so DUPR + Match Results credit who
+    // actually played. Covers pairing a sub BEFORE the score is entered.
+    // Best-effort: never let a snapshot lookup block a score save.
+    try { applyPairedSubsToGameSnapshot_(g); } catch (e) { /* swallow */ }
+  }
+
+  // Upsert: if a non-voided game already exists for this partner-match slot
+  // (same league/week/round/court, same team pair in either order), update
+  // it in place instead of appending a duplicate row. Player snapshots in
+  // the existing row are preserved so prior sub assignments aren't lost.
+  if (hasTeams) {
+    const existing = listGames_({ league_id: g.league_id }).find(x =>
+      x.status !== 'voided' &&
+      String(x.week_number)        === String(g.week_number) &&
+      String(x.round_number || '') === String(g.round_number || '') &&
+      String(x.court_number || '') === String(g.court_number || '') &&
+      ((x.t1_team_id === g.t1_team_id && x.t2_team_id === g.t2_team_id) ||
+       (x.t1_team_id === g.t2_team_id && x.t2_team_id === g.t1_team_id))
+    );
+    if (existing) {
+      const swap = existing.t1_team_id !== g.t1_team_id;
+      return updateGame_(existing.game_id, {
+        t1_score: swap ? g.t2_score : g.t1_score,
+        t2_score: swap ? g.t1_score : g.t2_score,
+      });
+    }
   }
 
   const winner = computeWinner_(Number(g.t1_score), Number(g.t2_score));
@@ -124,6 +151,76 @@ function voidGame_(game_id, reason) {
   audit_('game_void', 'game', game_id, before.status, 'voided');
 }
 
+/**
+ * Replace one or more player snapshots on a single partner (team-vs-team) game,
+ * WITHOUT touching the teams. This is the per-game substitute: the team still
+ * gets the win/loss (partner standings are computed by team_id), but this one
+ * game's recorded players — what DUPR export and per-player records read —
+ * reflect who actually played. Pass only the slots you want to change.
+ *
+ * @param {string} game_id
+ * @param {Object} players  any of t1_player_1_id, t1_player_2_id,
+ *                          t2_player_1_id, t2_player_2_id
+ * @return the updated game row
+ */
+function setPartnerGamePlayers_(game_id, players) {
+  const g = getObjects_('Games').find(x => x.game_id === game_id);
+  if (!g) throw new Error('game not found: ' + game_id);
+  if (!g.t1_team_id || !g.t2_team_id) {
+    throw new Error('Per-game player subs apply only to partner (team-vs-team) games.');
+  }
+  if (g.status === 'voided') throw new Error('Cannot edit a voided game.');
+
+  const SLOTS = ['t1_player_1_id', 't1_player_2_id', 't2_player_1_id', 't2_player_2_id'];
+  const known = {};
+  getObjects_('Players').forEach(p => { known[p.player_id] = true; });
+  const validId = id => !id || known[id] || String(id).startsWith('ext_');
+
+  const patch = {};
+  SLOTS.forEach(s => {
+    if (players && players[s] !== undefined) {
+      const id = String(players[s] || '');
+      if (id && !validId(id)) throw new Error('Unknown player for ' + s + ': ' + id);
+      patch[s] = id;
+    }
+  });
+  if (!Object.keys(patch).length) return g;
+
+  const before = {};
+  SLOTS.forEach(s => { before[s] = g[s]; });
+  updateWhere_('Games', x => x.game_id === game_id, x => {
+    Object.keys(patch).forEach(k => { x[k] = patch[k]; });
+    x.updated_at = nowStamp_();
+  });
+  bumpLeagueVersion_(g.league_id);
+  audit_('partner_game_players_set', 'game', game_id, before, patch);
+  return getObjects_('Games').find(x => x.game_id === game_id);
+}
+
+/**
+ * For a freshly-derived partner game snapshot, apply any subs already paired
+ * (Substitutions rows) for this league + week, swapping absent -> sub in the
+ * four player slots. Mutates g in place. Counterpart to applying a sub at
+ * pairing time: this covers a sub paired BEFORE the game's score was entered,
+ * where the snapshot would otherwise capture the absent regular from the roster.
+ */
+function applyPairedSubsToGameSnapshot_(g) {
+  if (!g.t1_team_id || !g.t2_team_id) return;            // partner games only
+  if (g.week_number === '' || g.week_number == null) return;
+  const map = {};
+  getObjects_('Substitutions').forEach(s => {
+    if (s.league_id !== g.league_id) return;
+    if (String(s.week_number) !== String(g.week_number)) return;
+    if (!s.absent_player_id || !s.substitute_player_id) return;
+    if (s.absent_player_id === s.substitute_player_id) return;
+    map[s.absent_player_id] = s.substitute_player_id;
+  });
+  if (!Object.keys(map).length) return;
+  ['t1_player_1_id', 't1_player_2_id', 't2_player_1_id', 't2_player_2_id'].forEach(k => {
+    if (g[k] && map[g[k]]) g[k] = map[g[k]];
+  });
+}
+
 /** Returns 1 (team 1 won), 2 (team 2 won), 0 (tie), or '' for incomplete. */
 function computeWinner_(s1, s2) {
   if (Number.isNaN(s1) || Number.isNaN(s2)) return '';
@@ -131,6 +228,46 @@ function computeWinner_(s1, s2) {
   if (s1 > s2) return 1;
   if (s2 > s1) return 2;
   return 0;
+}
+
+/**
+ * One-off cleanup: scan Games for partner-match duplicates (same league /
+ * week / round / court / team pair, in either order) and void all but the
+ * most recently updated row in each group.
+ *
+ * Safe to run repeatedly — voided rows are excluded from future scans and
+ * already-deduped slots are no-ops.
+ *
+ * @param {string} [league_id] — optional filter; otherwise scans every league
+ * @return {Object} report: { groups_scanned, duplicates_voided, voided_ids }
+ */
+function dedupePartnerGames_(league_id) {
+  const all = getObjects_('Games').filter(g =>
+    g.status !== 'voided' && g.t1_team_id && g.t2_team_id &&
+    (!league_id || g.league_id === league_id)
+  );
+  const groups = {};
+  all.forEach(g => {
+    const teamKey = [g.t1_team_id, g.t2_team_id].sort().join('|');
+    const key = [g.league_id, g.week_number, g.round_number || '', g.court_number || '', teamKey].join('::');
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(g);
+  });
+  const voided = [];
+  Object.keys(groups).forEach(key => {
+    const rows = groups[key];
+    if (rows.length < 2) return;
+    rows.sort((a, b) => String(b.updated_at || '').localeCompare(String(a.updated_at || '')));
+    rows.slice(1).forEach(loser => {
+      voidGame_(loser.game_id, 'duplicate of ' + rows[0].game_id);
+      voided.push(loser.game_id);
+    });
+  });
+  return {
+    groups_scanned: Object.keys(groups).length,
+    duplicates_voided: voided.length,
+    voided_ids: voided,
+  };
 }
 
 function listGames_(filter) {

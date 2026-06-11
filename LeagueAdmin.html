@@ -12,15 +12,36 @@
     h2 { font-size: 16px; margin: 16px 0 8px; }
     .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
     .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; }
-    .league-meta {
-      padding: 12px 16px; border-radius: 8px; background: var(--bg-subtle);
-      border: 1px solid var(--border); margin: 0 0 12px;
-      display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;
+    .league-header {
+      padding: 14px 18px; border-radius: 10px;
+      background: linear-gradient(135deg, var(--brand-orange-soft) 0%, var(--bg-card) 100%);
+      border: 1px solid var(--border); margin: 0 0 14px;
     }
-    .league-meta .name { font-weight: 700; font-size: 15px; }
-    .league-meta .sub { color: var(--text-muted); font-size: 13px; }
+    .league-header h1 { margin: 0 0 4px; font-size: 22px; color: var(--brand-black); }
+    .league-header .meta-line {
+      display: flex; gap: 14px; flex-wrap: wrap; align-items: center;
+      color: var(--text-muted); font-size: 13px;
+    }
+    .league-header .meta-item { display: inline-flex; align-items: center; gap: 4px; }
+    .league-header .meta-item strong { color: var(--text); font-weight: 600; }
+    .league-header .meta-pill {
+      display: inline-block; padding: 2px 9px; border-radius: 10px;
+      font-size: 11px; font-weight: 600; text-transform: lowercase;
+      background: var(--bg-card); border: 1px solid var(--border); color: var(--text-muted);
+    }
+    .league-header .meta-pill.ladder { background: var(--brand-orange); color: #fff; border-color: transparent; }
+    .league-header .meta-pill.partner { background: var(--brand-green-dark); color: #fff; border-color: transparent; }
     .back-link { color: var(--text-muted); font-size: 13px; text-decoration: none; }
     .back-link:hover { color: var(--brand-orange); }
+
+    /* Clickable ladder week rows */
+    #ladderWeeksContent table { width: 100%; border-collapse: collapse; }
+    #ladderWeeksContent tr.week-row { cursor: pointer; transition: background 0.1s; }
+    #ladderWeeksContent tr.week-row:hover { background: var(--brand-orange-soft); }
+    #ladderWeeksContent tr.week-row td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
+    .sched-week.clickable { cursor: pointer; transition: background 0.1s; }
+    .sched-week.clickable:hover { background: var(--brand-orange-soft); }
+    .open-op-hint { font-size: 11px; color: var(--brand-orange-dark); margin-left: 6px; }
 
     /* Sub-tab nav */
     .subtabs { display: flex; gap: 2px; margin: 0 0 16px; border-bottom: 2px solid var(--border); }
@@ -121,15 +142,9 @@
   <?!= include_('Nav') ?>
 
   <a class="back-link" id="backLink" href="#" onclick="goAllLeagues(event)">← All leagues</a>
-  <h1 id="leagueTitle">Loading…</h1>
-  <div class="league-meta" id="leagueMeta">
-    <div>
-      <div class="name" id="metaName">—</div>
-      <div class="sub" id="metaSub"></div>
-    </div>
-    <div>
-      <span id="metaPill" class="pill"></span>
-    </div>
+  <div class="league-header" id="leagueHeader">
+    <h1 id="leagueTitle">Loading…</h1>
+    <div class="meta-line" id="metaLine"></div>
   </div>
 
   <div class="subtabs" id="subtabs">
@@ -167,37 +182,65 @@
 
   <!-- ========== SCHEDULE ========== -->
   <div class="panel" id="panel-schedule">
-    <div class="sched-controls" id="schedControls">
-      <p class="muted" style="margin: 0 0 8px; font-size: 13px">
-        <strong>V2:</strong> 8 rounds/week, each team plays 6 + 2 byes (default).
-        Pair counts balanced ±1 across the season. Re-generating replaces the schedule
-        but does not affect played game records.
+    <!-- Ladder: session-week manager (shown instead of partner controls) -->
+    <div id="ladderSchedSection" style="display:none">
+      <p class="muted" style="margin: 0 0 12px; font-size: 13px">
+        Ladder leagues don't have a generated match schedule. Each play date is
+        a "week" in the Operator's session picker. Use the buttons below to keep
+        the week list in sync.
       </p>
-      <div class="row">
-        <div><label style="font-size:12px">Algorithm</label><br>
-          <select id="schedAlgo" onchange="onSchedAlgoChange()">
-            <option value="v2">V2 — bye-aware (default)</option>
-            <option value="v1">V1 — circle round-robin (legacy)</option>
-          </select>
-        </div>
-        <div><label style="font-size:12px">Rounds/week</label><br>
-          <input id="schedRounds" type="number" min="1" max="20" value="8" style="width:70px">
-        </div>
-        <div id="schedGamesWrap"><label style="font-size:12px">Games/team/week</label><br>
-          <input id="schedGames" type="number" min="1" max="20" value="6" style="width:70px">
-        </div>
-        <button onclick="generateSchedule()">Generate</button>
-        <button class="secondary" onclick="loadSchedule()">Refresh</button>
-        <span id="schedMsg" class="muted"></span>
+      <div class="row" style="gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 12px">
+        <button onclick="syncWeeksFromAttendance()">↻ Sync weeks from attendance</button>
+        <button class="secondary" onclick="loadLadderWeeks()">Refresh</button>
+        <span id="ladderSchedMsg" class="muted" style="font-size:13px"></span>
       </div>
+      <div style="margin-bottom: 16px; padding: 10px 14px; background: var(--bg-subtle); border-radius: 6px; font-size: 13px">
+        <strong>Add a week manually</strong> — use this for an upcoming session that hasn't been pulled from attendance yet.
+        <div class="row" style="margin-top: 8px; gap: 8px; align-items: flex-end; flex-wrap: wrap">
+          <div>
+            <label style="font-size:12px; display:block; margin-bottom:3px">Play date</label>
+            <input type="date" id="addWeekDate" style="width: 150px">
+          </div>
+          <button onclick="addWeekManually()">Add week</button>
+        </div>
+      </div>
+      <div id="ladderWeeksContent"><span class="muted">Loading…</span></div>
     </div>
-    <div class="row" style="margin: 16px 0 8px; gap: 8px; align-items: center">
-      <strong style="font-size: 14px">Views:</strong>
-      <button class="secondary tiny" onclick="loadSchedule()">By round</button>
-      <button class="secondary tiny" onclick="loadTeamSeasonSchedule()">By team</button>
-      <button class="secondary tiny" onclick="loadPairHeatmap()">Pair heat map</button>
+
+    <!-- Partner: existing schedule generation controls -->
+    <div id="partnerSchedSection">
+      <div class="sched-controls" id="schedControls">
+        <p class="muted" style="margin: 0 0 8px; font-size: 13px">
+          <strong>V2:</strong> 8 rounds/week, each team plays 6 + 2 byes (default).
+          Pair counts balanced ±1 across the season. Re-generating replaces the schedule
+          but does not affect played game records.
+        </p>
+        <div class="row">
+          <div><label style="font-size:12px">Algorithm</label><br>
+            <select id="schedAlgo" onchange="onSchedAlgoChange()">
+              <option value="v2">V2 — bye-aware (default)</option>
+              <option value="v1">V1 — circle round-robin (legacy)</option>
+            </select>
+          </div>
+          <div><label style="font-size:12px">Rounds/week</label><br>
+            <input id="schedRounds" type="number" min="1" max="20" value="8" style="width:70px">
+          </div>
+          <div id="schedGamesWrap"><label style="font-size:12px">Games/team/week</label><br>
+            <input id="schedGames" type="number" min="1" max="20" value="6" style="width:70px">
+          </div>
+          <button onclick="generateSchedule()">Generate</button>
+          <button class="secondary" onclick="loadSchedule()">Refresh</button>
+          <span id="schedMsg" class="muted"></span>
+        </div>
+      </div>
+      <div class="row" style="margin: 16px 0 8px; gap: 8px; align-items: center">
+        <strong style="font-size: 14px">Views:</strong>
+        <button class="secondary tiny" onclick="loadSchedule()">By round</button>
+        <button class="secondary tiny" onclick="loadTeamSeasonSchedule()">By team</button>
+        <button class="secondary tiny" onclick="loadPairHeatmap()">Pair heat map</button>
+      </div>
+      <div id="scheduleContent">Loading…</div>
     </div>
-    <div id="scheduleContent">Loading…</div>
   </div>
 
   <!-- ========== STANDINGS ========== -->
@@ -253,7 +296,13 @@
       withAppUrl_(u => { window.top.location.href = u + '?page=admin'; });
     }
     function openOperator() {
-      withAppUrl_(u => { window.top.location.href = u + '?page=operator'; });
+      withAppUrl_(u => { window.top.location.href = u + '?page=operator&lid=' + encodeURIComponent(LEAGUE_ID); });
+    }
+    function openOperatorWeek(week_number) {
+      withAppUrl_(u => {
+        window.top.location.href = u + '?page=operator&lid=' + encodeURIComponent(LEAGUE_ID) +
+          '&week=' + encodeURIComponent(week_number);
+      });
     }
 
     function init() {
@@ -287,13 +336,19 @@
       LEAGUE_SCHEDULE = resp.data.schedule || [];
       // Header
       document.getElementById('leagueTitle').textContent = LEAGUE.name;
-      document.getElementById('metaName').textContent = LEAGUE.full_name || LEAGUE.name;
-      document.getElementById('metaSub').textContent =
-        [LEAGUE.day_of_week, LEAGUE.start_time, LEAGUE.level, LEAGUE.season_label]
-          .filter(Boolean).join(' · ');
-      const pill = document.getElementById('metaPill');
-      pill.textContent = LEAGUE.format_type + ' · ' + LEAGUE.status;
-      pill.className = 'pill ' + (LEAGUE.status === 'active' ? 'ok' : 'warn');
+      const items = [];
+      if (LEAGUE.level)        items.push(`<span class="meta-item"><strong>${escapeHtml(LEAGUE.level)}</strong></span>`);
+      if (LEAGUE.day_of_week)  items.push(`<span class="meta-item">${escapeHtml(LEAGUE.day_of_week)}</span>`);
+      if (LEAGUE.start_time)   items.push(`<span class="meta-item">${escapeHtml(LEAGUE.start_time)}</span>`);
+      if (LEAGUE.season_label) items.push(`<span class="meta-item">${escapeHtml(LEAGUE.season_label)}</span>`);
+      if (LEAGUE.format_type) {
+        const cls = LEAGUE.format_type === 'partner' ? 'partner' : 'ladder';
+        items.push(`<span class="meta-pill ${cls}">${escapeHtml(LEAGUE.format_type)}</span>`);
+      }
+      if (LEAGUE.status && LEAGUE.status !== 'active') {
+        items.push(`<span class="meta-pill">${escapeHtml(LEAGUE.status)}</span>`);
+      }
+      document.getElementById('metaLine').innerHTML = items.join('');
 
       // Render the currently active tab now that data is loaded.
       // Players tab loads from CR_Registrations directly via api_listLeaguePlayers
@@ -1274,8 +1329,97 @@
       el.className = cls || 'muted';
     }
 
+    /* ---- Ladder week management ---- */
+
+    function setLadderSchedMsg(t, cls) {
+      const el = document.getElementById('ladderSchedMsg');
+      if (!el) return;
+      el.textContent = t;
+      el.className = cls || 'muted';
+    }
+
+    function loadLadderWeeks() {
+      const el = document.getElementById('ladderWeeksContent');
+      if (!el) return;
+      el.innerHTML = '<span class="muted">Loading…</span>';
+      google.script.run
+        .withSuccessHandler(r => {
+          if (!r.ok) { el.innerHTML = '<span class="err">' + escapeHtml(r.error) + '</span>'; return; }
+          const rows = (r.data && r.data.schedule) || LEAGUE_SCHEDULE || [];
+          LEAGUE_SCHEDULE = rows;
+          if (!rows.length) {
+            el.innerHTML = '<p class="muted">No weeks yet — click <strong>↻ Sync weeks from attendance</strong> to pull dates from CourtReserve, or add one manually.</p>';
+            return;
+          }
+          const sorted = rows.slice().sort((a, b) => Number(a.week_number) - Number(b.week_number));
+          const tableRows = sorted.map(s => {
+            const d = s.play_date ? String(s.play_date).slice(0, 10) : '';
+            const label = d ? new Date(d + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) : '(no date)';
+            return `<tr class="week-row" data-week="${s.week_number}" title="Open Operator for this week">
+              <td style="width:60px; font-weight:700; color:var(--brand-orange)">Wk ${s.week_number}</td>
+              <td>${label}</td>
+              <td class="muted" style="font-size:12px">${escapeHtml(s.notes || '')}</td>
+              <td class="open-op-hint" style="text-align:right">Open →</td>
+            </tr>`;
+          }).join('');
+          el.innerHTML = `<table style="font-size:14px">
+            <thead><tr><th>Week</th><th>Play date</th><th>Notes</th><th></th></tr></thead>
+            <tbody>${tableRows}</tbody>
+          </table>`;
+          el.querySelectorAll('tr.week-row').forEach(tr => {
+            tr.addEventListener('click', () => openOperatorWeek(tr.getAttribute('data-week')));
+          });
+        })
+        .withFailureHandler(e => { el.innerHTML = '<span class="err">' + escapeHtml(String(e)) + '</span>'; })
+        .api_getLeague(LEAGUE_ID);
+    }
+
+    function syncWeeksFromAttendance() {
+      setLadderSchedMsg('Syncing…', 'muted');
+      google.script.run
+        .withSuccessHandler(r => {
+          if (!r.ok) { setLadderSchedMsg('Error: ' + r.error, 'err'); return; }
+          const d = r.data || {};
+          const totalNow = (d.existing_weeks || 0) + (d.added || 0);
+          setLadderSchedMsg(
+            d.added > 0
+              ? '✓ Added ' + d.added + ' week' + (d.added === 1 ? '' : 's') + ' (total ' + totalNow + ')'
+              : '✓ Already up to date — ' + totalNow + ' week' + (totalNow === 1 ? '' : 's'),
+            d.added > 0 ? 'ok' : 'muted'
+          );
+          loadLadderWeeks();
+        })
+        .withFailureHandler(e => setLadderSchedMsg('Error: ' + String(e), 'err'))
+        .api_populateLeagueScheduleFromAttendance(LEAGUE_ID);
+    }
+
+    function addWeekManually() {
+      const dateInput = document.getElementById('addWeekDate');
+      const d = dateInput ? dateInput.value : '';
+      if (!d) { setLadderSchedMsg('Pick a date first.', 'warn'); return; }
+      setLadderSchedMsg('Adding…', 'muted');
+      google.script.run
+        .withSuccessHandler(r => {
+          if (!r.ok) { setLadderSchedMsg('Error: ' + r.error, 'err'); return; }
+          const d2 = r.data || {};
+          if (d2.added > 0) {
+            setLadderSchedMsg('✓ Week ' + d2.week_number + ' added', 'ok');
+            if (dateInput) dateInput.value = '';
+          } else {
+            setLadderSchedMsg('That date is already in the schedule.', 'muted');
+          }
+          loadLadderWeeks();
+        })
+        .withFailureHandler(e => setLadderSchedMsg('Error: ' + String(e), 'err'))
+        .api_addLeagueWeek(LEAGUE_ID, d);
+    }
+
     function loadSchedule() {
       if (!LEAGUE) return;
+      const isLadder = LEAGUE.format_type === 'ladder';
+      document.getElementById('ladderSchedSection').style.display = isLadder ? '' : 'none';
+      document.getElementById('partnerSchedSection').style.display = isLadder ? 'none' : '';
+      if (isLadder) { loadLadderWeeks(); return; }
       if (LEAGUE.format_type !== 'partner') {
         document.getElementById('scheduleContent').innerHTML =
           '<p class="muted">Schedule generation only applies to partner-format leagues.</p>';
@@ -1337,10 +1481,11 @@
           return `<div style="margin:4px 0"><span class="muted" style="font-weight:700">R${rn}</span> &nbsp; ${matches}</div>`;
         }).join('');
 
-        return `<details class="sched-week"${wn === weeks[0] ? ' open' : ''}>
+        return `<details class="sched-week clickable" data-week="${wn}"${wn === weeks[0] ? ' open' : ''}>
           <summary>
             <strong>Week ${wn}</strong>${pd ? ' &mdash; ' + pd : ''}
             <span class="pill ${played === ms.length ? 'ok' : ''}" style="margin-left:8px">${played}/${ms.length} played</span>
+            <a class="open-op-hint" href="#" onclick="event.preventDefault(); event.stopPropagation(); openOperatorWeek(${wn})">Open Operator →</a>
           </summary>
           ${rounds}
         </details>`;

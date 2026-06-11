@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Display — <?= appName ?></title>
+  <title>Display 2 — <?= appName ?></title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -205,9 +205,16 @@
        wrapped in its own subtle card so they read as separate tables and
        the gray Pts (today's) doesn't visually run into the gray ranks
        (season). */
+    /* Stacked vertically now: Today's on top, Season below, divider between.
+       (Was a left/right row split.) */
     .standings-side-panel-body {
       flex: 1 1 0; min-height: 0;
-      display: flex; flex-direction: row; gap: 0.4em;
+      display: flex; flex-direction: column; gap: 0.4em;
+    }
+    .standings-side-divider {
+      flex: 0 0 auto; height: 2px;
+      background: linear-gradient(90deg, transparent, var(--brand-orange), transparent);
+      opacity: 0.7; margin: 0.1em 0.3em; border-radius: 2px;
     }
     .standings-side-section {
       display: flex; flex-direction: column;
@@ -216,6 +223,24 @@
       border: 1px solid var(--dark-border);
       border-radius: 6px;
       padding: 0.2em 0.3em;
+    }
+    /* Top-5 rows that never scroll. */
+    .standings-side-static { flex: 0 0 auto; display: block; }
+    /* Remaining rows live in a clipped viewport; JS translates the inner
+       wrapper to auto-cycle them. */
+    .standings-side-scroll {
+      flex: 1 1 0; min-height: 0; overflow: hidden; position: relative;
+    }
+    .standings-side-scroll-inner {
+      display: block;
+      will-change: transform;
+    }
+    /* Subtle fade at the bottom edge of the scroll viewport so rows
+       dissolve rather than hard-clip as they cycle out. */
+    .standings-side-scroll::after {
+      content: ''; position: absolute; left: 0; right: 0; bottom: 0;
+      height: 1.5em; pointer-events: none;
+      background: linear-gradient(to bottom, transparent, var(--dark-card));
     }
     .standings-side-list {
       flex: 1; min-height: 0;
@@ -759,11 +784,7 @@
     let LAST_DAY_STANDINGS = null;
     let LAST_PARTNER_WEEK = null;
     let LAST_COMMAND_TS = 0;
-    // localStorage (NOT sessionStorage): in the HtmlService sandbox iframe,
-    // sessionStorage doesn't survive window.location.reload(), so LAST_COMMAND_TS
-    // reset to 0 each reload and a stale reload command looped forever (white screen).
-    try { LAST_COMMAND_TS = Number(localStorage.getItem('dd_display_cmd_ts') || 0); } catch (e) {}
-    const PAGE_LOADED_AT = Date.now();
+    try { LAST_COMMAND_TS = Number(sessionStorage.getItem('dd_display_cmd_ts') || 0); } catch (e) {}
 
     function applyFirebasePush_(data) {
       if (!CURRENT_LEAGUE) return;
@@ -773,17 +794,10 @@
       const cmd = data && data.command;
       if (cmd && cmd.kind === 'reload' && Number(cmd.ts) > LAST_COMMAND_TS) {
         const ts = Number(cmd.ts);
+        try { sessionStorage.setItem('dd_display_cmd_ts', String(ts)); } catch (e) {}
         LAST_COMMAND_TS = ts;
-        try { localStorage.setItem('dd_display_cmd_ts', String(ts)); } catch (e) {}
-        // Anti-loop guard (storage-independent): a stale reload command is
-        // delivered on the very first Firebase snapshot (~1-3s after load).
-        // Acting on it reloads straight back into the same command → infinite
-        // white loop. Only honor a reload that arrives well after this page
-        // loaded — i.e. a genuine operator refresh of an already-running TV.
-        if (Date.now() - PAGE_LOADED_AT > 6000) {
-          window.location.reload();
-          return;
-        }
+        window.location.reload();
+        return;
       }
       const s = data.state || {};
       // Mirror week / half / courts the same way the version poll does.
@@ -827,30 +841,17 @@
         refreshContent();
         return;
       }
+      if (data.session && data.session.session) LAST_SESSION = data.session.session;
       if (data.standings && data.standings.rows) LAST_STANDINGS = data.standings.rows;
       // Today's standings push: published by api_recomputeStandings after every
       // save. Without this the panel would only refresh on the 60s fallback poll.
       if (data.day_standings && data.day_standings.rows) LAST_DAY_STANDINGS = data.day_standings.rows;
       const snap = data.snapshot || null;
-
-      // Freshest-session-wins. `/session` is rewritten on every save; the
-      // `/snapshot` bundle is only rewritten at half-setup — never on a save.
-      // Applying them in document order (snapshot last) let a STALE snapshot
-      // overwrite a just-saved `/session`, blanking the board's scores and group
-      // standings (and it stuck until something else cleared the snapshot). So
-      // compare updated_at and keep the newest. A fresh half-setup snapshot still
-      // wins at halftime because its timestamp is newer than the prior half's
-      // lingering `/session`.
-      const _sessTs = (data.session && data.session.session) ? String(data.session.updated_at || '') : null;
-      const _snapTs = (snap && snap.kind === 'ladder' && snap.session) ? String(snap.updated_at || '') : null;
-      if (_sessTs !== null && (_snapTs === null || _sessTs >= _snapTs)) {
-        LAST_SESSION = data.session.session;
-      } else if (_snapTs !== null) {
-        LAST_SESSION = snap.session;
+      if (snap && snap.kind === 'ladder') {
+        if (snap.session) LAST_SESSION = snap.session;
         if (snap.standings) LAST_STANDINGS = snap.standings;
         if (snap.day_standings) LAST_DAY_STANDINGS = snap.day_standings;
-      }
-      if (snap && snap.kind === 'partner') {
+      } else if (snap && snap.kind === 'partner') {
         if (snap.week_view) LAST_PARTNER_WEEK = snap.week_view;
         if (snap.standings) LAST_STANDINGS = snap.standings;
       }
@@ -1356,7 +1357,9 @@
      * (e.g. requestAnimationFrame in onSession / onStandings).
      */
     function fitToViewport() {
-      return;
+      // Defer one more frame so container-query font sizing has settled and
+      // scrollHeight/clientHeight are final before measuring overflow.
+      requestAnimationFrame(initStandingsAutoScroll);
     }
 
     // Re-fit on window resize (TV picture changes, browser zoom, etc).
@@ -1452,21 +1455,38 @@
         todays.forEach((p, i) => { p.rank = i + 1; });
       }
 
+      // Number of top places that stay pinned (never scroll) in each list.
+      const STATIC_COUNT = 5;
+
+      // Wrap a list of row-HTML strings into a static top-N block + a
+      // scrolling remainder block. The scroll block is auto-cycled by
+      // initStandingsAutoScroll() after the panel is in the DOM.
+      const splitRows = rowHtmls => {
+        const staticRows = rowHtmls.slice(0, STATIC_COUNT).join('');
+        const scrollRows = rowHtmls.slice(STATIC_COUNT).join('');
+        const scrollBlock = scrollRows
+          ? `<div class="standings-side-scroll">
+               <div class="standings-side-scroll-inner">${scrollRows}</div>
+             </div>`
+          : '';
+        return `<div class="standings-side-static">${staticRows}</div>${scrollBlock}`;
+      };
+
       const todayHead = `<div class="standings-side-row head today">
         <span class="title">Today's Standings</span>
         <span class="w">W</span>
         <span class="p">Pts</span>
       </div>`;
-      const todayRows = todays.map(p => `<div class="standings-side-row today${rankCls(p.rank)}">
+      const todayRowHtmls = todays.map(p => `<div class="standings-side-row today${rankCls(p.rank)}">
         <span class="rk">${p.rank}</span>
         <span class="nm">${escapeHtml(p.full_name || '')}</span>
         <span class="w">${p.wins}</span>
         <span class="p">${p.points}</span>
-      </div>`).join('');
+      </div>`);
 
       const todaySection = todays.length
         ? `<div class="standings-side-section today">
-            <div class="standings-side-list">${todayHead}${todayRows}</div>
+            <div class="standings-side-list">${todayHead}${splitRows(todayRowHtmls)}</div>
           </div>`
         : '';
 
@@ -1475,7 +1495,7 @@
         <span class="title">Season Standings</span>
         <span class="sc">Score</span>
       </div>`;
-      const seasonRows = (standings || []).map(s => {
+      const seasonRowHtmls = (standings || []).map(s => {
         const gp = s.games_played || 0;
         const scStr = gp > 0 ? (s.score || 0).toFixed(1) : '—';
         const rkStr = s.rank == null ? '—' : s.rank;
@@ -1484,16 +1504,70 @@
           <span class="nm">${escapeHtml(s.full_name || '')}</span>
           <span class="sc">${scStr}</span>
         </div>`;
-      }).join('');
+      });
+
+      const seasonSection = `<div class="standings-side-section season">
+        <div class="standings-side-list">${seasonHead}${splitRows(seasonRowHtmls)}</div>
+      </div>`;
+
+      const divider = todaySection ? `<div class="standings-side-divider"></div>` : '';
 
       return `<div class="standings-side-panel">
         <div class="standings-side-panel-body">
           ${todaySection}
-          <div class="standings-side-section season">
-            <div class="standings-side-list">${seasonHead}${seasonRows}</div>
-          </div>
+          ${divider}
+          ${seasonSection}
         </div>
       </div>`;
+    }
+
+    /**
+     * Auto-cycle every `.standings-side-scroll` viewport whose content
+     * overflows. Pins are handled in CSS (the static block sits above the
+     * scroll viewport); this just gently scrolls the remainder: ease down to
+     * the bottom, hold, ease back to the top, hold, repeat.
+     *
+     * A generation token invalidates loops from prior renders — innerHTML
+     * replacement detaches the old nodes, but their rAF callbacks would keep
+     * firing otherwise.
+     */
+    let _scrollGen = 0;
+    function initStandingsAutoScroll() {
+      const gen = ++_scrollGen;
+      const PX_PER_SEC = 24;      // scroll speed
+      const HOLD_MS = 2500;       // pause at top and bottom
+      document.querySelectorAll('.standings-side-scroll').forEach(viewport => {
+        const inner = viewport.querySelector('.standings-side-scroll-inner');
+        if (!inner) return;
+        const overflow = inner.scrollHeight - viewport.clientHeight;
+        if (overflow <= 2) { inner.style.transform = 'translateY(0)'; return; }
+
+        // Phases: 'holdTop' → 'down' → 'holdBottom' → 'up' → loop.
+        let phase = 'holdTop';
+        let phaseStart = null;
+        const step = ts => {
+          if (gen !== _scrollGen || !document.contains(viewport)) return; // stale
+          if (phaseStart == null) phaseStart = ts;
+          const elapsed = ts - phaseStart;
+          let y = 0;
+          if (phase === 'holdTop') {
+            y = 0;
+            if (elapsed >= HOLD_MS) { phase = 'down'; phaseStart = ts; }
+          } else if (phase === 'down') {
+            y = Math.min(overflow, (elapsed / 1000) * PX_PER_SEC);
+            if (y >= overflow) { y = overflow; phase = 'holdBottom'; phaseStart = ts; }
+          } else if (phase === 'holdBottom') {
+            y = overflow;
+            if (elapsed >= HOLD_MS) { phase = 'up'; phaseStart = ts; }
+          } else if (phase === 'up') {
+            y = Math.max(0, overflow - (elapsed / 1000) * PX_PER_SEC);
+            if (y <= 0) { y = 0; phase = 'holdTop'; phaseStart = ts; }
+          }
+          inner.style.transform = 'translateY(' + (-y) + 'px)';
+          requestAnimationFrame(step);
+        };
+        requestAnimationFrame(step);
+      });
     }
 
     /**

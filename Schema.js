@@ -75,6 +75,17 @@ const SCHEMA = {
     columns: [
       'session_group_id', 'league_id', 'week_number', 'group_number',
       'player_id', 'starting_slot', 'created_at', 'half',
+      'original_player_id',
+    ],
+  },
+
+  Session_Game_Overrides: {
+    notes: 'Ladder-only: per-game player swaps that override Session_Groups for a single game_in_match. Used when a sub plays one game but not the whole match.',
+    columns: [
+      'override_id', 'league_id', 'week_number', 'half',
+      'group_number', 'game_in_match', 'starting_slot',
+      'original_player_id', 'player_id',
+      'created_at', 'created_by',
     ],
   },
 
@@ -211,7 +222,7 @@ const SCHEMA = {
 const TABLE_ORDER = [
   'Config', 'Roles',
   'Leagues', 'League_Schedule', 'Match_Schedule',
-  'Players', 'Rosters', 'Teams', 'Session_Groups',
+  'Players', 'Rosters', 'Teams', 'Session_Groups', 'Session_Game_Overrides',
   'Games', 'Substitutions',
   'DUPR', 'Email_Log', 'Audit_Log', 'Bonus_Config',
   'CR_Sync_Log', 'CR_Registrations', 'CR_Attendance', 'CR_Members',

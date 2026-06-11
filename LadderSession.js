@@ -85,18 +85,26 @@ function getRankedRoster_(league_id) {
   const standings = computeLadderStandings_(league_id);
   const rankByPid = {};
   const scoreByPid = {};
+  const gamesByPid = {};
   standings.forEach(s => {
     rankByPid[s.player_id] = s.rank;
     scoreByPid[s.player_id] = s.score;
+    gamesByPid[s.player_id] = s.games_played || 0;
   });
+
+  // Per-player level: CR_Registrations stash a "Level N" string inside
+  // user_defined_fields_json. Build pid → level map by joining on
+  // Players.club_member_id (preferred) or email.
+  const levelByPid = buildPlayerLevelMap_();
 
   const ranked = roster.map(p => ({
     player_id:    p.player_id,
     full_name:    p.full_name,
     email:        p.email || '',
-    level:        p.level || p.roster_level || '',
+    level:        p.level || levelByPid[p.player_id] || p.roster_level || '',
     season_rank:  rankByPid[p.player_id] || null,
     season_score: scoreByPid[p.player_id] || 0,
+    games_played: gamesByPid[p.player_id] || 0,
   }));
 
   ranked.sort((a, b) => {
@@ -110,6 +118,38 @@ function getRankedRoster_(league_id) {
   });
 
   return ranked;
+}
+
+/**
+ * Scan CR_Registrations for "Level N" strings inside user_defined_fields_json
+ * and map them onto Players (via club_member_id or email). Returns
+ * { player_id: 'Level 5' }. Empty when CR_Registrations is empty.
+ */
+function buildPlayerLevelMap_() {
+  const out = {};
+  let regs = [];
+  try { regs = getObjects_('CR_Registrations'); } catch (_) { return out; }
+  if (!regs.length) return out;
+
+  const players = getObjects_('Players');
+  const byMember = {};
+  const byEmail  = {};
+  players.forEach(p => {
+    if (p.club_member_id) byMember[String(p.club_member_id).trim()] = p.player_id;
+    if (p.email)          byEmail[String(p.email).toLowerCase().trim()] = p.player_id;
+  });
+
+  regs.forEach(r => {
+    const udf = r.user_defined_fields_json || '';
+    const m = udf.match(/Level\s*\d+(?:[-–]\d+)?/i);
+    if (!m) return;
+    const level = m[0];
+    const mid = String(r.cr_member_id || '').trim();
+    const em  = String(r.email || '').toLowerCase().trim();
+    const pid = (mid && byMember[mid]) || (em && byEmail[em]);
+    if (pid && !out[pid]) out[pid] = level;
+  });
+  return out;
 }
 
 /* ============================================================
@@ -162,14 +202,42 @@ function setupSession_(league_id, week_number, half, attending_player_ids, court
     clearSessionGroups_(league_id, week_number, 2);
   }
 
+  // Resolve any ext_<member_number> attendees to REAL players keyed by
+  // cr_member_id before storing — so sessions never persist ext_ placeholders.
+  // upsertGuestPlayer_ creates a real Players row (cr_member_id) for CR members
+  // and is idempotent, so re-setup is safe.
+  const _hasExt = crKeyingActive_() &&
+    attending_player_ids.some(p => String(p || '').indexOf('ext_') === 0);
+  let _nameByMn = {};
+  if (_hasExt) {
+    try {
+      getObjects_('CR_Attendance').forEach(a => {
+        const mn = String(a.member_number || '').trim();
+        if (mn && !_nameByMn[mn]) _nameByMn[mn] = ((a.first_name || '') + ' ' + (a.last_name || '')).trim();
+      });
+    } catch (e) { /* no attendance — fine */ }
+  }
+  const resolvedIds = attending_player_ids.map(pid => {
+    const s = String(pid || '').trim();
+    if (s.indexOf('ext_') !== 0 || !crKeyingActive_()) return s;
+    const mn = s.slice(4);
+    try {
+      const p = upsertGuestPlayer_({ member_number: mn, full_name: _nameByMn[mn] || ('Member ' + mn) });
+      return p.player_id;
+    } catch (e) {
+      return s;  // resolution failed — keep ext_ rather than lose the attendee
+    }
+  });
+
   const stamp = nowStamp_();
-  const rows = attending_player_ids.map((pid, i) => ({
+  const rows = resolvedIds.map((pid, i) => ({
     session_group_id: makeId_('session'),
     league_id:        league_id,
     week_number:      week_number,
     half:             half,
     group_number:     Math.floor(i / LADDER_GROUP_SIZE) + 1,
     player_id:        pid,
+    original_player_id: pid,
     starting_slot:    (i % LADDER_GROUP_SIZE) + 1,
     created_at:       stamp,
   }));
@@ -195,11 +263,12 @@ function clearSessionResults_(league_id, week_number, half) {
   const halfNum = (half == null) ? null : normalizeHalf_(half);
   const allGames = getObjects_('Games');
   const before = allGames.length;
+  // Never delete completed games — only open/voided rows are cleared.
   const keep = allGames.filter(g => {
     if (g.league_id !== league_id) return true;
     if (Number(g.week_number) !== Number(week_number)) return true;
     if (halfNum != null && normalizeHalf_(g.half) !== halfNum) return true;
-    return false;
+    return g.status === 'complete';   // preserve completed scores always
   });
   const removed = before - keep.length;
   if (removed > 0) {
@@ -230,13 +299,14 @@ function clearSessionGroups_(league_id, week_number, half) {
   });
   if (keepGroups.length !== allGroups.length) overwriteObjects_('Session_Groups', keepGroups);
 
-  // Also delete the Games rows for this session half so scores don't linger.
+  // Delete Games rows for this session half, but NEVER delete completed games.
+  // Completed scores are permanent records; only voidGame_() can remove them.
   const allGames = getObjects_('Games');
   const keepGames = allGames.filter(g => {
     if (g.league_id !== league_id) return true;
     if (Number(g.week_number) !== Number(week_number)) return true;
     if (halfNum != null && normalizeHalf_(g.half) !== halfNum) return true;
-    return false;
+    return g.status === 'complete';   // preserve completed scores always
   });
   if (keepGames.length !== allGames.length) overwriteObjects_('Games', keepGames);
   bumpLeagueVersion_(league_id);
@@ -272,6 +342,13 @@ function getSession_(league_id, week_number, half, court_numbers) {
   const playerById = {};
   players.forEach(p => { playerById[p.player_id] = p; });
 
+  // Roster lookup — used to flag players in the session who AREN'T on the
+  // league's roster as subs (we append " *" to their name).
+  const rosterIds = {};
+  getObjects_('Rosters').forEach(r => {
+    if (r.league_id === league_id) rosterIds[r.player_id] = true;
+  });
+
   // Build a fallback name map for ext_ IDs (temp external subs not in Players).
   // Key: member_number string → { full_name, level }
   const extByMemberNum = {};
@@ -285,8 +362,14 @@ function getSession_(league_id, week_number, half, court_numbers) {
     }
   });
 
+  // Flat map for displayPlayerName_ upgrades.
+  const extNameByMn = {};
+  Object.keys(extByMemberNum).forEach(mn => { extNameByMn[mn] = extByMemberNum[mn].full_name; });
   function resolvePlayer_(pid) {
-    if (playerById[pid]) return playerById[pid];
+    if (playerById[pid]) {
+      const p = playerById[pid];
+      return { player_id: pid, full_name: displayPlayerName_(p, extNameByMn), level: p.level || '' };
+    }
     if (String(pid).startsWith('ext_')) {
       const mn = String(pid).slice(4);
       const ext = extByMemberNum[mn];
@@ -295,23 +378,49 @@ function getSession_(league_id, week_number, half, court_numbers) {
     return { player_id: pid, full_name: '(unknown)', level: '' };
   }
 
+  // Subs (not on the league's roster) get an asterisk appended so the
+  // Display can mark them visually as subs.
+  function nameWithSubMark_(pid, name) {
+    return rosterIds[pid] ? name : (name + ' *');
+  }
+
   const byGroup = {};
   rows.forEach(r => {
     const g = Number(r.group_number);
     if (!byGroup[g]) byGroup[g] = { group_number: g, slots: {} };
     const slot = Number(r.starting_slot);
     const pl = resolvePlayer_(r.player_id);
+    // Match-scope swaps update player_id in place; the new player IS the slot
+    // resident and counts for season standings. Only game-scope overrides (set
+    // below) flip `swapped` → those games don't count for season standings and
+    // the slot displays as "Ghost".
     byGroup[g].slots[slot] = {
-      player_id:     r.player_id,
-      full_name:     pl.full_name,
-      starting_slot: slot,
+      player_id:          r.player_id,
+      original_player_id: r.original_player_id || r.player_id,
+      swapped:            false,
+      full_name:          nameWithSubMark_(r.player_id, pl.full_name),
+      starting_slot:      slot,
     };
   });
   const groups = Object.keys(byGroup)
     .map(k => byGroup[k])
     .sort((a, b) => a.group_number - b.group_number);
 
-  groups.forEach(grp => { grp.rotation = computeGroupRotation_(grp.slots); });
+  // Per-game player overrides (subs who play just one game in the match).
+  const overrides = getOverrideMap_(league_id, week_number, half);
+  groups.forEach(grp => {
+    grp.rotation = computeGroupRotation_(grp.slots);
+    applyOverridesToRotation_(grp.rotation, overrides, grp.group_number, resolvePlayer_, nameWithSubMark_);
+    // Surface overrides on slot objects too, for the swap-icon UI.
+    grp.overrides = (overrides[grp.group_number] || []);
+    // Mark any slot with a game-scope override as swapped too — its stats
+    // mix in another player, so season standings should exclude its games
+    // and the round-standings UI should show "Ghost".
+    grp.overrides.forEach(ov => {
+      const slot = grp.slots[Number(ov.starting_slot)];
+      if (slot) slot.swapped = true;
+    });
+  });
 
   const courtNums = normalizeCourtNumbers_(court_numbers);
   const schedule = courtNums.length > 0
@@ -377,6 +486,185 @@ function computeGroupRotation_(slots) {
     t2_player_1: slots[p.t2[0]] || null,
     t2_player_2: slots[p.t2[1]] || null,
   }));
+}
+
+/* ============================================================
+ * Per-game player overrides (Session_Game_Overrides)
+ * ============================================================
+ *
+ * A row swaps one player in/out for a single (group, game_in_match).
+ * Returned map shape:
+ *   { [group_number]: [{ game_in_match, starting_slot, player_id, original_player_id }] }
+ */
+function getOverrideMap_(league_id, week_number, half) {
+  const out = {};
+  let rows = [];
+  try { rows = getObjects_('Session_Game_Overrides'); } catch (_) { return out; }
+  const h = normalizeHalf_(half);
+  rows.forEach(r => {
+    if (r.league_id !== league_id) return;
+    if (Number(r.week_number) !== Number(week_number)) return;
+    if (normalizeHalf_(r.half) !== h) return;
+    const g = Number(r.group_number);
+    if (!out[g]) out[g] = [];
+    out[g].push({
+      game_in_match:      Number(r.game_in_match),
+      starting_slot:      Number(r.starting_slot),
+      player_id:          r.player_id,
+      original_player_id: r.original_player_id,
+    });
+  });
+  return out;
+}
+
+/**
+ * Mutates `rotation` so each rotation entry has the right players after
+ * applying per-game slot overrides. `resolvePlayer_` looks up names;
+ * `nameWithSubMark_` adds the trailing " *" for non-rostered players.
+ */
+function applyOverridesToRotation_(rotation, overridesByGroup, group_number, resolvePlayer_, nameWithSubMark_) {
+  const list = overridesByGroup[group_number] || [];
+  if (!list.length) return;
+  // slot positions in each rotation entry, by game_in_match.
+  const SLOT_FIELDS = {
+    1: { 1: 't1_player_1', 2: 't1_player_2', 3: 't2_player_1', 4: 't2_player_2' },
+    2: { 1: 't1_player_1', 3: 't1_player_2', 2: 't2_player_1', 4: 't2_player_2' },
+    3: { 1: 't1_player_1', 4: 't1_player_2', 2: 't2_player_1', 3: 't2_player_2' },
+  };
+  list.forEach(ov => {
+    const entry = rotation.find(r => r.game_in_match === ov.game_in_match);
+    if (!entry) return;
+    const field = (SLOT_FIELDS[ov.game_in_match] || {})[ov.starting_slot];
+    if (!field) return;
+    const pl = resolvePlayer_(ov.player_id);
+    entry[field] = {
+      player_id:     ov.player_id,
+      full_name:     nameWithSubMark_(ov.player_id, pl.full_name),
+      starting_slot: ov.starting_slot,
+      override:      true,
+    };
+  });
+}
+
+/**
+ * Swap a player in a session. Two scopes:
+ *   - 'match' (default): replace the player in Session_Groups for that slot.
+ *     Future game saves use the new player. Past completed games keep their
+ *     original snapshot. Any per-game overrides for this slot are cleared.
+ *   - 'game': add (or update) a Session_Game_Overrides row for one
+ *     game_in_match only. Whole-match assignment unchanged.
+ *
+ * @param {Object} input
+ *   league_id, week_number, half, group_number, starting_slot, new_player_id
+ *   scope: 'match' | 'game'
+ *   game_in_match: required when scope === 'game'
+ */
+function swapLadderSessionPlayer_(input) {
+  const errs = [];
+  if (!input.league_id) errs.push('league_id required');
+  if (!input.week_number) errs.push('week_number required');
+  if (!input.group_number) errs.push('group_number required');
+  if (!input.starting_slot) errs.push('starting_slot required');
+  if (!input.new_player_id) errs.push('new_player_id required');
+  const scope = input.scope === 'game' ? 'game' : 'match';
+  if (scope === 'game' && !input.game_in_match) errs.push('game_in_match required when scope=game');
+  if (errs.length) throw new Error(errs.join('; '));
+
+  // Resolve an ext_<member_number> swap target to a real cr_member_id player
+  // so swaps never persist ext_ placeholders.
+  if (crKeyingActive_() && String(input.new_player_id || '').indexOf('ext_') === 0) {
+    const mn = String(input.new_player_id).slice(4);
+    let nm = '';
+    try {
+      const att = getObjects_('CR_Attendance').find(a => String(a.member_number || '').trim() === mn);
+      if (att) nm = ((att.first_name || '') + ' ' + (att.last_name || '')).trim();
+    } catch (e) {}
+    try {
+      const p = upsertGuestPlayer_({ member_number: mn, full_name: nm || ('Member ' + mn) });
+      input.new_player_id = p.player_id;
+    } catch (e) { /* keep ext_ if resolution fails */ }
+  }
+
+  const half = normalizeHalf_(input.half);
+  const group_number = Number(input.group_number);
+  const slot = Number(input.starting_slot);
+
+  // Find the Session_Groups row for this slot — needed to know the original
+  // player_id, and for 'match' scope we'll rewrite it.
+  const all = getObjects_('Session_Groups');
+  const sgRow = all.find(r =>
+    sessionGroupRowMatches_(r, input.league_id, input.week_number, half) &&
+    Number(r.group_number) === group_number &&
+    Number(r.starting_slot) === slot);
+  if (!sgRow) throw new Error('No Session_Groups slot for group ' + group_number + ' slot ' + slot);
+  const original_player_id = sgRow.player_id;
+
+  if (scope === 'match') {
+    // Update the slot's player_id in place, and clear any per-game overrides
+    // that reference this slot (they're moot now).
+    updateWhere_('Session_Groups',
+      r => sessionGroupRowMatches_(r, input.league_id, input.week_number, half) &&
+           Number(r.group_number) === group_number &&
+           Number(r.starting_slot) === slot,
+      r => { r.player_id = input.new_player_id; });
+
+    const ovAll = getObjects_('Session_Game_Overrides');
+    const keep = ovAll.filter(r => !(
+      r.league_id === input.league_id &&
+      Number(r.week_number) === Number(input.week_number) &&
+      normalizeHalf_(r.half) === half &&
+      Number(r.group_number) === group_number &&
+      Number(r.starting_slot) === slot
+    ));
+    if (keep.length !== ovAll.length) overwriteObjects_('Session_Game_Overrides', keep);
+
+    audit_('session_swap_match', 'session_group', sgRow.session_group_id, null, {
+      league_id: input.league_id, week_number: input.week_number, half,
+      group_number, slot, from: original_player_id, to: input.new_player_id,
+    });
+    return { scope, group_number, starting_slot: slot, player_id: input.new_player_id };
+  }
+
+  // scope === 'game'  → upsert override
+  const game_in_match = Number(input.game_in_match);
+  const ovAll = getObjects_('Session_Game_Overrides');
+  const existing = ovAll.find(r =>
+    r.league_id === input.league_id &&
+    Number(r.week_number) === Number(input.week_number) &&
+    normalizeHalf_(r.half) === half &&
+    Number(r.group_number) === group_number &&
+    Number(r.game_in_match) === game_in_match &&
+    Number(r.starting_slot) === slot);
+
+  if (existing) {
+    updateWhere_('Session_Game_Overrides',
+      r => r.override_id === existing.override_id,
+      r => { r.player_id = input.new_player_id; });
+    audit_('session_swap_game', 'override', existing.override_id, null, {
+      league_id: input.league_id, week_number: input.week_number, half,
+      group_number, slot, game_in_match, to: input.new_player_id,
+    });
+  } else {
+    const override_id = makeId_('override');
+    appendObjects_('Session_Game_Overrides', [{
+      override_id,
+      league_id:          input.league_id,
+      week_number:        Number(input.week_number),
+      half:               half,
+      group_number:       group_number,
+      game_in_match:      game_in_match,
+      starting_slot:      slot,
+      original_player_id: original_player_id,
+      player_id:          input.new_player_id,
+      created_at:         nowStamp_(),
+      created_by:         activeUserEmail_(),
+    }]);
+    audit_('session_swap_game', 'override', override_id, null, {
+      league_id: input.league_id, week_number: input.week_number, half,
+      group_number, slot, game_in_match, to: input.new_player_id,
+    });
+  }
+  return { scope, group_number, starting_slot: slot, game_in_match, player_id: input.new_player_id };
 }
 
 /* ============================================================
@@ -504,7 +792,9 @@ function computeGroupStandings_(group, games) {
     const p = group.slots[slot];
     playerStats[p.player_id] = {
       player_id:      p.player_id,
-      full_name:      p.full_name,
+      // Swapped slots (game-scope overrides) display as "Ghost" everywhere
+      // grp.standings is rendered — including the halftime-mix UI.
+      full_name:      p.swapped ? 'Ghost' : p.full_name,
       starting_slot:  Number(slot),
       games_played:   0,
       wins:           0,
@@ -517,17 +807,30 @@ function computeGroupStandings_(group, games) {
   const groupGames = games.filter(g =>
     Number(g.group_number) === group.group_number && g.status === 'complete');
 
+  // For override cells, the cell.player_id is the sub — but the slot's
+  // regular resident (now labeled "Ghost" in playerStats) should still get
+  // credit for the game. Map slot → resident player_id so we can credit
+  // the right row when a cell is an override.
+  const residentBySlot = {};
+  Object.keys(group.slots).forEach(slot => {
+    residentBySlot[Number(slot)] = group.slots[slot].player_id;
+  });
+  function creditCell_(cellSpot, my, their) {
+    if (!cellSpot) return;
+    const pid = cellSpot.override
+      ? residentBySlot[Number(cellSpot.starting_slot)]
+      : cellSpot.player_id;
+    if (pid && playerStats[pid]) creditGroupPlayer_(playerStats[pid], my, their);
+  }
   groupGames.forEach(g => {
     const cell = cellByGame[Number(g.game_in_match)];
     if (!cell) return;
     const s1 = Number(g.t1_score), s2 = Number(g.t2_score);
     if (Number.isNaN(s1) || Number.isNaN(s2)) return;
-    const t1pids = [cell.t1_player_1 && cell.t1_player_1.player_id,
-                    cell.t1_player_2 && cell.t1_player_2.player_id].filter(Boolean);
-    const t2pids = [cell.t2_player_1 && cell.t2_player_1.player_id,
-                    cell.t2_player_2 && cell.t2_player_2.player_id].filter(Boolean);
-    t1pids.forEach(pid => { if (playerStats[pid]) creditGroupPlayer_(playerStats[pid], s1, s2); });
-    t2pids.forEach(pid => { if (playerStats[pid]) creditGroupPlayer_(playerStats[pid], s2, s1); });
+    creditCell_(cell.t1_player_1, s1, s2);
+    creditCell_(cell.t1_player_2, s1, s2);
+    creditCell_(cell.t2_player_1, s2, s1);
+    creditCell_(cell.t2_player_2, s2, s1);
   });
 
   const out = Object.keys(playerStats).map(k => playerStats[k]);
@@ -546,6 +849,123 @@ function creditGroupPlayer_(s, my_score, their_score) {
   s.points_against += their_score;
   if (my_score > their_score) s.wins += 1;
   else if (my_score < their_score) s.losses += 1;
+}
+
+/* ============================================================
+ * Today's (whole-day) standings — aggregated across BOTH halves
+ * for a single week. Used by the Display so the "Today's Standings"
+ * panel doesn't reset at halftime.
+ * ============================================================ */
+
+function computeDayStandings_(league_id, week_number) {
+  const v = getLeagueVersion_(league_id);
+  return cacheGet_('day:' + league_id + ':' + week_number + ':' + v, 600,
+    () => computeDayStandings_uncached_(league_id, week_number));
+}
+
+function computeDayStandings_uncached_(league_id, week_number) {
+  const games = listGames_({ league_id }).filter(g =>
+    Number(g.week_number) === Number(week_number) && g.status === 'complete'
+  );
+
+  // Resolver for player names: real Players, plus ext_ subs via CR_Attendance.
+  const playerById = {};
+  getObjects_('Players').forEach(p => { playerById[p.player_id] = p; });
+  const extByMemberNum = {};
+  getObjects_('CR_Attendance').forEach(a => {
+    const mn = String(a.member_number || '').trim();
+    if (mn && !extByMemberNum[mn]) {
+      extByMemberNum[mn] = {
+        full_name: (String(a.first_name || '').trim() + ' ' + String(a.last_name || '').trim()).trim()
+      };
+    }
+  });
+  // Roster IDs — players NOT on this set get a trailing " *" (sub marker).
+  const rosterIds = {};
+  getObjects_('Rosters').forEach(r => {
+    if (r.league_id === league_id) rosterIds[r.player_id] = true;
+  });
+  const extNameByMn = {};
+  Object.keys(extByMemberNum).forEach(mn => { extNameByMn[mn] = extByMemberNum[mn].full_name; });
+  function resolveName_(pid) {
+    let name;
+    if (playerById[pid]) name = displayPlayerName_(playerById[pid], extNameByMn);
+    else if (String(pid).startsWith('ext_')) {
+      const mn = String(pid).slice(4);
+      name = (extByMemberNum[mn] && extByMemberNum[mn].full_name) || ('Guest ' + mn);
+    } else {
+      name = '(unknown)';
+    }
+    return rosterIds[pid] ? name : (name + ' *');
+  }
+
+  // Index all game-scope overrides for this week. A game with any override
+  // is a "Ghost game": none of the 4 actual players get credit for it (in
+  // today's OR season standings), and a synthetic "Ghost" row accumulates
+  // those stats in today's standings instead.
+  const overridesByGameKey = {};  // key → [override rows]
+  const gameKey_ = (g) => [
+    g.league_id, Number(g.week_number), normalizeHalf_(g.half),
+    Number(g.group_number), Number(g.game_in_match)
+  ].join('|');
+  getObjects_('Session_Game_Overrides').forEach(r => {
+    if (r.league_id !== league_id) return;
+    if (Number(r.week_number) !== Number(week_number)) return;
+    const k = [r.league_id, Number(r.week_number), normalizeHalf_(r.half),
+               Number(r.group_number), Number(r.game_in_match)].join('|');
+    (overridesByGameKey[k] = overridesByGameKey[k] || []).push(r);
+  });
+
+  const stats = {};
+  function ensureRow_(pid, displayName) {
+    if (!stats[pid]) {
+      stats[pid] = {
+        player_id: pid, full_name: displayName || resolveName_(pid),
+        games_played: 0, wins: 0, losses: 0, points_for: 0, points_against: 0,
+      };
+    }
+    return stats[pid];
+  }
+  function credit_(pid, my, their) {
+    if (!pid) return;
+    creditGroupPlayer_(ensureRow_(pid), my, their);
+  }
+  games.forEach(g => {
+    const s1 = Number(g.t1_score), s2 = Number(g.t2_score);
+    if (Number.isNaN(s1) || Number.isNaN(s2)) return;
+
+    const overridesForGame = (g.group_number != null && g.game_in_match != null)
+      ? (overridesByGameKey[gameKey_(g)] || [])
+      : [];
+
+    if (overridesForGame.length === 0) {
+      // Normal game — credit all 4 actual players.
+      credit_(g.t1_player_1_id, s1, s2);
+      credit_(g.t1_player_2_id, s1, s2);
+      credit_(g.t2_player_1_id, s2, s1);
+      credit_(g.t2_player_2_id, s2, s1);
+      return;
+    }
+
+    // Ghost game: skip all real-player credits. Credit "Ghost" once per
+    // override slot, using the outcome of the team that contained the sub.
+    const ghost = ensureRow_('__ghost__', 'Ghost');
+    overridesForGame.forEach(ov => {
+      const subPid = ov.player_id;
+      const onT1 = subPid === g.t1_player_1_id || subPid === g.t1_player_2_id;
+      const onT2 = subPid === g.t2_player_1_id || subPid === g.t2_player_2_id;
+      if (onT1)      creditGroupPlayer_(ghost, s1, s2);
+      else if (onT2) creditGroupPlayer_(ghost, s2, s1);
+    });
+  });
+
+  const out = Object.values(stats).sort((a, b) => {
+    if (b.wins !== a.wins) return b.wins - a.wins;
+    if (b.points_for !== a.points_for) return b.points_for - a.points_for;
+    return String(a.full_name).localeCompare(b.full_name);
+  });
+  out.forEach((p, i) => { p.rank = i + 1; });
+  return out;
 }
 
 /* ============================================================
@@ -586,9 +1006,9 @@ function computePromoteRelegateTarget_(g, rank, N) {
  */
 function computeHalftimeMix_(league_id, week_number) {
   const half1 = getSession_(league_id, week_number, 1, 0);
-  if (!half1.exists) throw new Error('No half 1 session for week ' + week_number);
+  if (!half1.exists) throw new Error('No 1st Half session for week ' + week_number);
   const N = half1.groups.length;
-  if (N < 1) throw new Error('Half 1 has no groups');
+  if (N < 1) throw new Error('1st Half has no groups');
 
   const buckets = {};
   for (let g = 1; g <= N; g++) buckets[g] = [];
@@ -665,8 +1085,17 @@ function saveLadderSessionGame_(input) {
   const slotMap = {};
   slots.forEach(s => { slotMap[Number(s.starting_slot)] = { player_id: s.player_id }; });
 
-  const rotation = computeGroupRotation_(slotMap);
+  // Apply per-game overrides for this (group, game_in_match) before
+  // computing the rotation so the right players get snapshotted.
   const game_in_match = Number(input.game_in_match);
+  const overrides = getOverrideMap_(input.league_id, input.week_number, half);
+  ((overrides[Number(input.group_number)] || [])
+    .filter(o => o.game_in_match === game_in_match))
+    .forEach(o => {
+      if (slotMap[o.starting_slot]) slotMap[o.starting_slot] = { player_id: o.player_id };
+    });
+
+  const rotation = computeGroupRotation_(slotMap);
   const cell = rotation.find(r => r.game_in_match === game_in_match);
   if (!cell) throw new Error('Invalid game_in_match: ' + game_in_match);
 
@@ -760,7 +1189,21 @@ function findLastSessionWeekHalf_(league_id) {
     return { week: week, half: later };
   }
 
-  // Otherwise prefer the half with more games played; tie goes to half 1.
-  const byActivity = halves.slice().sort((a, b) => (gamesPerHalf[b] || 0) - (gamesPerHalf[a] || 0));
-  return { week: week, half: byActivity[0] };
+  // Otherwise prefer the half whose most-recent game activity is newest —
+  // this handles the case where Half 1 is fully complete (more rows) but the
+  // Operator has already entered some Half 2 scores. Older heuristic was
+  // "more games wins," which left Display stuck on a finished Half 1.
+  const lastAtPerHalf = {};
+  halves.forEach(h => { lastAtPerHalf[h] = ''; });
+  games.forEach(g => {
+    const h = normalizeHalf_(g.half);
+    if (lastAtPerHalf[h] == null) return;
+    const t = String(g.updated_at || g.entered_at || '');
+    if (t > lastAtPerHalf[h]) lastAtPerHalf[h] = t;
+  });
+  const byRecency = halves.slice().sort((a, b) => {
+    if (lastAtPerHalf[b] !== lastAtPerHalf[a]) return lastAtPerHalf[b] > lastAtPerHalf[a] ? 1 : -1;
+    return (gamesPerHalf[b] || 0) - (gamesPerHalf[a] || 0);
+  });
+  return { week: week, half: byRecency[0] };
 }

@@ -91,7 +91,25 @@ function recordSubstitution_(input) {
   audit_('sub_record', 'sub', sub_id, null,
     { league_id: input.league_id, absent: absent.full_name, sub: sub.full_name });
 
-  return { sub_id, email_sent: emailSent, email_error: emailErr };
+  // For partner leagues, immediately apply this sub to the recorded game
+  // snapshots for that week, so DUPR + the Match Results page credit who
+  // actually played (not the absent regular). Best-effort: a snapshot issue
+  // must never fail the pairing itself. If no games for that week exist yet,
+  // this is a no-op and saveGame_ applies the sub when the game is created.
+  let snapshot = null;
+  if (league && league.format_type === 'partner' &&
+      input.week_number !== '' && input.week_number != null &&
+      absent.player_id !== sub.player_id) {
+    try {
+      snapshot = applyPartnerGameSub_(
+        input.league_id, input.week_number, absent.player_id, sub.player_id,
+        false, { league_name: league.name, source: 'pairing' });
+    } catch (e) {
+      snapshot = { error: String(e && e.message || e) };
+    }
+  }
+
+  return { sub_id, email_sent: emailSent, email_error: emailErr, snapshot: snapshot };
 }
 
 /**
@@ -105,8 +123,27 @@ function voidSubstitution_(sub_id) {
   if (remain.length === all.length) return { deleted: false };
   const removed = all.find(s => s.sub_id === sub_id);
   overwriteObjects_('Substitutions', remain);
-  audit_('sub_void', 'sub', sub_id, removed || null, null);
-  return { deleted: true };
+
+  // Inverse of the pairing-time snapshot apply: if this was a partner sub we
+  // baked into the game snapshots, put the absent regular back (team-scoped to
+  // that week) so unpairing fully undoes pairing. Best-effort.
+  let snapshot_reverted = null;
+  try {
+    const league = removed && getLeagueById_(removed.league_id);
+    if (league && league.format_type === 'partner' &&
+        removed.absent_player_id && removed.substitute_player_id &&
+        removed.absent_player_id !== removed.substitute_player_id &&
+        removed.week_number !== '' && removed.week_number != null) {
+      snapshot_reverted = revertPartnerGameSub_(
+        removed.league_id, removed.week_number,
+        removed.absent_player_id, removed.substitute_player_id);
+    }
+  } catch (e) {
+    snapshot_reverted = { error: String(e && e.message || e) };
+  }
+
+  audit_('sub_void', 'sub', sub_id, removed || null, snapshot_reverted);
+  return { deleted: true, snapshot_reverted: snapshot_reverted };
 }
 
 function listSubstitutions_(filter) {
