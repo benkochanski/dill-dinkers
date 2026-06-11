@@ -1634,6 +1634,20 @@ function searchMembers_(query, limit) {
 }
 
 /**
+ * Compact CourtReserve member directory for the operator sub picker, loaded
+ * once into the browser and filtered client-side (fast typeahead). Rows are
+ * [cr_member_id, full_name, email, membership_number].
+ */
+function memberDirectory_() {
+  return getObjects_('CR_Members').map(m => [
+    String(m.cr_member_id || '').trim(),
+    (String(m.first_name || '').trim() + ' ' + String(m.last_name || '').trim()).trim(),
+    String(m.email || '').trim(),
+    String(m.membership_number || '').trim(),
+  ]).filter(r => r[0] && r[1]);
+}
+
+/**
  * Add a write-in sub that MUST be a real CourtReserve member. Resolves the
  * member to a Players row keyed by cr_member_id (creating/enriching it if
  * needed). Replaces the free-text path that created orphan, non-member rows.

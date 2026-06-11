@@ -601,6 +601,14 @@ function api_addMemberSub(league_id, cr_member_id, level) {
   });
 }
 
+function api_memberDirectory() {
+  return wrap_(() => {
+    const user = getCurrentUser_();
+    requireRole_(user, ['admin', 'operator']);
+    return memberDirectory_();
+  });
+}
+
 function api_listRoster(league_id) {
   return wrap_(() => {
     const user = getCurrentUser_();

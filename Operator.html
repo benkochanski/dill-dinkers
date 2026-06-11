@@ -1037,6 +1037,7 @@
     }
 
     function renderRankedRoster() {
+      ensureMemberDir();   // warm the member directory for the write-in sub picker
       const div = document.getElementById('rankedRosterDiv');
       if (!RANKED_ROSTER.length) {
         div.innerHTML = '<span class="muted">No players on this league\'s roster yet. Add them in Admin → Roster.</span>';
@@ -1164,13 +1165,54 @@
      */
     // --- Write-in sub: search the CourtReserve member directory and pick a
     //     real member. No more free-typed names — every sub is a valid member. ---
-    let SUB_SEARCH_TIMER = null;
     let SUB_SEARCH_RESULTS = [];
     let SUB_SEARCH_ACTIVE = -1;
+    let MEMBERS_DIR = null;          // [{id, name, email, mn, nl, ll, el}]
+    let MEMBERS_DIR_LOADING = false;
 
     function hideSubSearch() {
       const box = document.getElementById('subSearchResults');
       if (box) box.style.display = 'none';
+    }
+
+    // Load the full member directory once, then filter entirely in the browser.
+    function ensureMemberDir() {
+      if (MEMBERS_DIR || MEMBERS_DIR_LOADING) return;
+      MEMBERS_DIR_LOADING = true;
+      google.script.run
+        .withSuccessHandler(r => {
+          MEMBERS_DIR_LOADING = false;
+          if (r.ok) {
+            MEMBERS_DIR = (r.data || []).map(a => {
+              const name = a[1] || '';
+              const last = name.split(' ').slice(-1)[0] || '';
+              return { id: a[0], name: name, email: a[2] || '', mn: a[3] || '',
+                       nl: name.toLowerCase(), ll: last.toLowerCase(), el: (a[2] || '').toLowerCase() };
+            });
+          }
+          onSubSearchInput();   // re-render for whatever is currently typed
+        })
+        .withFailureHandler(() => { MEMBERS_DIR_LOADING = false; })
+        .api_memberDirectory();
+    }
+
+    function filterMembers(q) {
+      q = q.toLowerCase();
+      const res = [];
+      for (let i = 0; i < MEMBERS_DIR.length; i++) {
+        const m = MEMBERS_DIR[i];
+        let score = -1;
+        if (m.nl.indexOf(q) === 0)            score = 0;
+        else if (m.ll.indexOf(q) === 0)       score = 1;
+        else if (m.nl.indexOf(q) !== -1)      score = 2;
+        else if (m.el && m.el.indexOf(q) !== -1) score = 3;
+        if (score < 0) continue;
+        res.push({ m: m, score: score });
+        if (res.length > 400) break;
+      }
+      res.sort((a, b) => a.score - b.score || a.m.name.localeCompare(b.m.name));
+      return res.slice(0, 12).map(x => ({
+        cr_member_id: x.m.id, full_name: x.m.name, email: x.m.email, membership_number: x.m.mn }));
     }
 
     function onSubSearchInput() {
@@ -1178,18 +1220,15 @@
       const box = document.getElementById('subSearchResults');
       const msg = document.getElementById('manualSubMsg');
       if (msg) { msg.textContent = ''; msg.className = 'muted'; }
-      if (SUB_SEARCH_TIMER) clearTimeout(SUB_SEARCH_TIMER);
       if (q.length < 2) { hideSubSearch(); box.innerHTML = ''; return; }
-      SUB_SEARCH_TIMER = setTimeout(() => {
-        google.script.run
-          .withSuccessHandler(r => {
-            if (!r.ok) { hideSubSearch(); return; }
-            SUB_SEARCH_RESULTS = r.data || [];
-            renderSubSearchResults();
-          })
-          .withFailureHandler(() => hideSubSearch())
-          .api_searchMembers(q);
-      }, 250);
+      if (!MEMBERS_DIR) {
+        ensureMemberDir();
+        box.innerHTML = '<div class="sub-search-empty">Loading members…</div>';
+        box.style.display = 'block';
+        return;
+      }
+      SUB_SEARCH_RESULTS = filterMembers(q);
+      renderSubSearchResults();
     }
 
     function renderSubSearchResults() {
