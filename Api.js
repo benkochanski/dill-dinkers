@@ -511,6 +511,18 @@ function api_updatePlayer(player_id, patch) {
       });
     });
     audit_('player_update', 'player', player_id, before, patch);
+    // A name/identity edit must invalidate cached standings (keyed by league
+    // version) for every league this player appears in, so the change shows
+    // immediately instead of waiting out the cache TTL.
+    const pid = String(player_id);
+    const leagues = {};
+    getObjects_('Rosters').forEach(r => { if (String(r.player_id) === pid && r.league_id) leagues[r.league_id] = true; });
+    getObjects_('Games').forEach(g => {
+      if ([g.t1_player_1_id, g.t1_player_2_id, g.t2_player_1_id, g.t2_player_2_id].map(String).indexOf(pid) !== -1 && g.league_id) {
+        leagues[g.league_id] = true;
+      }
+    });
+    Object.keys(leagues).forEach(lid => { try { bumpLeagueVersion_(lid); } catch (e) {} });
     return getObjects_('Players').find(p => String(p.player_id) === String(player_id));
   });
 }
