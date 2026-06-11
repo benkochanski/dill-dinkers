@@ -196,7 +196,7 @@
                  placeholder="Write-in sub — search member name…" style="flex:1;max-width:280px"
                  oninput="onSubSearchInput()" onkeydown="onSubSearchKey(event)"
                  onblur="setTimeout(hideSubSearch,150)">
-          <input id="manualSubLevel" type="text" placeholder="Level (optional)" style="width:90px">
+          <button class="secondary tiny" id="addSubBtn" onclick="commitMemberSub()" disabled>Add sub</button>
           <span id="manualSubMsg" class="muted" style="font-size:11px"></span>
           <div id="subSearchResults" class="sub-search-results" style="display:none"></div>
         </div>
@@ -1167,12 +1167,18 @@
     //     real member. No more free-typed names — every sub is a valid member. ---
     let SUB_SEARCH_RESULTS = [];
     let SUB_SEARCH_ACTIVE = -1;
+    let SELECTED_SUB_MEMBER = null;  // member staged for "Add sub"
     let MEMBERS_DIR = null;          // [{id, name, email, mn, nl, ll, el}]
     let MEMBERS_DIR_LOADING = false;
 
     function hideSubSearch() {
       const box = document.getElementById('subSearchResults');
       if (box) box.style.display = 'none';
+    }
+
+    function updateAddSubBtn() {
+      const btn = document.getElementById('addSubBtn');
+      if (btn) btn.disabled = !SELECTED_SUB_MEMBER || !CURRENT_LEAGUE;
     }
 
     // Load the full member directory once, then filter entirely in the browser.
@@ -1220,6 +1226,9 @@
       const box = document.getElementById('subSearchResults');
       const msg = document.getElementById('manualSubMsg');
       if (msg) { msg.textContent = ''; msg.className = 'muted'; }
+      // Typing invalidates any previously-staged member.
+      SELECTED_SUB_MEMBER = null;
+      updateAddSubBtn();
       if (q.length < 2) { hideSubSearch(); box.innerHTML = ''; return; }
       if (!MEMBERS_DIR) {
         ensureMemberDir();
@@ -1240,10 +1249,7 @@
         return;
       }
       box.innerHTML = SUB_SEARCH_RESULTS.map((m, i) =>
-        `<div class="sub-search-item" data-i="${i}" onmousedown="selectSubMember(${i})">
-           <span>${escapeHtml(m.full_name)}</span>
-           <span class="muted" style="font-size:11px">${escapeHtml(m.email || ('#' + m.membership_number))}</span>
-         </div>`).join('');
+        `<div class="sub-search-item" data-i="${i}" onmousedown="selectSubMember(${i})">${escapeHtml(m.full_name)}</div>`).join('');
       box.style.display = 'block';
     }
 
@@ -1263,12 +1269,25 @@
       items.forEach((el, i) => el.classList.toggle('active', i === SUB_SEARCH_ACTIVE));
     }
 
+    // Stage a member (does NOT add yet). The "Add sub" button confirms.
     function selectSubMember(i) {
       const m = SUB_SEARCH_RESULTS[i];
-      if (!m || !CURRENT_LEAGUE) return;
-      const msg = document.getElementById('manualSubMsg');
-      const level = (document.getElementById('manualSubLevel').value || '').trim();
+      if (!m) return;
+      SELECTED_SUB_MEMBER = m;
+      document.getElementById('manualSubName').value = m.full_name;
       hideSubSearch();
+      updateAddSubBtn();
+      const btn = document.getElementById('addSubBtn');
+      if (btn) btn.focus();   // so Enter immediately confirms
+    }
+
+    function commitMemberSub() {
+      const m = SELECTED_SUB_MEMBER;
+      const msg = document.getElementById('manualSubMsg');
+      if (!m || !CURRENT_LEAGUE) {
+        if (msg) { msg.textContent = 'Pick a member from the list first'; msg.className = 'err'; }
+        return;
+      }
       if (msg) { msg.textContent = 'Adding…'; msg.className = 'muted'; }
       google.script.run
         .withSuccessHandler(r => {
@@ -1277,18 +1296,18 @@
           if (!EXTERNAL_SUBS.some(s => s.player_id === p.player_id)) {
             EXTERNAL_SUBS.push({
               player_id: p.player_id, full_name: p.full_name,
-              level: p.level || level, member_number: '',
-              is_temp: false, manual: true,
+              level: p.level || '', member_number: '', is_temp: false, manual: true,
             });
           }
           if (msg) { msg.textContent = `Added "${p.full_name}" ✓`; msg.className = 'muted'; }
           document.getElementById('manualSubName').value = '';
-          document.getElementById('manualSubLevel').value = '';
+          SELECTED_SUB_MEMBER = null;
+          updateAddSubBtn();
           renderRankedRoster();
           document.getElementById('manualSubName').focus();
         })
         .withFailureHandler(e => { if (msg) { msg.textContent = 'Error: ' + (e && e.message || e); msg.className = 'err'; } })
-        .api_addMemberSub(CURRENT_LEAGUE.league_id, m.cr_member_id, level);
+        .api_addMemberSub(CURRENT_LEAGUE.league_id, m.cr_member_id, '');
     }
 
     function updateAttendanceCount() {
