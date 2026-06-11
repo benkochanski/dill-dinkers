@@ -2696,7 +2696,9 @@ function getNoShowsForLeagueDate_(league_id, date) {
  * to pull this list.
  * ========================================================================= */
 
-const CR_MEMBERS_PATH_DEFAULT = CR_API_PREFIX + '/memberreport/list';
+// The member directory is served by /member/get (paginated: Data.Members[],
+// Data.TotalPages). The older /memberreport/list guess 404s on this account.
+const CR_MEMBERS_PATH_DEFAULT = CR_API_PREFIX + '/member/get';
 
 /**
  * Fetch one page of members from CR.
