@@ -99,7 +99,7 @@ function getRankedRoster_(league_id) {
 
   const ranked = roster.map(p => ({
     player_id:    p.player_id,
-    full_name:    p.full_name,
+    full_name:    displayPlayerName_(p),
     email:        p.email || '',
     level:        p.level || levelByPid[p.player_id] || p.roster_level || '',
     season_rank:  rankByPid[p.player_id] || null,
@@ -398,7 +398,7 @@ function getSession_(league_id, week_number, half, court_numbers) {
       player_id:          r.player_id,
       original_player_id: r.original_player_id || r.player_id,
       swapped:            false,
-      full_name:          nameWithSubMark_(r.player_id, pl.full_name),
+      full_name:          nameWithSubMark_(r.player_id, displayPlayerName_(pl)),
       starting_slot:      slot,
     };
   });
@@ -539,7 +539,7 @@ function applyOverridesToRotation_(rotation, overridesByGroup, group_number, res
     const pl = resolvePlayer_(ov.player_id);
     entry[field] = {
       player_id:     ov.player_id,
-      full_name:     nameWithSubMark_(ov.player_id, pl.full_name),
+      full_name:     nameWithSubMark_(ov.player_id, displayPlayerName_(pl)),
       starting_slot: ov.starting_slot,
       override:      true,
     };

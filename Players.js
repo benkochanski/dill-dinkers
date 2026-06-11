@@ -243,6 +243,9 @@ function diagnoseUnresolvedGuests() {
  */
 function displayPlayerName_(player, crByMemberNum) {
   if (!player) return '';
+  // Local display-name override wins over the CourtReserve-derived name.
+  const override = String(player.display_name || '').trim();
+  if (override) return override;
   const fn = String(player.full_name || '').trim();
   const ghostMatch = fn.match(/^Guest\s+(\d+)$/i);
   if (ghostMatch && crByMemberNum) {

@@ -340,8 +340,8 @@ function newTeamStats_(team, playerById) {
   return {
     team_id:        team.team_id,
     team_name:      team.team_name || '(unnamed)',
-    player_1_name:  p1 ? p1.full_name : '',
-    player_2_name:  p2 ? p2.full_name : '',
+    player_1_name:  p1 ? displayPlayerName_(p1) : '',
+    player_2_name:  p2 ? displayPlayerName_(p2) : '',
     games_played:   0,
     wins:           0,
     losses:         0,

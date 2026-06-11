@@ -2861,7 +2861,8 @@
             <div id="pe_loading" class="muted" style="font-size:13px">Loading…</div>
             <div id="pe_form" style="display:none">
               <div class="pe-fields">
-                <div class="full"><label>Full name</label><input id="pe_full_name"></div>
+                <div class="full"><label>Full name (CourtReserve)</label><input id="pe_full_name"></div>
+                <div class="full"><label>Display name <span class="muted" style="font-weight:400">— overrides the name shown in standings &amp; displays</span></label><input id="pe_display_name" placeholder="Leave blank to use the CourtReserve name"></div>
                 <div class="full"><label>Email</label><input id="pe_email"></div>
                 <div><label>Phone</label><input id="pe_phone"></div>
                 <div><label>Level</label><input id="pe_level"></div>
@@ -2893,6 +2894,7 @@
           }
           const p = r.data;
           document.getElementById('pe_full_name').value      = p.full_name || '';
+          document.getElementById('pe_display_name').value   = p.display_name || '';
           document.getElementById('pe_email').value          = p.email || '';
           document.getElementById('pe_phone').value          = p.phone || '';
           document.getElementById('pe_level').value          = p.level || '';
@@ -2920,6 +2922,7 @@
       const pid = m.dataset.pid;
       const patch = {
         full_name:      document.getElementById('pe_full_name').value.trim(),
+        display_name:   document.getElementById('pe_display_name').value.trim(),
         email:          document.getElementById('pe_email').value.trim(),
         phone:          document.getElementById('pe_phone').value.trim(),
         level:          document.getElementById('pe_level').value.trim(),
@@ -2934,9 +2937,10 @@
           if (!r.ok) { msg.textContent = 'Error: ' + r.error; msg.className = 'err'; return; }
           msg.textContent = '✓ Saved'; msg.className = 'muted';
           // Update local caches so the UI reflects the new name/level.
+          const effectiveName = patch.display_name || patch.full_name;
           const upd = (list) => list && list.forEach(x => {
             if (x.player_id === pid) {
-              if (patch.full_name) x.full_name = patch.full_name;
+              if (effectiveName) x.full_name = effectiveName;
               if (patch.level !== undefined) x.level = patch.level;
             }
           });

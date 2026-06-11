@@ -51,9 +51,9 @@ const SCHEMA = {
   Players: {
     notes: 'Master roster of every person ever registered.',
     columns: [
-      'player_id', 'full_name', 'first_name', 'last_name', 'email', 'phone',
-      'gender', 'dupr_id', 'club_member_id', 'level', 'active', 'notes',
-      'is_guest', 'created_at',
+      'player_id', 'full_name', 'display_name', 'first_name', 'last_name',
+      'email', 'phone', 'gender', 'dupr_id', 'club_member_id', 'level',
+      'active', 'notes', 'is_guest', 'created_at',
     ],
   },
 

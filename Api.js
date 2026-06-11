@@ -500,8 +500,8 @@ function api_updatePlayer(player_id, patch) {
     if (!player_id) throw new Error('player_id required');
     const before = getObjects_('Players').find(p => p.player_id === player_id);
     if (!before) throw new Error('Player not found: ' + player_id);
-    const allowed = ['full_name', 'first_name', 'last_name', 'phone', 'gender',
-                     'dupr_id', 'club_member_id', 'level', 'notes', 'email'];
+    const allowed = ['full_name', 'display_name', 'first_name', 'last_name', 'phone',
+                     'gender', 'dupr_id', 'club_member_id', 'level', 'notes', 'email'];
     updateWhere_('Players', p => p.player_id === player_id, p => {
       allowed.forEach(k => {
         if (patch[k] !== undefined) p[k] = patch[k];
