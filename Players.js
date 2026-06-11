@@ -1485,72 +1485,60 @@ function syncLadderRosterFromAttendance_(league_id) {
     };
   }
 
-  const allPlayers = getObjects_('Players');
-  const playerByMember = {};
-  allPlayers.forEach(p => {
-    if (p.club_member_id) playerByMember[String(p.club_member_id).trim()] = p;
-  });
+  const beforeIds = {};
+  getObjects_('Players').forEach(p => { beforeIds[String(p.player_id).trim()] = true; });
 
   const existingRoster = getObjects_('Rosters').filter(r => r.league_id === league_id);
   const rosteredPlayerIds = {};
-  existingRoster.forEach(r => { rosteredPlayerIds[r.player_id] = true; });
+  existingRoster.forEach(r => { rosteredPlayerIds[String(r.player_id).trim()] = true; });
 
   const stamp = nowStamp_();
   const me = activeUserEmail_();
-  const newPlayers = [];
   const newRosters = [];
+  const resolvedPids = {};
 
   uniqueAttendees.forEach(a => {
     const m = String(a.member_number).trim();
-    let player = playerByMember[m];
-    if (!player) {
-      const fullName = ((a.first_name || '') + ' ' + (a.last_name || '')).trim();
-      player = {
-        player_id:      makeId_('player'),
-        full_name:      fullName || ('Member ' + m),
-        first_name:     a.first_name || '',
-        last_name:      a.last_name  || '',
-        email:          '',
-        phone:          '',
-        gender:         '',
-        dupr_id:        '',
-        club_member_id: m,
-        level:          '',
-        active:         true,
-        notes:          'auto from CR_Attendance',
-        created_at:     stamp,
-      };
-      playerByMember[m] = player;
-      newPlayers.push(player);
-    }
-    if (!rosteredPlayerIds[player.player_id]) {
+    const fullName = ((a.first_name || '') + ' ' + (a.last_name || '')).trim();
+    // The attendance member_number is a CourtReserve MembershipNumber. Resolve
+    // it to the canonical cr_member_id and find-or-create the real player via
+    // upsertGuestPlayer_ — so a member whose roster row is keyed by their member
+    // id is NOT duplicated when their check-in uses their membership number.
+    let player;
+    try {
+      player = upsertGuestPlayer_({ member_number: m, club_member_id: m,
+                                    full_name: fullName || ('Member ' + m) });
+    } catch (e) { return; }
+    const pid = String(player.player_id).trim();
+    resolvedPids[pid] = true;
+    if (!rosteredPlayerIds[pid]) {
       newRosters.push({
         roster_id: makeId_('roster'),
         league_id: league_id,
-        player_id: player.player_id,
+        player_id: pid,
         team_id:   '',
         level:     '',
         status:    'active',
         added_at:  stamp,
         added_by:  me,
       });
-      rosteredPlayerIds[player.player_id] = true;
+      rosteredPlayerIds[pid] = true;
     }
   });
 
-  if (newPlayers.length) appendObjects_('Players', newPlayers);
   if (newRosters.length) appendObjects_('Rosters', newRosters);
   cacheBust_('league:' + league_id + ':full');
 
+  const playersAdded = Object.keys(resolvedPids).filter(pid => !beforeIds[pid]).length;
   audit_('ladder_roster_sync', 'league', league_id, null, {
     total_attendees: uniqueAttendees.length,
-    players_added:   newPlayers.length,
+    players_added:   playersAdded,
     rosters_added:   newRosters.length,
   });
 
   return {
     total_attendees: uniqueAttendees.length,
-    players_added:   newPlayers.length,
+    players_added:   playersAdded,
     rosters_added:   newRosters.length,
   };
 }
