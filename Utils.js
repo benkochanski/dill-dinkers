@@ -44,6 +44,19 @@ function getHeaders_(sheet) {
 }
 
 /** Reads all data rows from a tab into an array of objects keyed by header. */
+// Identifier columns that hold player/member IDs. These are now numeric
+// cr_member_ids, which Sheets stores as numbers. We coerce them to strings on
+// read so every `===` comparison in the codebase (and every id arriving from
+// the client as a string) matches regardless of how the cell is stored. This
+// neutralizes the whole "number id vs string id" class of silent-mismatch bugs.
+var _ID_COLUMNS_ = {
+  player_id: 1, original_player_id: 1, club_member_id: 1,
+  t1_player_1_id: 1, t1_player_2_id: 1, t2_player_1_id: 1, t2_player_2_id: 1,
+  player_1_id: 1, player_2_id: 1,
+  absent_player_id: 1, substitute_player_id: 1, sub_player_id: 1,
+  cr_member_id: 1, membership_number: 1, member_number: 1,
+};
+
 function getObjects_(tableName) {
   if (_SHEET_CACHE[tableName]) return _SHEET_CACHE[tableName];
   const sheet = getSheet_(tableName);
@@ -57,7 +70,14 @@ function getObjects_(tableName) {
   const values = sheet.getRange(2, 1, lastRow - 1, lastCol).getValues();
   const out = values.map(row => {
     const obj = {};
-    headers.forEach((h, i) => { if (h) obj[h] = row[i]; });
+    headers.forEach((h, i) => {
+      if (!h) return;
+      let v = row[i];
+      // Force identifier columns to strings so numeric cr_member_ids compare
+      // cleanly against string ids from the client / other tabs.
+      if (_ID_COLUMNS_[h] && typeof v === 'number') v = String(v);
+      obj[h] = v;
+    });
     return obj;
   });
   _SHEET_CACHE[tableName] = out;
