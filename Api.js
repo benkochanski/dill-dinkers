@@ -477,11 +477,14 @@ function api_getPlayer(player_id) {
     const user = getCurrentUser_();
     requireRole_(user, ['admin', 'operator']);
     if (!player_id) throw new Error('player_id required');
-    const p = getObjects_('Players').find(x => x.player_id === player_id);
+    // player_id may be a numeric cr_member_id in the sheet but arrive as a
+    // string from the client — compare as strings.
+    const p = getObjects_('Players').find(x => String(x.player_id) === String(player_id));
     if (!p) throw new Error('Player not found: ' + player_id);
     return {
       player_id:      p.player_id,
       full_name:      p.full_name || '',
+      display_name:   p.display_name || '',
       email:          p.email || '',
       phone:          p.phone || '',
       level:          p.level || '',
@@ -498,17 +501,17 @@ function api_updatePlayer(player_id, patch) {
     const user = getCurrentUser_();
     requireRole_(user, ['admin', 'operator']);  // global; no league scope on Players
     if (!player_id) throw new Error('player_id required');
-    const before = getObjects_('Players').find(p => p.player_id === player_id);
+    const before = getObjects_('Players').find(p => String(p.player_id) === String(player_id));
     if (!before) throw new Error('Player not found: ' + player_id);
     const allowed = ['full_name', 'display_name', 'first_name', 'last_name', 'phone',
                      'gender', 'dupr_id', 'club_member_id', 'level', 'notes', 'email'];
-    updateWhere_('Players', p => p.player_id === player_id, p => {
+    updateWhere_('Players', p => String(p.player_id) === String(player_id), p => {
       allowed.forEach(k => {
         if (patch[k] !== undefined) p[k] = patch[k];
       });
     });
     audit_('player_update', 'player', player_id, before, patch);
-    return getObjects_('Players').find(p => p.player_id === player_id);
+    return getObjects_('Players').find(p => String(p.player_id) === String(player_id));
   });
 }
 

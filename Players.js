@@ -1106,19 +1106,23 @@ function fixVolleyLlamasSnapshotsRun() {
  */
 function applyPartnerGameSub_(league_id, week_number, absent_player_id, sub_player_id, dryRun, ctx) {
   if (!absent_player_id || !sub_player_id) throw new Error('absent and sub player_id required');
-  if (absent_player_id === sub_player_id) throw new Error('absent and sub are the same player');
+  // player_ids may be numeric cr_member_ids in the sheet but strings from the
+  // caller — compare as strings throughout.
+  const absId = String(absent_player_id);
+  const subId = String(sub_player_id);
+  if (absId === subId) throw new Error('absent and sub are the same player');
   const wk = Number(week_number);
   const SLOTS = ['t1_player_1_id', 't1_player_2_id', 't2_player_1_id', 't2_player_2_id'];
-  const pById = {}; getObjects_('Players').forEach(p => { pById[p.player_id] = p; });
+  const pById = {}; getObjects_('Players').forEach(p => { pById[String(p.player_id)] = p; });
   const teamById = {}; getObjects_('Teams').forEach(t => { teamById[t.team_id] = t; });
-  const nm = id => (pById[id] && pById[id].full_name) || id;
+  const nm = id => (pById[String(id)] && pById[String(id)].full_name) || id;
   const match = g => g.league_id === league_id && g.status !== 'voided' &&
-    Number(g.week_number) === wk && SLOTS.some(k => g[k] === absent_player_id);
+    Number(g.week_number) === wk && SLOTS.some(k => String(g[k]) === absId);
 
   const games = getObjects_('Games').filter(match);
   const teams = {};
   games.forEach(g => {
-    const tid = (g.t1_player_1_id === absent_player_id || g.t1_player_2_id === absent_player_id)
+    const tid = (String(g.t1_player_1_id) === absId || String(g.t1_player_2_id) === absId)
       ? g.t1_team_id : g.t2_team_id;
     teams[tid] = (teams[tid] || 0) + 1;
   });
@@ -1136,7 +1140,7 @@ function applyPartnerGameSub_(league_id, week_number, absent_player_id, sub_play
 
   let n = 0;
   updateWhere_('Games', match, g => {
-    SLOTS.forEach(k => { if (g[k] === absent_player_id) g[k] = sub_player_id; });
+    SLOTS.forEach(k => { if (String(g[k]) === absId) g[k] = sub_player_id; });
     g.updated_at = nowStamp_();
     n++;
   });
@@ -1157,29 +1161,31 @@ function applyPartnerGameSub_(league_id, week_number, absent_player_id, sub_play
  */
 function revertPartnerGameSub_(league_id, week_number, absent_player_id, sub_player_id) {
   const wk = Number(week_number);
+  const absId = String(absent_player_id);
+  const subId = String(sub_player_id);
   const teamOf = {};
   getObjects_('Teams').forEach(t => {
-    if (t.player_1_id) teamOf[t.player_1_id] = t.team_id;
-    if (t.player_2_id) teamOf[t.player_2_id] = t.team_id;
+    if (t.player_1_id) teamOf[String(t.player_1_id)] = t.team_id;
+    if (t.player_2_id) teamOf[String(t.player_2_id)] = t.team_id;
   });
-  const tid = teamOf[absent_player_id];   // absent regular's team — unchanged by pairing
+  const tid = teamOf[absId];   // absent regular's team — unchanged by pairing
   const match = g => g.league_id === league_id && g.status !== 'voided' && Number(g.week_number) === wk &&
     (tid
-      ? ((g.t1_team_id === tid && (g.t1_player_1_id === sub_player_id || g.t1_player_2_id === sub_player_id)) ||
-         (g.t2_team_id === tid && (g.t2_player_1_id === sub_player_id || g.t2_player_2_id === sub_player_id)))
-      : [g.t1_player_1_id, g.t1_player_2_id, g.t2_player_1_id, g.t2_player_2_id].indexOf(sub_player_id) !== -1);
+      ? ((g.t1_team_id === tid && (String(g.t1_player_1_id) === subId || String(g.t1_player_2_id) === subId)) ||
+         (g.t2_team_id === tid && (String(g.t2_player_1_id) === subId || String(g.t2_player_2_id) === subId)))
+      : [g.t1_player_1_id, g.t1_player_2_id, g.t2_player_1_id, g.t2_player_2_id].map(String).indexOf(subId) !== -1);
 
   let n = 0;
   updateWhere_('Games', match, g => {
     if (g.t1_team_id === tid) {
-      if (g.t1_player_1_id === sub_player_id) g.t1_player_1_id = absent_player_id;
-      if (g.t1_player_2_id === sub_player_id) g.t1_player_2_id = absent_player_id;
+      if (String(g.t1_player_1_id) === subId) g.t1_player_1_id = absent_player_id;
+      if (String(g.t1_player_2_id) === subId) g.t1_player_2_id = absent_player_id;
     } else if (g.t2_team_id === tid) {
-      if (g.t2_player_1_id === sub_player_id) g.t2_player_1_id = absent_player_id;
-      if (g.t2_player_2_id === sub_player_id) g.t2_player_2_id = absent_player_id;
+      if (String(g.t2_player_1_id) === subId) g.t2_player_1_id = absent_player_id;
+      if (String(g.t2_player_2_id) === subId) g.t2_player_2_id = absent_player_id;
     } else {
       ['t1_player_1_id', 't1_player_2_id', 't2_player_1_id', 't2_player_2_id'].forEach(k => {
-        if (g[k] === sub_player_id) g[k] = absent_player_id;
+        if (String(g[k]) === subId) g[k] = absent_player_id;
       });
     }
     g.updated_at = nowStamp_();
